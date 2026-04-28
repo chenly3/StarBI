@@ -11,18 +11,12 @@
 *.swp
 *.swo
 
-# Codex / local agent state
+# Local agent state
 .omx/
 .claude/
 .superpowers/
-.codex/*
-!.codex/agents/
-!.codex/agents/**
-!.codex/skills/
-!.codex/skills/**
-.codex/skills/.system/**
-!.codex/prompts/
-!.codex/prompts/**
+.codex/
+.github/instructions/
 state_5.sqlite*
 skills-lock.json
 
@@ -69,3 +63,9 @@ output/
 
 # Local verification screenshots at repository root
 /*.png
+/spec/img.png
+/dataease/task*.png
+/dataease/tmp*.png
+/dataease/*login*.png
+/dataease/*encoded*.png
+/dataease/direct-login-*.png
