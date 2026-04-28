@@ -27,7 +27,7 @@ services:
       - --max_connections=500
       - --default-time-zone=+08:00
     volumes:
-      - /data/starbi/mysql:/var/lib/mysql
+      - ${STARBI_DATA_DIR:-/data/starbi}/mysql:/var/lib/mysql
     networks:
       - starbi-net
     healthcheck:
@@ -46,7 +46,7 @@ services:
       <<: *common-env
     command: redis-server --requirepass ${REDIS_PASSWORD:-123456} --appendonly yes
     volumes:
-      - /data/starbi/redis:/data
+      - ${STARBI_DATA_DIR:-/data/starbi}/redis:/data
     networks:
       - starbi-net
     healthcheck:
@@ -66,7 +66,7 @@ services:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Password123@pg}
     volumes:
-      - /data/starbi/postgres:/var/lib/postgresql/data
+      - ${STARBI_DATA_DIR:-/data/starbi}/postgres:/var/lib/postgresql/data
     networks:
       - starbi-net
     healthcheck:
@@ -86,7 +86,7 @@ services:
       ALLOW_NONE_AUTHENTICATION: "yes"
       ETCD_ADVERTISE_CLIENT_URLS: "http://starbi-etcd:2379"
     volumes:
-      - /data/starbi/etcd:/bitnami/etcd
+      - ${STARBI_DATA_DIR:-/data/starbi}/etcd:/bitnami/etcd
     networks:
       - starbi-net
     healthcheck:
@@ -110,8 +110,8 @@ services:
       - "${STARBI_HTTP_PORT:-9080}:9080"   # HTTP 入口
       - "127.0.0.1:${APISIX_ADMIN_PORT:-9180}:9180"   # Admin API (仅本机)
     volumes:
-      - /data/starbi/config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
-      - /data/starbi/apisix/logs:/usr/local/apisix/logs
+      - ./config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ${STARBI_DATA_DIR:-/data/starbi}/apisix/logs:/usr/local/apisix/logs
     depends_on:
       starbi-etcd:
         condition: service_healthy
@@ -149,13 +149,13 @@ services:
         -Dspring.config.additional-location=/opt/apps/config/
         -Xms512m -Xmx2048m
     volumes:
-      - /data/starbi/config/dataease/application.yml:/opt/apps/config/application.yml:ro
-      - /data/starbi/dataease/logs:/opt/dataease2.0/logs
-      - /data/starbi/dataease/cache:/opt/dataease2.0/cache
-      - /data/starbi/dataease/static-resource:/opt/dataease2.0/data/static-resource
-      - /data/starbi/dataease/exportData:/opt/dataease2.0/data/exportData
-      - /data/starbi/dataease/appearance:/opt/dataease2.0/data/appearance
-      - /data/starbi/dataease/plugin:/opt/dataease2.0/data/plugin
+      - ./config/dataease/application.yml:/opt/apps/config/application.yml:ro
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/logs:/opt/dataease2.0/logs
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/cache:/opt/dataease2.0/cache
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/static-resource:/opt/dataease2.0/data/static-resource
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/exportData:/opt/dataease2.0/data/exportData
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/appearance:/opt/dataease2.0/data/appearance
+      - ${STARBI_DATA_DIR:-/data/starbi}/dataease/plugin:/opt/dataease2.0/data/plugin
     depends_on:
       starbi-mysql:
         condition: service_healthy
@@ -205,10 +205,10 @@ services:
       UPLOAD_DIR: /opt/sqlbot/data/file
       EXCEL_PATH: /opt/sqlbot/data/excel
     volumes:
-      - /data/starbi/sqlbot/excel:/opt/sqlbot/data/excel
-      - /data/starbi/sqlbot/file:/opt/sqlbot/data/file
-      - /data/starbi/sqlbot/images:/opt/sqlbot/images
-      - /data/starbi/sqlbot/logs:/opt/sqlbot/app/logs
+      - ${STARBI_DATA_DIR:-/data/starbi}/sqlbot/excel:/opt/sqlbot/data/excel
+      - ${STARBI_DATA_DIR:-/data/starbi}/sqlbot/file:/opt/sqlbot/data/file
+      - ${STARBI_DATA_DIR:-/data/starbi}/sqlbot/images:/opt/sqlbot/images
+      - ${STARBI_DATA_DIR:-/data/starbi}/sqlbot/logs:/opt/sqlbot/app/logs
     expose:
       - "8000"   # 主 API
       - "8001"   # MCP 服务
@@ -237,8 +237,8 @@ services:
   #       -Dspring.config.additional-location=/opt/apps/config/
   #       -Xms256m -Xmx1024m
   #   volumes:
-  #     - /data/starbi/config/dataease/application.yml:/opt/apps/config/application.yml:ro
-  #     - /data/starbi/dataease/logs:/opt/dataease2.0/logs
+  #     - ./config/dataease/application.yml:/opt/apps/config/application.yml:ro
+  #     - ${STARBI_DATA_DIR:-/data/starbi}/dataease/logs:/opt/dataease2.0/logs
   #   networks:
   #     - starbi-net
 
@@ -252,7 +252,7 @@ services:
   #     CONCURRENCY: "4"
   #     TIMEOUT: "30000"
   #   volumes:
-  #     - /data/starbi/playwright/logs:/opt/app/logs
+  #     - ${STARBI_DATA_DIR:-/data/starbi}/playwright/logs:/opt/app/logs
   #   networks:
   #     - starbi-net
 

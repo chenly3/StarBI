@@ -135,8 +135,8 @@ ls -lh releases/starbi-offline.tar.gz
 ## 5. 上传到远程服务器
 
 ```bash
-ssh user@SERVER_IP 'mkdir -p /data/starbi'
-scp releases/starbi-offline.tar.gz user@SERVER_IP:/data/starbi/
+ssh user@SERVER_IP 'mkdir -p /data/apps/starbi'
+scp releases/starbi-offline.tar.gz user@SERVER_IP:/data/apps/starbi/
 ```
 
 ## 6. 远程服务器解压
@@ -144,11 +144,11 @@ scp releases/starbi-offline.tar.gz user@SERVER_IP:/data/starbi/
 ```bash
 ssh user@SERVER_IP
 
-cd /data/starbi
+cd /data/apps/starbi
 tar -xzf starbi-offline.tar.gz --strip-components=1
 ```
 
-解压后 `/data/starbi` 里应该有：
+解压后 `/data/apps/starbi` 里应该有：
 
 ```text
 docker-compose.yml
@@ -160,7 +160,7 @@ images/starbi-images.tar.gz
 ## 7. 远程服务器加载镜像
 
 ```bash
-cd /data/starbi
+cd /data/apps/starbi
 gunzip -c images/starbi-images.tar.gz | docker load
 ```
 
@@ -171,6 +171,7 @@ gunzip -c images/starbi-images.tar.gz | docker load
 ```bash
 sed -i 's|^STARBI_PUBLIC_URL=.*|STARBI_PUBLIC_URL=http://SERVER_IP:9080|' .env
 sed -i 's|^SQLBOT_CORS_ORIGINS=.*|SQLBOT_CORS_ORIGINS=http://SERVER_IP:9080|' .env
+grep -q '^STARBI_DATA_DIR=' .env || echo 'STARBI_DATA_DIR=/data/starbi' >> .env
 ```
 
 然后启动：
@@ -194,7 +195,7 @@ http://SERVER_IP:9080
 ## 9. 常用命令
 
 ```bash
-cd /data/starbi
+cd /data/apps/starbi
 
 docker compose ps
 docker compose logs -f starbi-dataease
@@ -208,10 +209,10 @@ docker compose up -d --no-build
 离线包和 compose 文件放在：
 
 ```text
-/data/starbi
+/data/apps/starbi
 ```
 
-容器外持久化数据也放在：
+容器外持久化数据默认放在 `.env` 的 `STARBI_DATA_DIR`，默认值是：
 
 ```text
 /data/starbi/mysql
