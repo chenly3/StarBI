@@ -120,21 +120,21 @@ elif [[ -n "${STARBI_PUBLIC_URL:-}" ]]; then
 fi
 
 mkdir -p \
-  /data/starbi/mysql \
-  /data/starbi/redis \
-  /data/starbi/postgres \
-  /data/starbi/etcd \
-  /data/starbi/apisix/logs \
-  /data/starbi/dataease/logs \
-  /data/starbi/dataease/cache \
-  /data/starbi/dataease/static-resource \
-  /data/starbi/dataease/exportData \
-  /data/starbi/dataease/appearance \
-  /data/starbi/dataease/plugin \
-  /data/starbi/sqlbot/excel \
-  /data/starbi/sqlbot/file \
-  /data/starbi/sqlbot/images \
-  /data/starbi/sqlbot/logs
+  /data/app/starbi/mysql \
+  /data/app/starbi/redis \
+  /data/app/starbi/postgres \
+  /data/app/starbi/etcd \
+  /data/app/starbi/apisix/logs \
+  /data/app/starbi/dataease/logs \
+  /data/app/starbi/dataease/cache \
+  /data/app/starbi/dataease/static-resource \
+  /data/app/starbi/dataease/exportData \
+  /data/app/starbi/dataease/appearance \
+  /data/app/starbi/dataease/plugin \
+  /data/app/starbi/sqlbot/excel \
+  /data/app/starbi/sqlbot/file \
+  /data/app/starbi/sqlbot/images \
+  /data/app/starbi/sqlbot/logs
 
 IMAGE_ARCHIVE="$(ls -t images/starbi-images-*.tar.gz | head -n 1)"
 echo "Loading images from ${IMAGE_ARCHIVE} ..."
@@ -167,14 +167,14 @@ The SQLBot embedding model is baked into \`starbi-sqlbot:latest\` under
 \`/opt/sqlbot/models/embedding/iic/nlp_gte_sentence-embedding_chinese-base\`.
 Runtime data directories such as MySQL, PostgreSQL, Redis, uploads, logs, and
 exported files are not included in the package. Host-side bind mount directories
-are created under \`/data/starbi/\` on the target server.
+are created under \`/data/app/starbi/\` on the target server.
 
 ## Deploy
 
 \`\`\`bash
-mkdir -p /data/starbi
-tar -xzf /data/starbi/${PACKAGE_NAME}.tar.gz -C /data/starbi --strip-components=1
-cd /data/starbi
+mkdir -p /data/app/starbi
+tar -xzf /data/app/starbi/${PACKAGE_NAME}.tar.gz -C /data/app/starbi --strip-components=1
+cd /data/app/starbi
 STARBI_PUBLIC_URL=http://SERVER_IP:9080 ./deploy.sh
 \`\`\`
 
@@ -188,6 +188,6 @@ echo "Offline package created:"
 ls -lh "$PACKAGE_TAR"
 echo
 echo "Transfer example:"
-echo "  ssh user@server 'mkdir -p /data/starbi'"
-echo "  scp $PACKAGE_TAR user@server:/data/starbi/"
-echo "  ssh user@server 'tar -xzf /data/starbi/$(basename "$PACKAGE_TAR") -C /data/starbi --strip-components=1 && cd /data/starbi && STARBI_PUBLIC_URL=http://SERVER_IP:9080 ./deploy.sh'"
+echo "  ssh user@server 'mkdir -p /data/app/starbi'"
+echo "  scp $PACKAGE_TAR user@server:/data/app/starbi/"
+echo "  ssh user@server 'tar -xzf /data/app/starbi/$(basename "$PACKAGE_TAR") -C /data/app/starbi --strip-components=1 && cd /data/app/starbi && STARBI_PUBLIC_URL=http://SERVER_IP:9080 ./deploy.sh'"
