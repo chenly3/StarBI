@@ -1,0 +1,83 @@
+# ============================================================
+# StarBI - DataEase BI 平台镜像
+# 构建: docker build -f Dockerfile.dataease -t starbi-dataease:latest .
+# ============================================================
+
+# ---- Stage 1: 前端构建 ----
+FROM node:18-alpine AS frontend-builder
+ARG STARBI_VITE_LINT=false
+WORKDIR /build/dataease/core/core-frontend
+# 安装依赖
+COPY dataease/core/core-frontend/package*.json ./
+RUN npm ci --registry=https://registry.npmmirror.com
+# 复制前端源码 + de-xpack 商业模块（前端路由引用）
+COPY dataease/core/core-frontend/ ./
+COPY dataease/de-xpack/ ../../de-xpack/
+RUN STARBI_VITE_LINT=${STARBI_VITE_LINT} NODE_OPTIONS="--max_old_space_size=8192" npm run build:base
+
+# ---- Stage 2: 后端构建 ----
+FROM maven:3.9-eclipse-temurin-21-alpine AS backend-builder
+WORKDIR /build
+
+# Maven 3.9+ 默认屏蔽 HTTP 仓库，配置 mirror 绕过，同时用阿里云加速
+RUN mkdir -p /root/.m2 && echo '<settings><mirrors>\
+  <mirror><id>aliyun</id><mirrorOf>central</mirrorOf><url>https://maven.aliyun.com/repository/public</url></mirror>\
+  <mirror><id>java-net</id><mirrorOf>java.net,releases.java.net,shapshots.java.net,jvnet-nexus-staging,jvnet-nexus-snapshots</mirrorOf><url>https://maven.aliyun.com/repository/public</url></mirror>\
+  <mirror><id>netbeans</id><mirrorOf>netbeans</mirrorOf><url>https://maven.aliyun.com/repository/public</url></mirror>\
+</mirrors></settings>' > /root/.m2/settings.xml
+
+# 复制全部源码
+COPY dataease/ ./
+COPY --from=frontend-builder /build/dataease/core/core-frontend/dist ./core/core-frontend/dist
+
+# 根 POM 只声明了 sdk 模块，需要加入 core（否则 reactor 找不到）
+RUN sed -i 's|<module>sdk</module>|<module>sdk</module>\n        <module>core</module>|' pom.xml
+
+# core 模块声明了 core-frontend 子模块，但前端用 npm 构建，Maven 里不需要它。
+# 从 core/pom.xml 移除 core-frontend，避免 "Child module does not exist" 错误
+RUN sed -i '/<module>core-frontend<\/module>/d' core/pom.xml
+
+# 编译打包。Maven 依赖通过 BuildKit cache 复用，避免前端小改后重复慢速下载。
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -pl core/core-backend -am -DskipTests -B -q
+
+# ---- Stage 3: 运行时 ----
+FROM eclipse-temurin:21-jre
+LABEL org.starbi.service="dataease"
+LABEL org.starbi.version="2.10.20"
+
+ENV TZ=Asia/Shanghai
+ENV RUNNING_PORT=8100
+ENV JAVA_OPTIONS="-Dfile.encoding=utf-8 -Dloader.path=/opt/apps -Dspring.config.additional-location=/opt/apps/config/"
+
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/apps/config \
+    /opt/dataease2.0/drivers \
+    /opt/dataease2.0/cache \
+    /opt/dataease2.0/data/map \
+    /opt/dataease2.0/data/static-resource \
+    /opt/dataease2.0/data/appearance \
+    /opt/dataease2.0/data/exportData \
+    /opt/dataease2.0/data/excel \
+    /opt/dataease2.0/data/i18n \
+    /opt/dataease2.0/data/plugin \
+    /opt/dataease2.0/data/geo \
+    /opt/dataease2.0/data/font \
+    /opt/dataease2.0/logs/dataease \
+    /opt/dataease2.0/logs/sync-task
+
+COPY --from=backend-builder /build/core/core-backend/target/CoreApplication.jar /opt/apps/app.jar
+COPY dataease/drivers/ /opt/dataease2.0/drivers/
+COPY dataease/mapFiles/ /opt/dataease2.0/data/map/
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=20 --start-period=60s \
+    CMD curl -f http://localhost:${RUNNING_PORT}/actuator/health || exit 1
+
+EXPOSE 8100
+
+CMD ["sh", "-c", "java ${JAVA_OPTIONS} -jar /opt/apps/app.jar"]

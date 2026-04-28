@@ -1,0 +1,82 @@
+- generic [ref=e2]:
+  - generic [ref=e3]: User Management Regression Harness
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - heading "用户管理" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e9]:
+      - button "用户" [ref=e10] [cursor=pointer]
+      - button "角色" [ref=e11] [cursor=pointer]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: 关键字
+          - textbox "关键字" [ref=e16]:
+            - /placeholder: 搜索姓名、账号、邮箱
+        - button "查询" [ref=e17] [cursor=pointer]
+        - button "添加用户" [ref=e18] [cursor=pointer]
+        - button "批量导入" [ref=e19] [cursor=pointer]
+      - generic [ref=e20]:
+        - table [ref=e21]:
+          - rowgroup [ref=e22]:
+            - row "姓名 账号 角色 邮箱 用户来源 启用状态 创建时间 操作" [ref=e23]:
+              - columnheader "姓名" [ref=e24]
+              - columnheader "账号" [ref=e25]
+              - columnheader "角色" [ref=e26]
+              - columnheader "邮箱" [ref=e27]
+              - columnheader "用户来源" [ref=e28]
+              - columnheader "启用状态" [ref=e29]
+              - columnheader "创建时间" [ref=e30]
+              - columnheader "操作" [ref=e31]
+          - rowgroup [ref=e32]:
+            - row "管理员 admin 系统管理员 admin@starbi.local 系统 启用 2026/4/18 09:30:00 编辑 禁用 重置密码 删除" [ref=e33]:
+              - cell "管理员" [ref=e34]
+              - cell "admin" [ref=e35]
+              - cell "系统管理员" [ref=e36]
+              - cell "admin@starbi.local" [ref=e37]
+              - cell "系统" [ref=e38]
+              - cell "启用" [ref=e39]
+              - cell "2026/4/18 09:30:00" [ref=e40]
+              - cell "编辑 禁用 重置密码 删除" [ref=e41]:
+                - button "编辑" [ref=e42] [cursor=pointer]
+                - button "禁用" [ref=e43] [cursor=pointer]
+                - button "重置密码" [ref=e44] [cursor=pointer]
+                - button "删除" [ref=e45] [cursor=pointer]
+            - row "张运维 ops_zhang 组织管理员 ops_zhang@starbi.local 系统 启用 2026/4/18 10:00:00 编辑 禁用 重置密码 删除" [ref=e46]:
+              - cell "张运维" [ref=e47]
+              - cell "ops_zhang" [ref=e48]
+              - cell "组织管理员" [ref=e49]
+              - cell "ops_zhang@starbi.local" [ref=e50]
+              - cell "系统" [ref=e51]
+              - cell "启用" [ref=e52]
+              - cell "2026/4/18 10:00:00" [ref=e53]
+              - cell "编辑 禁用 重置密码 删除" [ref=e54]:
+                - button "编辑" [ref=e55] [cursor=pointer]
+                - button "禁用" [ref=e56] [cursor=pointer]
+                - button "重置密码" [ref=e57] [cursor=pointer]
+                - button "删除" [ref=e58] [cursor=pointer]
+            - row "李分析 analyst_li 分析师 analyst_li@starbi.local 系统 禁用 2026/4/18 11:15:00 编辑 启用 重置密码 删除" [ref=e59]:
+              - cell "李分析" [ref=e60]
+              - cell "analyst_li" [ref=e61]
+              - cell "分析师" [ref=e62]
+              - cell "analyst_li@starbi.local" [ref=e63]
+              - cell "系统" [ref=e64]
+              - cell "禁用" [ref=e65]
+              - cell "2026/4/18 11:15:00" [ref=e66]
+              - cell "编辑 启用 重置密码 删除" [ref=e67]:
+                - button "编辑" [ref=e68] [cursor=pointer]
+                - button "启用" [ref=e69] [cursor=pointer]
+                - button "重置密码" [ref=e70] [cursor=pointer]
+                - button "删除" [ref=e71] [cursor=pointer]
+        - generic [ref=e72]:
+          - generic [ref=e73]: 共 3 条
+          - generic [ref=e74]:
+            - text: 每页
+            - combobox "每页" [ref=e75]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e76]
+          - generic [ref=e77]: 第 1 页
+          - button "下一页" [disabled] [ref=e78]

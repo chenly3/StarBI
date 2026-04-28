@@ -1,0 +1,97 @@
+- generic [ref=e21]:
+  - generic [ref=e22]: User Management Regression Harness
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - heading "用户管理" [level=1] [ref=e26]
+      - paragraph [ref=e27]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e28]:
+      - button "用户" [ref=e29] [cursor=pointer]
+      - button "角色" [ref=e30] [cursor=pointer]
+    - generic [ref=e367]:
+      - complementary [ref=e368]:
+        - generic [ref=e369]:
+          - heading "角色列表" [level=2] [ref=e370]
+          - button "创建自定义角色" [ref=e371] [cursor=pointer]
+        - list [ref=e372]:
+          - listitem [ref=e373]:
+            - button "系统管理员 系统" [ref=e374] [cursor=pointer]:
+              - generic [ref=e375]: 系统管理员
+              - generic [ref=e376]: 系统
+          - listitem [ref=e377]:
+            - button "组织管理员 系统" [ref=e378] [cursor=pointer]:
+              - generic [ref=e379]: 组织管理员
+              - generic [ref=e380]: 系统
+          - listitem [ref=e381]:
+            - button "分析师" [ref=e382] [cursor=pointer]:
+              - generic [ref=e383]: 分析师
+      - generic [ref=e384]:
+        - generic [ref=e385]:
+          - generic [ref=e386]:
+            - heading "系统管理员 成员" [level=2] [ref=e387]
+            - paragraph [ref=e388]: 支持在当前组织内为角色添加用户。
+          - button "添加组织用户" [active] [ref=e389] [cursor=pointer]
+        - generic [ref=e390]:
+          - textbox "搜索姓名、账号、邮箱" [ref=e391]
+          - button "查询" [ref=e392] [cursor=pointer]
+        - table [ref=e393]:
+          - rowgroup [ref=e394]:
+            - row "姓名 账号 邮箱 操作" [ref=e395]:
+              - columnheader "姓名" [ref=e396]
+              - columnheader "账号" [ref=e397]
+              - columnheader "邮箱" [ref=e398]
+              - columnheader "操作" [ref=e399]
+          - rowgroup [ref=e400]:
+            - row "管理员 admin admin@starbi.local 移除" [ref=e401]:
+              - cell "管理员" [ref=e402]
+              - cell "admin" [ref=e403]
+              - cell "admin@starbi.local" [ref=e404]
+              - cell "移除" [ref=e405]:
+                - button "移除" [ref=e406] [cursor=pointer]
+        - generic [ref=e407]:
+          - generic [ref=e408]: 共 1 条
+          - generic [ref=e409]:
+            - text: 每页
+            - combobox "每页" [ref=e410]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e411]
+          - generic [ref=e412]: 第 1 页
+          - button "下一页" [disabled] [ref=e413]
+      - generic [ref=e415]:
+        - heading "添加组织用户" [level=2] [ref=e417]
+        - generic [ref=e418]:
+          - textbox "搜索姓名、账号、邮箱" [ref=e419]
+          - button "查询" [ref=e420] [cursor=pointer]
+        - generic [ref=e421]:
+          - generic [ref=e422]:
+            - generic [ref=e423]:
+              - heading "可选用户" [level=3] [ref=e424]
+              - generic [ref=e425]: 3 人
+            - list [ref=e426]:
+              - listitem [ref=e427]:
+                - generic [ref=e428]:
+                  - strong [ref=e429]: 王人事
+                  - generic [ref=e430]: wang_hr
+                - button "添加" [ref=e431] [cursor=pointer]
+              - listitem [ref=e432]:
+                - generic [ref=e433]:
+                  - strong [ref=e434]: 陈财务
+                  - generic [ref=e435]: chen_fin
+                - button "添加" [ref=e436] [cursor=pointer]
+              - listitem [ref=e437]:
+                - generic [ref=e438]:
+                  - strong [ref=e439]: 孙销售
+                  - generic [ref=e440]: sun_sales
+                - button "添加" [ref=e441] [cursor=pointer]
+          - generic [ref=e442]:
+            - generic [ref=e443]:
+              - heading "已选用户" [level=3] [ref=e444]
+              - generic [ref=e445]: 0 人
+            - list [ref=e446]:
+              - listitem [ref=e447]: 暂无已选用户
+        - generic [ref=e448]:
+          - button "清空已选" [disabled] [ref=e449] [cursor=pointer]
+          - button "取消" [ref=e450] [cursor=pointer]
+          - button "确定" [disabled] [ref=e451] [cursor=pointer]

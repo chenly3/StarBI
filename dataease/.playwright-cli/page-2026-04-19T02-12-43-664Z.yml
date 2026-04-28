@@ -1,0 +1,103 @@
+- generic [ref=e21]:
+  - generic [ref=e22]: User Management Regression Harness
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - heading "用户管理" [level=1] [ref=e26]
+      - paragraph [ref=e27]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e28]:
+      - button "用户" [ref=e29] [cursor=pointer]
+      - button "角色" [ref=e30] [cursor=pointer]
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: 关键字
+          - textbox "关键字" [ref=e35]:
+            - /placeholder: 搜索姓名、账号、邮箱
+        - button "查询" [ref=e36] [cursor=pointer]
+        - button "添加用户" [ref=e37] [cursor=pointer]
+        - button "批量导入" [ref=e38] [cursor=pointer]
+      - generic [ref=e39]:
+        - table [ref=e40]:
+          - rowgroup [ref=e41]:
+            - row "姓名 账号 角色 邮箱 用户来源 启用状态 创建时间 操作" [ref=e42]:
+              - columnheader "姓名" [ref=e43]
+              - columnheader "账号" [ref=e44]
+              - columnheader "角色" [ref=e45]
+              - columnheader "邮箱" [ref=e46]
+              - columnheader "用户来源" [ref=e47]
+              - columnheader "启用状态" [ref=e48]
+              - columnheader "创建时间" [ref=e49]
+              - columnheader "操作" [ref=e50]
+          - rowgroup [ref=e51]:
+            - row "导入用户 import_user 分析师 import_user@starbi.local 系统 启用 2026/4/19 10:12:26 编辑 禁用 重置密码 删除" [ref=e305]:
+              - cell "导入用户" [ref=e306]
+              - cell "import_user" [ref=e307]
+              - cell "分析师" [ref=e308]
+              - cell "import_user@starbi.local" [ref=e309]
+              - cell "系统" [ref=e310]
+              - cell "启用" [ref=e311]
+              - cell "2026/4/19 10:12:26" [ref=e312]
+              - cell "编辑 禁用 重置密码 删除" [ref=e313]:
+                - button "编辑" [ref=e314] [cursor=pointer]
+                - button "禁用" [ref=e315] [cursor=pointer]
+                - button "重置密码" [ref=e316] [cursor=pointer]
+                - button "删除" [ref=e317] [cursor=pointer]
+            - row "回归用户一 qa_user_01 分析师 qa_user_01@starbi.local 系统 启用 2026/4/19 10:07:42 编辑 禁用 重置密码 删除" [ref=e318]:
+              - cell "回归用户一" [ref=e319]
+              - cell "qa_user_01" [ref=e320]
+              - cell "分析师" [ref=e321]
+              - cell "qa_user_01@starbi.local" [ref=e322]
+              - cell "系统" [ref=e323]
+              - cell "启用" [ref=e324]
+              - cell "2026/4/19 10:07:42" [ref=e325]
+              - cell "编辑 禁用 重置密码 删除" [ref=e326]:
+                - button "编辑" [ref=e327] [cursor=pointer]
+                - button "禁用" [ref=e328] [cursor=pointer]
+                - button "重置密码" [ref=e329] [cursor=pointer]
+                - button "删除" [ref=e330] [cursor=pointer]
+            - row "管理员 admin 系统管理员 admin@starbi.local 系统 启用 2026/4/18 09:30:00 编辑 禁用 重置密码 删除" [ref=e331]:
+              - cell "管理员" [ref=e332]
+              - cell "admin" [ref=e333]
+              - cell "系统管理员" [ref=e334]
+              - cell "admin@starbi.local" [ref=e335]
+              - cell "系统" [ref=e336]
+              - cell "启用" [ref=e337]
+              - cell "2026/4/18 09:30:00" [ref=e338]
+              - cell "编辑 禁用 重置密码 删除" [ref=e339]:
+                - button "编辑" [ref=e340] [cursor=pointer]
+                - button "禁用" [ref=e341] [cursor=pointer]
+                - button "重置密码" [ref=e342] [cursor=pointer]
+                - button "删除" [ref=e343] [cursor=pointer]
+            - row "张运维 ops_zhang 组织管理员 ops_zhang@starbi.local 系统 启用 2026/4/18 10:00:00 编辑 禁用 重置密码 删除" [ref=e344]:
+              - cell "张运维" [ref=e345]
+              - cell "ops_zhang" [ref=e346]
+              - cell "组织管理员" [ref=e347]
+              - cell "ops_zhang@starbi.local" [ref=e348]
+              - cell "系统" [ref=e349]
+              - cell "启用" [ref=e350]
+              - cell "2026/4/18 10:00:00" [ref=e351]
+              - cell "编辑 禁用 重置密码 删除" [ref=e352]:
+                - button "编辑" [ref=e353] [cursor=pointer]
+                - button "禁用" [ref=e354] [cursor=pointer]
+                - button "重置密码" [ref=e355] [cursor=pointer]
+                - button "删除" [ref=e356] [cursor=pointer]
+        - generic [ref=e91]:
+          - generic [ref=e92]: 共 4 条
+          - generic [ref=e93]:
+            - text: 每页
+            - combobox "每页" [ref=e94]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e95]
+          - generic [ref=e96]: 第 1 页
+          - button "下一页" [disabled] [ref=e97]
+      - generic [ref=e358]:
+        - heading "导入结果" [level=2] [ref=e360]
+        - paragraph [ref=e361]: 成功：1
+        - paragraph [ref=e362]: 失败：1
+        - generic [ref=e363]:
+          - button "下载错误报告" [ref=e364] [cursor=pointer]
+          - button "返回用户列表" [ref=e365] [cursor=pointer]
+          - button "继续导入" [ref=e366] [cursor=pointer]

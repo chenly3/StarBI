@@ -1,0 +1,15 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - img [ref=e7]
+    - generic [ref=e10]:
+      - generic [ref=e19]: StarBI
+      - generic [ref=e20]: 人人可用的开源 BI 工具
+      - generic [ref=e22]:
+        - generic [ref=e23]: 账号登录
+        - textbox "账号/邮箱" [ref=e28]: admin
+        - generic [ref=e32]:
+          - textbox "密码" [ref=e33]: DataEase@123456
+          - img [ref=e39] [cursor=pointer]
+        - button "登录" [disabled] [ref=e35]:
+          - generic [ref=e36]: 登录
+  - img [ref=e43]

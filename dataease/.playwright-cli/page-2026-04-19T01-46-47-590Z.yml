@@ -1,0 +1,39 @@
+- generic [ref=e244]:
+  - banner [ref=e245]:
+    - button "StarBI" [ref=e247] [cursor=pointer]:
+      - generic [ref=e248]: StarBI
+    - generic [ref=e255]: 系统设置
+    - generic [ref=e256]:
+      - button "返回工作台" [ref=e257] [cursor=pointer]:
+        - img [ref=e259]
+        - generic [ref=e261]: 返回工作台
+      - generic [ref=e262] [cursor=pointer]:
+        - img [ref=e264]
+        - generic [ref=e269]: 管理员
+        - img [ref=e271]
+  - generic [ref=e273]:
+    - complementary [ref=e274]:
+      - menubar [ref=e275]:
+        - menuitem "通用配置" [ref=e276] [cursor=pointer]:
+          - img [ref=e278]
+          - generic [ref=e281]: 通用配置
+        - menuitem "字体管理" [ref=e282] [cursor=pointer]:
+          - img [ref=e284]
+          - generic [ref=e287]: 字体管理
+    - generic [ref=e289] [cursor=pointer]:
+      - img [ref=e291]
+      - text: 收起导航
+    - main [ref=e294]:
+      - generic [ref=e295]:
+        - generic [ref=e296]:
+          - button "AI 模型配置" [ref=e297] [cursor=pointer]
+          - button "术语配置" [ref=e298] [cursor=pointer]
+          - button "SQL 示例库" [ref=e299] [cursor=pointer]
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - generic [ref=e304]: 连接中
+            - generic [ref=e305]: 正在校验访问令牌并初始化嵌入页面，请稍候。
+          - iframe [ref=e306]:
+            - generic [ref=f4e3]:
+              - strong [ref=f4e4]: localhost
+              - text: 拒绝了我们的连接请求。

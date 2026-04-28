@@ -1,0 +1,45 @@
+- generic [ref=e2]:
+  - generic [ref=e3]: User Management Regression Harness
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - heading "用户管理" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e9]:
+      - button "用户" [ref=e10] [cursor=pointer]
+      - button "角色" [ref=e11] [cursor=pointer]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: 关键字
+          - textbox "关键字" [ref=e16]:
+            - /placeholder: 搜索姓名、账号、邮箱
+        - button "查询" [ref=e17] [cursor=pointer]
+        - button "添加用户" [ref=e18] [cursor=pointer]
+        - button "批量导入" [ref=e19] [cursor=pointer]
+      - generic [ref=e20]:
+        - table [ref=e21]:
+          - rowgroup [ref=e22]:
+            - row "姓名 账号 角色 邮箱 用户来源 启用状态 创建时间 操作" [ref=e23]:
+              - columnheader "姓名" [ref=e24]
+              - columnheader "账号" [ref=e25]
+              - columnheader "角色" [ref=e26]
+              - columnheader "邮箱" [ref=e27]
+              - columnheader "用户来源" [ref=e28]
+              - columnheader "启用状态" [ref=e29]
+              - columnheader "创建时间" [ref=e30]
+              - columnheader "操作" [ref=e31]
+          - rowgroup [ref=e32]:
+            - row "暂无数据" [ref=e33]:
+              - cell "暂无数据" [ref=e34]
+        - generic [ref=e35]:
+          - generic [ref=e36]: 共 3 条
+          - generic [ref=e37]:
+            - text: 每页
+            - combobox "每页" [ref=e38]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e39]
+          - generic [ref=e40]: 第 1 页
+          - button "下一页" [disabled] [ref=e41]

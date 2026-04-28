@@ -1,0 +1,262 @@
+# ============================================================
+# StarBI - 智能问数 + BI 融合平台
+# 部署: docker compose up -d --no-build
+# 访问: http://<服务器IP>:9080
+# ============================================================
+
+x-common-env: &common-env
+  TZ: Asia/Shanghai
+
+services:
+  # ============================================================
+  # 基础中间件
+  # ============================================================
+
+  # MySQL 8.4 - DataEase 主数据库
+  starbi-mysql:
+    image: mysql:8.4
+    container_name: starbi-mysql
+    restart: always
+    environment:
+      <<: *common-env
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Password123@mysql}
+      MYSQL_DATABASE: dataease
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --max_connections=500
+      - --default-time-zone=+08:00
+    volumes:
+      - /data/starbi/mysql:/var/lib/mysql
+    networks:
+      - starbi-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p'${MYSQL_ROOT_PASSWORD:-Password123@mysql}'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  # Redis - DataEase 缓存
+  starbi-redis:
+    image: redis:7-alpine
+    container_name: starbi-redis
+    restart: always
+    environment:
+      <<: *common-env
+    command: redis-server --requirepass ${REDIS_PASSWORD:-123456} --appendonly yes
+    volumes:
+      - /data/starbi/redis:/data
+    networks:
+      - starbi-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD:-123456}' ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # PostgreSQL 17 + pgvector - SQLBot 主数据库 + 向量存储
+  starbi-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: starbi-postgres
+    restart: always
+    environment:
+      <<: *common-env
+      POSTGRES_DB: sqlbot
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Password123@pg}
+    volumes:
+      - /data/starbi/postgres:/var/lib/postgresql/data
+    networks:
+      - starbi-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d sqlbot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # etcd - APISIX 配置存储
+  starbi-etcd:
+    image: bitnamilegacy/etcd:3.5.21-debian-12-r6
+    container_name: starbi-etcd
+    restart: always
+    environment:
+      <<: *common-env
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: "http://starbi-etcd:2379"
+    volumes:
+      - /data/starbi/etcd:/bitnami/etcd
+    networks:
+      - starbi-net
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ============================================================
+  # API 网关
+  # ============================================================
+
+  # APISIX - 统一入口网关
+  starbi-apisix:
+    image: apache/apisix:3.14.1-debian
+    container_name: starbi-apisix
+    restart: always
+    environment:
+      <<: *common-env
+    ports:
+      - "${STARBI_HTTP_PORT:-9080}:9080"   # HTTP 入口
+      - "127.0.0.1:${APISIX_ADMIN_PORT:-9180}:9180"   # Admin API (仅本机)
+    volumes:
+      - /data/starbi/config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - /data/starbi/apisix/logs:/usr/local/apisix/logs
+    depends_on:
+      starbi-etcd:
+        condition: service_healthy
+    networks:
+      - starbi-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ============================================================
+  # StarBI 核心服务
+  # ============================================================
+
+  # DataEase BI 平台
+  starbi-dataease:
+    build:
+      context: .
+      dockerfile: Dockerfile.dataease
+    image: starbi-dataease:latest
+    container_name: starbi-dataease
+    restart: always
+    environment:
+      <<: *common-env
+      RUNNING_PORT: "8100"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Password123@mysql}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-123456}
+      STARBI_PUBLIC_URL: ${STARBI_PUBLIC_URL:-http://localhost:9080}
+      SQLBOT_API_BASE: ${SQLBOT_API_BASE:-http://starbi-sqlbot:8000/api/v1}
+      JAVA_OPTIONS: >-
+        -Dfile.encoding=utf-8
+        -Dloader.path=/opt/apps
+        -Dspring.config.additional-location=/opt/apps/config/
+        -Xms512m -Xmx2048m
+    volumes:
+      - /data/starbi/config/dataease/application.yml:/opt/apps/config/application.yml:ro
+      - /data/starbi/dataease/logs:/opt/dataease2.0/logs
+      - /data/starbi/dataease/cache:/opt/dataease2.0/cache
+      - /data/starbi/dataease/static-resource:/opt/dataease2.0/data/static-resource
+      - /data/starbi/dataease/exportData:/opt/dataease2.0/data/exportData
+      - /data/starbi/dataease/appearance:/opt/dataease2.0/data/appearance
+      - /data/starbi/dataease/plugin:/opt/dataease2.0/data/plugin
+    depends_on:
+      starbi-mysql:
+        condition: service_healthy
+      starbi-redis:
+        condition: service_healthy
+    networks:
+      - starbi-net
+
+  # SQLBot 智能问数引擎
+  starbi-sqlbot:
+    build:
+      context: .
+      dockerfile: Dockerfile.sqlbot
+    image: starbi-sqlbot:latest
+    container_name: starbi-sqlbot
+    restart: always
+    environment:
+      <<: *common-env
+      # PostgreSQL
+      POSTGRES_SERVER: starbi-postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: sqlbot
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Password123@pg}
+      # Redis (可选，默认 memory)
+      CACHE_TYPE: memory
+      # 认证
+      SECRET_KEY: ${SQLBOT_SECRET_KEY:-y5txe1mRmS_JpOrUzFzHEu-kIQn3lf7ll0AOv9DQh0s}
+      PROJECT_NAME: StarBI
+      DEFAULT_PWD: ${SQLBOT_DEFAULT_PWD:-SQLBot@123456}
+      # CORS
+      BACKEND_CORS_ORIGINS: ${SQLBOT_CORS_ORIGINS:-http://localhost:9080,http://127.0.0.1:9080}
+      FRONTEND_HOST: ${STARBI_PUBLIC_URL:-http://localhost:9080}
+      # Embedding
+      EMBEDDING_ENABLED: "true"
+      TABLE_EMBEDDING_ENABLED: "true"
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      DEFAULT_EMBEDDING_MODEL: ${DEFAULT_EMBEDDING_MODEL:-iic/nlp_gte_sentence-embedding_chinese-base}
+      LOCAL_MODEL_PATH: /opt/sqlbot/models
+      # 图表渲染
+      MCP_IMAGE_HOST: http://localhost:8001
+      SERVER_IMAGE_HOST: http://starbi-sqlbot:8001/images/
+      # 日志
+      LOG_LEVEL: INFO
+      SQL_DEBUG: "false"
+      # 上传
+      UPLOAD_DIR: /opt/sqlbot/data/file
+      EXCEL_PATH: /opt/sqlbot/data/excel
+    volumes:
+      - /data/starbi/sqlbot/excel:/opt/sqlbot/data/excel
+      - /data/starbi/sqlbot/file:/opt/sqlbot/data/file
+      - /data/starbi/sqlbot/images:/opt/sqlbot/images
+      - /data/starbi/sqlbot/logs:/opt/sqlbot/app/logs
+    expose:
+      - "8000"   # 主 API
+      - "8001"   # MCP 服务
+      - "3000"   # g2-ssr 图表渲染
+    depends_on:
+      starbi-postgres:
+        condition: service_healthy
+    networks:
+      - starbi-net
+
+  # ============================================================
+  # 可选服务
+  # ============================================================
+
+  # DataEase 数据同步任务 (可选)
+  # starbi-sync-task:
+  #   image: starbi-dataease:latest
+  #   container_name: starbi-sync-task
+  #   restart: always
+  #   <<: *common-env
+  #   environment:
+  #     RUNNING_PORT: "9001"
+  #     JAVA_OPTIONS: >-
+  #       -Dfile.encoding=utf-8
+  #       -Dspring.profiles.active=sync-task
+  #       -Dspring.config.additional-location=/opt/apps/config/
+  #       -Xms256m -Xmx1024m
+  #   volumes:
+  #     - /data/starbi/config/dataease/application.yml:/opt/apps/config/application.yml:ro
+  #     - /data/starbi/dataease/logs:/opt/dataease2.0/logs
+  #   networks:
+  #     - starbi-net
+
+  # Playwright 报表截图 (可选，需要仪表板导出功能时启用)
+  # starbi-playwright:
+  #   image: browserless/chrome:latest
+  #   container_name: starbi-playwright
+  #   restart: always
+  #   <<: *common-env
+  #   environment:
+  #     CONCURRENCY: "4"
+  #     TIMEOUT: "30000"
+  #   volumes:
+  #     - /data/starbi/playwright/logs:/opt/app/logs
+  #   networks:
+  #     - starbi-net
+
+networks:
+  starbi-net:
+    name: starbi-net
+    driver: bridge

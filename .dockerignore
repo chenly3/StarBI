@@ -1,0 +1,76 @@
+# StarBI Docker Build
+# 忽略不需要打包到镜像的文件
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+**/.git/
+.gitignore
+.gitmodules
+
+# Node
+**/node_modules/
+**/.npm/
+**/dist/
+
+# Python
+**/.venv/
+**/__pycache__/
+**/.uv-cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.pyc
+
+# Java
+**/target/
+**/*.class
+**/.mvn/
+
+# Data (使用 volume 挂载)
+data/
+docker-images/
+releases/
+
+# Local archives / installer packages
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.tar.bz2
+**/*.tbz2
+**/*.tar.xz
+**/*.txz
+**/*.7z
+**/*.rar
+**/*.dmg
+**/*.iso
+**/*.pkg
+**/*.deb
+**/*.rpm
+**/*.apk
+**/*.whl
+**/*.egg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+**/logs/
+
+# Playwright / Selenium
+.playwright-cli/
+selenium/
+
+# graphify
+graphify-out/
+
+# Tmp
+tmp/
+output/

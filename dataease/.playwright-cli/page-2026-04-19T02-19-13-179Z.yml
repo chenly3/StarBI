@@ -1,0 +1,60 @@
+- generic [ref=e2]:
+  - generic [ref=e3]: User Management Regression Harness
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - heading "用户管理" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e9]:
+      - button "用户" [ref=e10] [cursor=pointer]
+      - button "角色" [ref=e11] [cursor=pointer]
+    - generic [ref=e79]:
+      - complementary [ref=e80]:
+        - generic [ref=e81]:
+          - heading "角色列表" [level=2] [ref=e82]
+          - button "创建自定义角色" [ref=e83] [cursor=pointer]
+        - list [ref=e148]:
+          - listitem [ref=e149]:
+            - button "系统管理员 系统" [ref=e150] [cursor=pointer]:
+              - generic [ref=e151]: 系统管理员
+              - generic [ref=e152]: 系统
+          - listitem [ref=e153]:
+            - button "组织管理员 系统" [ref=e154] [cursor=pointer]:
+              - generic [ref=e155]: 组织管理员
+              - generic [ref=e156]: 系统
+          - listitem [ref=e157]:
+            - button "分析师" [ref=e158] [cursor=pointer]:
+              - generic [ref=e159]: 分析师
+          - listitem [ref=e160]:
+            - button "审计角色" [ref=e161] [cursor=pointer]:
+              - generic [ref=e162]: 审计角色
+      - generic [ref=e96]:
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - heading "审计角色 成员" [level=2] [ref=e163]
+            - paragraph [ref=e100]: 支持在当前组织内为角色添加用户。
+          - button "添加组织用户" [ref=e101] [cursor=pointer]
+        - generic [ref=e102]:
+          - textbox "搜索姓名、账号、邮箱" [ref=e103]
+          - button "查询" [ref=e104] [cursor=pointer]
+        - table [ref=e105]:
+          - rowgroup [ref=e106]:
+            - row "姓名 账号 邮箱 操作" [ref=e107]:
+              - columnheader "姓名" [ref=e108]
+              - columnheader "账号" [ref=e109]
+              - columnheader "邮箱" [ref=e110]
+              - columnheader "操作" [ref=e111]
+          - rowgroup [ref=e112]:
+            - row "暂无成员" [ref=e164]:
+              - cell "暂无成员" [ref=e165]
+        - generic [ref=e119]:
+          - generic [ref=e120]: 共 0 条
+          - generic [ref=e121]:
+            - text: 每页
+            - combobox "每页" [ref=e122]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e123]
+          - generic [ref=e124]: 第 1 页
+          - button "下一页" [disabled] [ref=e125]

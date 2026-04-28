@@ -1,0 +1,92 @@
+- generic [ref=e21]:
+  - generic [ref=e22]: User Management Regression Harness
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - heading "用户管理" [level=1] [ref=e26]
+      - paragraph [ref=e27]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e28]:
+      - button "用户" [ref=e29] [cursor=pointer]
+      - button "角色" [ref=e30] [cursor=pointer]
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: 关键字
+          - textbox "关键字" [ref=e35]:
+            - /placeholder: 搜索姓名、账号、邮箱
+        - button "查询" [ref=e36] [cursor=pointer]
+        - button "添加用户" [ref=e37] [cursor=pointer]
+        - button "批量导入" [ref=e38] [cursor=pointer]
+      - generic [ref=e39]:
+        - table [ref=e40]:
+          - rowgroup [ref=e41]:
+            - row "姓名 账号 角色 邮箱 用户来源 启用状态 创建时间 操作" [ref=e42]:
+              - columnheader "姓名" [ref=e43]
+              - columnheader "账号" [ref=e44]
+              - columnheader "角色" [ref=e45]
+              - columnheader "邮箱" [ref=e46]
+              - columnheader "用户来源" [ref=e47]
+              - columnheader "启用状态" [ref=e48]
+              - columnheader "创建时间" [ref=e49]
+              - columnheader "操作" [ref=e50]
+          - rowgroup [ref=e51]:
+            - row "回归用户一 qa_user_01 分析师 qa_user_01@starbi.local 系统 启用 2026/4/19 10:07:42 编辑 禁用 重置密码 删除" [ref=e253]:
+              - cell "回归用户一" [ref=e254]
+              - cell "qa_user_01" [ref=e255]
+              - cell "分析师" [ref=e256]
+              - cell "qa_user_01@starbi.local" [ref=e257]
+              - cell "系统" [ref=e258]
+              - cell "启用" [ref=e259]
+              - cell "2026/4/19 10:07:42" [ref=e260]
+              - cell "编辑 禁用 重置密码 删除" [ref=e261]:
+                - button "编辑" [ref=e262] [cursor=pointer]
+                - button "禁用" [ref=e263] [cursor=pointer]
+                - button "重置密码" [ref=e264] [cursor=pointer]
+                - button "删除" [ref=e265] [cursor=pointer]
+            - row "管理员 admin 系统管理员 admin@starbi.local 系统 启用 2026/4/18 09:30:00 编辑 禁用 重置密码 删除" [ref=e266]:
+              - cell "管理员" [ref=e267]
+              - cell "admin" [ref=e268]
+              - cell "系统管理员" [ref=e269]
+              - cell "admin@starbi.local" [ref=e270]
+              - cell "系统" [ref=e271]
+              - cell "启用" [ref=e272]
+              - cell "2026/4/18 09:30:00" [ref=e273]
+              - cell "编辑 禁用 重置密码 删除" [ref=e274]:
+                - button "编辑" [ref=e275] [cursor=pointer]
+                - button "禁用" [ref=e276] [cursor=pointer]
+                - button "重置密码" [ref=e277] [cursor=pointer]
+                - button "删除" [ref=e278] [cursor=pointer]
+            - row "张运维 ops_zhang 组织管理员 ops_zhang@starbi.local 系统 启用 2026/4/18 10:00:00 编辑 禁用 重置密码 删除" [ref=e279]:
+              - cell "张运维" [ref=e280]
+              - cell "ops_zhang" [ref=e281]
+              - cell "组织管理员" [ref=e282]
+              - cell "ops_zhang@starbi.local" [ref=e283]
+              - cell "系统" [ref=e284]
+              - cell "启用" [ref=e285]
+              - cell "2026/4/18 10:00:00" [ref=e286]
+              - cell "编辑 禁用 重置密码 删除" [ref=e287]:
+                - button "编辑" [ref=e288] [cursor=pointer]
+                - button "禁用" [ref=e289] [cursor=pointer]
+                - button "重置密码" [ref=e290] [cursor=pointer]
+                - button "删除" [ref=e291] [cursor=pointer]
+        - generic [ref=e91]:
+          - generic [ref=e92]: 共 3 条
+          - generic [ref=e93]:
+            - text: 每页
+            - combobox "每页" [ref=e94]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e95]
+          - generic [ref=e96]: 第 1 页
+          - button "下一页" [disabled] [ref=e97]
+      - generic [ref=e293]:
+        - heading "批量导入用户" [level=2] [ref=e295]
+        - button "下载模板" [active] [ref=e296] [cursor=pointer]
+        - generic [ref=e297]:
+          - generic [ref=e298]: 导入文件
+          - button "导入文件" [ref=e299]
+        - paragraph [ref=e300]: 仅支持 Excel 文件，文件大小不超过 10M。
+        - generic [ref=e301]:
+          - button "取消" [ref=e302] [cursor=pointer]
+          - button "开始导入" [disabled] [ref=e303]

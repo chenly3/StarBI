@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex SQLBot Dialog Harness</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+        background: #e2e8f0;
+      }
+
+      .toolbar {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 999999;
+        display: flex;
+        gap: 8px;
+      }
+
+      .toolbar button {
+        height: 36px;
+        border: none;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #fff;
+        padding: 0 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      const mockState = {
+        detailFailure: false
+      }
+
+      const originalXhr = window.XMLHttpRequest
+
+      class MockXMLHttpRequest extends EventTarget {
+        constructor() {
+          super()
+          this.inner = null
+          this.method = 'GET'
+          this.url = ''
+          this.async = true
+          this.requestHeaders = {}
+          this.readyState = 0
+          this.status = 0
+          this.statusText = ''
+          this.responseType = ''
+          this.response = null
+          this.responseText = ''
+          this.onreadystatechange = null
+          this.onload = null
+          this.onloadend = null
+          this.onerror = null
+          this.timeout = 0
+          this.withCredentials = false
+          this.upload = new EventTarget()
+        }
+
+        open(method, url, async = true) {
+          this.method = method
+          this.url = url
+          this.async = async !== false
+          this.readyState = 1
+        }
+
+        setRequestHeader(key, value) {
+          this.requestHeaders[key] = value
+        }
+
+        getAllResponseHeaders() {
+          return 'content-type: application/json\r\n'
+        }
+
+        getResponseHeader(name) {
+          return name.toLowerCase() === 'content-type' ? 'application/json' : null
+        }
+
+        abort() {}
+
+        send(body) {
+          const normalizedUrl = String(this.url || '')
+
+          if (normalizedUrl.includes('/api/sysParameter/requestTimeOut')) {
+            this.respond({
+              body: { code: 0, data: 30 }
+            })
+            return
+          }
+
+          if (normalizedUrl.includes('/api/datasource/uploadFile')) {
+            this.respond({
+              body: {
+                code: 0,
+                data: {
+                  excelLabel: '销售样例',
+                  sheets: [
+                    {
+                      sheet: true,
+                      sheetId: 'sheet-1',
+                      tableName: 'Sheet1',
+                      excelLabel: '销售样例',
+                      fields: [
+                        { name: '日期', originName: '日期', fieldType: 'DATE' },
+                        { name: '渠道', originName: '渠道', fieldType: 'VARCHAR' },
+                        { name: '金额', originName: '金额', fieldType: 'DOUBLE' }
+                      ],
+                      jsonArray: [
+                        { 日期: '2024/02/01', 渠道: '官网', 金额: 40000 },
+                        { 日期: '2024/02/02', 渠道: '伙伴', 金额: 678321 }
+                      ]
+                    },
+                    {
+                      sheet: false,
+                      sheetId: 'sheet-2',
+                      tableName: 'Sheet2',
+                      excelLabel: '销售样例',
+                      fields: [{ name: '备注', originName: '备注', fieldType: 'VARCHAR' }],
+                      jsonArray: [{ 备注: '忽略' }]
+                    }
+                  ]
+                }
+              }
+            })
+            return
+          }
+
+          if (normalizedUrl.includes('/api/datasource/save')) {
+            this.respond({
+              body: {
+                code: 0,
+                data: {
+                  id: 'saved-ds-1',
+                  name: '销售样例'
+                }
+              }
+            })
+            return
+          }
+
+          if (normalizedUrl.includes('/api/datasource/get/detail-1')) {
+            this.respond({
+              body: {
+                code: 0,
+                data: {
+                  fileName: '销售样例文件.csv',
+                  createTime: '2026/04/16 18:00:00'
+                }
+              }
+            })
+            return
+          }
+
+          if (normalizedUrl.includes('/api/datasource/getTables')) {
+            this.respond({
+              body: {
+                code: 0,
+                data: mockState.detailFailure
+                  ? []
+                  : [{ name: 'sales_table', tableName: 'sales_table' }]
+              }
+            })
+            return
+          }
+
+          if (normalizedUrl.includes('/api/datasource/previewData')) {
+            this.respond({
+              body: {
+                code: 0,
+                data: {
+                  fields: [
+                    { name: '日期', originName: '日期', fieldType: 'DATE' },
+                    { name: '渠道', originName: '渠道', fieldType: 'VARCHAR' },
+                    { name: '金额', originName: '金额', deType: 3 }
+                  ],
+                  data: [
+                    { 日期: '2024/02/01', 渠道: '官网', 金额: 40000 },
+                    { 日期: '2024/02/02', 渠道: '伙伴', 金额: 678321 }
+                  ]
+                }
+              }
+            })
+            return
+          }
+
+          const inner = new originalXhr()
+          this.inner = inner
+          inner.open(this.method, this.url, this.async)
+          Object.entries(this.requestHeaders).forEach(([key, value]) => {
+            inner.setRequestHeader(key, value)
+          })
+          inner.responseType = this.responseType
+          inner.timeout = this.timeout
+          inner.withCredentials = this.withCredentials
+          inner.onreadystatechange = () => {
+            this.readyState = inner.readyState
+            this.status = inner.status
+            this.statusText = inner.statusText
+            this.response = inner.response
+            this.responseText = inner.responseText
+            this.onreadystatechange?.(new Event('readystatechange'))
+          }
+          inner.onload = () => {
+            this.onload?.(new Event('load'))
+          }
+          inner.onloadend = () => {
+            this.onloadend?.(new Event('loadend'))
+          }
+          inner.onerror = () => {
+            this.onerror?.(new Event('error'))
+          }
+          inner.send(body)
+        }
+
+        respond({ body, status = 200 }) {
+          const complete = () => {
+            this.readyState = 4
+            this.status = status
+            this.statusText = status === 200 ? 'OK' : 'ERROR'
+            this.responseText = JSON.stringify(body)
+            this.response = this.responseType === 'json' ? body : this.responseText
+            this.onreadystatechange?.(new Event('readystatechange'))
+            this.onload?.(new Event('load'))
+            this.onloadend?.(new Event('loadend'))
+          }
+
+          if (this.async) {
+            window.setTimeout(complete, 0)
+          } else {
+            complete()
+          }
+        }
+      }
+
+      window.XMLHttpRequest = MockXMLHttpRequest
+
+      const { createApp, h, ref } = await import('/node_modules/.vite/deps/vue.js')
+      const { default: UploadDialog } = await import(
+        '/src/views/sqlbot-new/components/SqlbotNewFileUploadDialog.vue'
+      )
+      const { default: DetailDialog } = await import(
+        '/src/views/sqlbot-new/components/SqlbotNewFileDetailDialog.vue'
+      )
+
+      const detailFile = {
+        id: 'detail-1',
+        datasourceId: 'detail-1',
+        title: '销售样例文件',
+        uploadedAt: '2026/04/16 18:00:00',
+        format: 'CSV',
+        fields: ['日期', '渠道', '金额']
+      }
+
+      createApp({
+        setup() {
+          const mode = ref('upload')
+
+          window.__setCodexHarnessMode = nextMode => {
+            mode.value = nextMode
+          }
+          window.__setCodexHarnessDetailFailure = value => {
+            mockState.detailFailure = Boolean(value)
+          }
+
+          window.__codexHarnessEvents = []
+
+          return () =>
+            h('div', [
+              h('div', { class: 'toolbar' }, [
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    onClick: () => {
+                      mode.value = 'upload'
+                    }
+                  },
+                  '上传弹窗'
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    onClick: () => {
+                      mode.value = 'detail'
+                    }
+                  },
+                  '详情弹窗'
+                )
+              ]),
+              mode.value === 'upload'
+                ? h(UploadDialog, {
+                    visible: true,
+                    onClose: () => window.__codexHarnessEvents.push({ type: 'upload-close' }),
+                    onSave: payload =>
+                      window.__codexHarnessEvents.push({ type: 'upload-save', payload }),
+                    onSaveAndAsk: payload =>
+                      window.__codexHarnessEvents.push({ type: 'upload-save-and-ask', payload })
+                  })
+                : h(DetailDialog, {
+                    visible: true,
+                    file: detailFile,
+                    onClose: () => window.__codexHarnessEvents.push({ type: 'detail-close' }),
+                    onAsk: () => window.__codexHarnessEvents.push({ type: 'detail-ask' })
+                  })
+            ])
+        }
+      }).mount('#app')
+    </script>
+  </body>
+</html>

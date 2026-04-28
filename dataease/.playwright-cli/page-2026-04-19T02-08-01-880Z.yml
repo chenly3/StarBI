@@ -1,0 +1,57 @@
+- generic [ref=e21]:
+  - generic [ref=e22]: User Management Regression Harness
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - heading "用户管理" [level=1] [ref=e26]
+      - paragraph [ref=e27]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e28]:
+      - button "用户" [ref=e29] [cursor=pointer]
+      - button "角色" [ref=e30] [cursor=pointer]
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - generic [ref=e34]: 关键字
+          - textbox "关键字" [ref=e35]:
+            - /placeholder: 搜索姓名、账号、邮箱
+            - text: 李
+        - button "查询" [ref=e36] [cursor=pointer]
+        - button "添加用户" [ref=e37] [cursor=pointer]
+        - button "批量导入" [ref=e38] [cursor=pointer]
+      - generic [ref=e39]:
+        - table [ref=e40]:
+          - rowgroup [ref=e41]:
+            - row "姓名 账号 角色 邮箱 用户来源 启用状态 创建时间 操作" [ref=e42]:
+              - columnheader "姓名" [ref=e43]
+              - columnheader "账号" [ref=e44]
+              - columnheader "角色" [ref=e45]
+              - columnheader "邮箱" [ref=e46]
+              - columnheader "用户来源" [ref=e47]
+              - columnheader "启用状态" [ref=e48]
+              - columnheader "创建时间" [ref=e49]
+              - columnheader "操作" [ref=e50]
+          - rowgroup [ref=e51]:
+            - row "李分析 analyst_li 分析师 analyst_li@starbi.local 系统 禁用 2026/4/18 11:15:00 编辑 启用 重置密码 删除" [ref=e181]:
+              - cell "李分析" [ref=e182]
+              - cell "analyst_li" [ref=e183]
+              - cell "分析师" [ref=e184]
+              - cell "analyst_li@starbi.local" [ref=e185]
+              - cell "系统" [ref=e186]
+              - cell "禁用" [ref=e187]
+              - cell "2026/4/18 11:15:00" [ref=e188]
+              - cell "编辑 启用 重置密码 删除" [ref=e189]:
+                - button "编辑" [ref=e190] [cursor=pointer]
+                - button "启用" [ref=e191] [cursor=pointer]
+                - button "重置密码" [ref=e192] [cursor=pointer]
+                - button "删除" [ref=e193] [cursor=pointer]
+        - generic [ref=e91]:
+          - generic [ref=e92]: 共 1 条
+          - generic [ref=e93]:
+            - text: 每页
+            - combobox "每页" [ref=e94]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e95]
+          - generic [ref=e96]: 第 1 页
+          - button "下一页" [disabled] [ref=e97]

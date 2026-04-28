@@ -1,0 +1,57 @@
+# StarBI DataEase 生产配置
+server:
+  port: 8100
+  tomcat:
+    connection-timeout: 70000
+  servlet:
+    context-path:
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  datasource:
+    url: jdbc:mysql://starbi-mysql:3306/dataease?autoReconnect=false&useUnicode=true&characterEncoding=UTF-8&characterSetResults=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD:Password123@mysql}
+  data:
+    redis:
+      host: starbi-redis
+      port: 6379
+      password: ${REDIS_PASSWORD:123456}
+      database: 0
+  flyway:
+    enabled: true
+    table: de_standalone_version
+    validate-on-migrate: false
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: true
+
+mybatis-plus:
+  mapper-locations: classpath:mybatis/*.xml
+
+dataease:
+  version: 2.10.20
+  login_timeout: 960
+  origin-list: ${STARBI_PUBLIC_URL:http://localhost:9080}
+  apisix-api:
+    domain: http://starbi-apisix:9180
+    key: edd1c9f034335f136f87ad84b625c8f1
+  playwright-server: http://starbi-playwright:3000/screenshot
+
+starbi:
+  sqlbot:
+    api-base: ${SQLBOT_API_BASE:http://starbi-sqlbot:8000/api/v1}
+
+task:
+  executor:
+    address: http://starbi-sync-task:9001
+    log:
+      path: /opt/dataease2.0/logs/sync-task/task-handler-log
+
+management:
+  health:
+    redis:
+      enabled: false

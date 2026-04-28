@@ -1,0 +1,71 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+.run/
+*.swp
+*.swo
+
+# Codex / local agent state
+.omx/
+.claude/
+.superpowers/
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**
+state_5.sqlite*
+skills-lock.json
+
+# Dependencies and build outputs
+**/node_modules/
+**/.npm/
+**/dist/
+**/target/
+**/*.class
+**/.mvn/
+**/.venv/
+**/__pycache__/
+**/.uv-cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.pyc
+
+# Runtime data, package artifacts, and large local exports
+data/
+docker-images/
+releases/
+tmp/
+output/
+**/logs/
+*.log
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.tar.bz2
+**/*.tbz2
+**/*.tar.xz
+**/*.txz
+**/*.7z
+**/*.rar
+**/*.dmg
+**/*.iso
+**/*.pkg
+**/*.deb
+**/*.rpm
+**/*.apk
+**/*.whl
+**/*.egg
+
+# Local verification screenshots at repository root
+/*.png

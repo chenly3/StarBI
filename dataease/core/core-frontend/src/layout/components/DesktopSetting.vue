@@ -1,0 +1,226 @@
+<script lang="ts" setup>
+import iconSetting from '@/assets/svg/icon-setting.svg'
+import LangSelector from '@/layout/components/LangSelector.vue'
+import { useRouter, useRoute } from 'vue-router_2'
+import TopDesktopCard from './TopDesktopCard.vue'
+import icon_right_outlined from '@/assets/svg/icon_right_outlined.svg'
+import dvAi from '@/assets/svg/dv-ai.svg'
+import AiComponent from '@/layout/components/AiComponent.vue'
+import dvPreviewDownload from '@/assets/svg/icon_download_outlined.svg'
+import ToolboxCfg from './ToolboxCfg.vue'
+import { findBaseParams } from '@/api/aiComponent'
+import icon_more_outlined from '@/assets/svg/icon_more_outlined.svg'
+import { usePermissionStore } from '@/store/modules/permission'
+import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
+import { msgCountApi } from '@/api/msg'
+import { computed, ref, onMounted } from 'vue'
+import { useEmitt } from '@/hooks/web/useEmitt'
+
+const aiBaseUrl = ref('https://maxkb.fit2cloud.com/ui/chat/2ddd8b594ce09dbb?mode=embed')
+const showToolbox = ref(false)
+
+const badgeCount = ref('0')
+const permissionStore = usePermissionStore()
+const appearanceStore = useAppearanceStoreWithOut()
+const navigateBg = computed(() => appearanceStore.getNavigateBg)
+const { push, resolve } = useRouter()
+const route = useRoute()
+const showEmbeddedAiAssistant = computed(() => {
+  return Boolean(aiBaseUrl.value) && appearanceStore.getShowAi && !route.path.startsWith('/sqlbot')
+})
+const redirectUser = () => {
+  const sysMenu = resolve('/sys-setting')
+  const kidPath = sysMenu.matched[0].children[0].path
+  push(`${sysMenu.path}/${kidPath}`)
+}
+
+const initShowToolbox = () => {
+  showToolbox.value = permissionStore.getRouters.some(route => route.path === '/toolbox')
+}
+const downloadClick = params => {
+  useEmitt().emitter.emit('data-export-center', params)
+}
+const initAiBase = async () => {
+  await findBaseParams().then(rsp => {
+    const params = rsp.data
+    if (params && params['ai.baseUrl']) {
+      aiBaseUrl.value = params['ai.baseUrl']
+    } else {
+      aiBaseUrl.value = null
+    }
+  })
+}
+
+const handleAiClick = () => {
+  useEmitt().emitter.emit('aiComponentChange')
+}
+
+onMounted(() => {
+  initShowToolbox()
+  initAiBase()
+  msgCountApi().then(res => {
+    badgeCount.value = (res?.data > 99 ? '99+' : res?.data) || '0'
+  })
+})
+</script>
+
+<template>
+  <ToolboxCfg v-if="showToolbox" />
+  <el-tooltip effect="dark" :content="$t('data_export.export_center')" placement="bottom">
+    <el-icon
+      class="header-ops-icon preview-download_icon"
+      :class="navigateBg === 'light' && 'is-light-setting'"
+    >
+      <Icon><dvPreviewDownload @click="downloadClick" class="svg-icon" /></Icon>
+    </el-icon>
+  </el-tooltip>
+  <el-tooltip
+    class="box-item"
+    effect="dark"
+    :content="$t('commons.system_setting')"
+    placement="top"
+  >
+    <div
+      class="header-ops-icon sys-setting in-iframe-setting"
+      :class="{
+        'is-light-setting': navigateBg && navigateBg === 'light'
+      }"
+    >
+      <el-icon @click="redirectUser">
+        <Icon><iconSetting class="svg-icon icon-setting" /></Icon>
+      </el-icon>
+    </div>
+  </el-tooltip>
+
+  <el-popover
+    popper-class="popper-class_ai-copilot"
+    placement="bottom-end"
+    :width="224"
+    trigger="hover"
+  >
+    <template #default>
+      <div>
+        <div class="card-content_desk">
+          <TopDesktopCard
+            v-if="showEmbeddedAiAssistant"
+            @openBlank="handleAiClick"
+            :cardInfo="{
+              icon: dvAi,
+              name: $t('commons.assistant')
+            }"
+          ></TopDesktopCard>
+        </div>
+        <div class="border-top">
+          <el-popover
+            :teleported="false"
+            popper-class="popper-class_ai-copilot"
+            placement="left-start"
+            :width="224"
+            trigger="click"
+            ><template #default>
+              <div style="padding: 8px 0">
+                <LangSelector />
+              </div>
+            </template>
+            <template #reference>
+              <div class="item-select_info">
+                {{ $t('commons.language') }}
+                <el-icon style="font-size: 16px">
+                  <Icon><icon_right_outlined></icon_right_outlined></Icon>
+                </el-icon>
+              </div> </template
+          ></el-popover>
+        </div>
+      </div>
+    </template>
+    <template #reference>
+      <el-icon
+        class="header-ops-icon preview-download_icon"
+        :class="navigateBg === 'light' && 'is-light-setting'"
+      >
+        <Icon><icon_more_outlined class="svg-icon" /></Icon>
+      </el-icon>
+    </template>
+  </el-popover>
+  <ai-component v-if="showEmbeddedAiAssistant" :base-url="aiBaseUrl"></ai-component>
+</template>
+
+<style lang="less" scoped>
+.header-ops-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.96);
+  transition: background-color 0.16s ease, transform 0.16s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+    transform: translateY(-1px);
+  }
+}
+
+.sys-setting,
+.preview-download_icon {
+  .svg-icon {
+    color: currentColor;
+    fill: currentColor;
+  }
+}
+
+.in-iframe-setting {
+  margin-left: 0 !important;
+}
+
+.is-light-setting {
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.14) !important;
+  }
+}
+</style>
+<style lang="less">
+.popper-class_ai-copilot {
+  padding: 0 !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(186, 215, 255, 0.9) !important;
+  box-shadow: 0 18px 38px rgba(27, 92, 198, 0.16) !important;
+  overflow: hidden;
+
+  .card-content_desk {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 14px 10px;
+    background: linear-gradient(180deg, rgba(238, 246, 255, 0.92), #ffffff 100%);
+  }
+  .border-top {
+    border-top: 1px solid rgba(32, 86, 180, 0.12);
+    padding-top: 4px;
+    padding-bottom: 8px;
+    background: #ffffff;
+  }
+  .item-select_info {
+    cursor: pointer;
+    height: 40px;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #1e3355;
+    font-size: 14px;
+    font-weight: 600;
+    .ed-icon {
+      color: #5e7fb4;
+    }
+
+    &:hover {
+      background: rgba(42, 102, 255, 0.08);
+    }
+  }
+}
+</style>

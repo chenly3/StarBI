@@ -1,0 +1,82 @@
+- generic [ref=e2]:
+  - generic [ref=e3]: User Management Regression Harness
+  - main [ref=e5]:
+    - generic [ref=e6]:
+      - heading "用户管理" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 远端 X-Pack 页面，当前实现用户列表与基础操作。
+    - navigation "用户管理切换" [ref=e9]:
+      - button "用户" [ref=e10] [cursor=pointer]
+      - button "角色" [ref=e11] [cursor=pointer]
+    - generic [ref=e79]:
+      - complementary [ref=e80]:
+        - generic [ref=e81]:
+          - heading "角色列表" [level=2] [ref=e82]
+          - button "创建自定义角色" [active] [ref=e83] [cursor=pointer]
+        - list [ref=e84]:
+          - listitem [ref=e85]:
+            - button "系统管理员 系统" [ref=e86] [cursor=pointer]:
+              - generic [ref=e87]: 系统管理员
+              - generic [ref=e88]: 系统
+          - listitem [ref=e89]:
+            - button "组织管理员 系统" [ref=e90] [cursor=pointer]:
+              - generic [ref=e91]: 组织管理员
+              - generic [ref=e92]: 系统
+          - listitem [ref=e93]:
+            - button "分析师" [ref=e94] [cursor=pointer]:
+              - generic [ref=e95]: 分析师
+      - generic [ref=e96]:
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - heading "系统管理员 成员" [level=2] [ref=e99]
+            - paragraph [ref=e100]: 支持在当前组织内为角色添加用户。
+          - button "添加组织用户" [ref=e101] [cursor=pointer]
+        - generic [ref=e102]:
+          - textbox "搜索姓名、账号、邮箱" [ref=e103]
+          - button "查询" [ref=e104] [cursor=pointer]
+        - table [ref=e105]:
+          - rowgroup [ref=e106]:
+            - row "姓名 账号 邮箱 操作" [ref=e107]:
+              - columnheader "姓名" [ref=e108]
+              - columnheader "账号" [ref=e109]
+              - columnheader "邮箱" [ref=e110]
+              - columnheader "操作" [ref=e111]
+          - rowgroup [ref=e112]:
+            - row "管理员 admin admin@starbi.local 移除" [ref=e113]:
+              - cell "管理员" [ref=e114]
+              - cell "admin" [ref=e115]
+              - cell "admin@starbi.local" [ref=e116]
+              - cell "移除" [ref=e117]:
+                - button "移除" [ref=e118] [cursor=pointer]
+        - generic [ref=e119]:
+          - generic [ref=e120]: 共 1 条
+          - generic [ref=e121]:
+            - text: 每页
+            - combobox "每页" [ref=e122]:
+              - option "10"
+              - option "20" [selected]
+              - option "50"
+              - option "100"
+          - button "上一页" [disabled] [ref=e123]
+          - generic [ref=e124]: 第 1 页
+          - button "下一页" [disabled] [ref=e125]
+      - generic [ref=e127]:
+        - heading "创建自定义角色" [level=2] [ref=e129]
+        - generic [ref=e130]:
+          - generic [ref=e131]: 角色名称
+          - textbox "角色名称" [ref=e132]:
+            - /placeholder: 请输入角色名称
+        - generic [ref=e133]:
+          - heading "继承模板" [level=3] [ref=e134]
+          - paragraph [ref=e135]: 从已有系统角色继承类型配置（自动使用模板的 typeCode）。
+          - list [ref=e136]:
+            - listitem [ref=e137]:
+              - generic [ref=e138]:
+                - radio "系统管理员" [checked] [ref=e139]
+                - generic [ref=e140]: 系统管理员
+            - listitem [ref=e141]:
+              - generic [ref=e142]:
+                - radio "组织管理员" [ref=e143]
+                - generic [ref=e144]: 组织管理员
+        - generic [ref=e145]:
+          - button "取消" [ref=e146] [cursor=pointer]
+          - button "确定" [ref=e147] [cursor=pointer]

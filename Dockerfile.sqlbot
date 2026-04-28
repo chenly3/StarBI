@@ -1,0 +1,113 @@
+# ============================================================
+# StarBI - SQLBot 智能问数引擎镜像
+# 构建: docker build -f Dockerfile.sqlbot -t starbi-sqlbot:latest .
+# ============================================================
+
+# ---- Stage 1: SQLBot 前端构建 ----
+FROM node:18-alpine AS frontend-builder
+WORKDIR /build
+COPY SQLBot/frontend/package*.json ./
+RUN npm ci --registry=https://registry.npmmirror.com
+COPY SQLBot/frontend/ ./
+RUN npm run build
+
+# ---- Stage 2: g2-ssr 图表渲染构建 ----
+FROM node:18-bookworm-slim AS ssr-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ pkg-config \
+    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev \
+    librsvg2-dev libpixman-1-dev libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY SQLBot/g2-ssr/package.json SQLBot/g2-ssr/app.js ./
+COPY SQLBot/g2-ssr/charts/ ./charts/
+RUN npm install --registry=https://registry.npmmirror.com
+RUN npm install pm2 -g
+
+# ---- Stage 3: Python 依赖构建 ----
+FROM python:3.11-slim-bookworm AS python-builder
+ENV PYTHONUNBUFFERED=1
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:0.7.8 /uv /uvx /bin/
+
+WORKDIR /opt/sqlbot/app
+
+COPY SQLBot/backend/pyproject.toml SQLBot/backend/uv.lock ./
+RUN uv sync --frozen --no-install-project --extra cpu 2>&1 || \
+    uv sync --no-install-project --extra cpu 2>&1
+COPY SQLBot/backend/ ./
+RUN uv sync --frozen --extra cpu 2>&1 || \
+    uv sync --extra cpu 2>&1
+
+# ---- Stage 4: 运行时 ----
+FROM python:3.11-slim-bookworm
+LABEL org.starbi.service="sqlbot"
+LABEL org.starbi.version="1.7.0"
+
+ENV TZ=Asia/Shanghai
+ENV PYTHONUNBUFFERED=1
+ENV SQLBOT_HOME=/opt/sqlbot
+ENV PYTHONPATH=${SQLBOT_HOME}/app
+ENV PATH="${SQLBOT_HOME}/app/.venv/bin:$PATH"
+ENV SSR_PATH=${SQLBOT_HOME}/g2-ssr
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
+    libjpeg62-turbo libgif7 librsvg2-2 libpixman-1-0 \
+    libfreetype6 libstdc++6 \
+    libaio1 unzip \
+    curl gnupg ca-certificates \
+    tzdata \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p ${SQLBOT_HOME}/app \
+    ${SQLBOT_HOME}/frontend/dist \
+    ${SQLBOT_HOME}/g2-ssr \
+    ${SQLBOT_HOME}/models/embedding \
+    ${SQLBOT_HOME}/images \
+    ${SQLBOT_HOME}/data/excel \
+    ${SQLBOT_HOME}/data/file \
+    ${SQLBOT_HOME}/app/logs \
+    ${SQLBOT_HOME}/db_client/oracle_instant_client
+
+# 复制本地 embedding 模型；后端按 LOCAL_MODEL_PATH/embedding/<模型名> 解析。
+COPY SQLBot/model/ ${SQLBOT_HOME}/models/embedding/
+RUN test -f ${SQLBOT_HOME}/models/embedding/iic/nlp_gte_sentence-embedding_chinese-base/pytorch_model.bin \
+    && ls -lh ${SQLBOT_HOME}/models/embedding/iic/nlp_gte_sentence-embedding_chinese-base/pytorch_model.bin \
+    && du -sh ${SQLBOT_HOME}/models/embedding/iic/nlp_gte_sentence-embedding_chinese-base
+
+# 复制构建产物
+COPY --from=python-builder /opt/sqlbot/app ${SQLBOT_HOME}/app
+COPY --from=frontend-builder /build/dist ${SQLBOT_HOME}/frontend/dist
+COPY --from=ssr-builder /build ${SQLBOT_HOME}/g2-ssr
+COPY --from=ssr-builder /usr/local/lib/node_modules/pm2 ${SQLBOT_HOME}/g2-ssr/node_modules/pm2
+
+# 中文字体 (g2-ssr 图表渲染需要)
+RUN mkdir -p /usr/share/fonts/truetype/
+COPY SQLBot/g2-ssr/Arial_Unicode.ttf /usr/share/fonts/truetype/
+
+WORKDIR ${SQLBOT_HOME}/app
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+EXPOSE 8000 8001 3000
+
+CMD ["sh", "-c", "\
+    cd ${SSR_PATH} && ./node_modules/.bin/pm2 start app.js --name g2-ssr && \
+    cd ${SQLBOT_HOME}/app && \
+    uvicorn main:mcp_app --host 0.0.0.0 --port 8001 & \
+    uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers \
+    "]
