@@ -2,14 +2,23 @@
 # 参考: https://apisix.apache.org/docs/apisix/configuration/
 
 apisix:
+  node_listen:
+    - 9081
   enable_control: true
   control:
     ip: "0.0.0.0"
     port: 9092
 
 deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
   admin:
     admin_key_required: false
+    admin_key:
+      - name: admin
+        key: edd1c9f034335f136f87ad84b625c8f1
+        role: admin
     allow_admin:
       - 0.0.0.0/0
   etcd:
@@ -33,9 +42,12 @@ nginx_config:
         listen 9080;
         server_name _;
 
+        set $starbi_dataease "starbi-dataease:8100";
+        set $starbi_sqlbot "starbi-sqlbot:8000";
+
         # DataEase 前端静态资源
         location / {
-            proxy_pass http://starbi-dataease:8100;
+            proxy_pass http://$starbi_dataease;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -45,7 +57,7 @@ nginx_config:
 
         # SQLBot 智能问数
         location /sqlbot {
-            proxy_pass http://starbi-sqlbot:8000;
+            proxy_pass http://$starbi_sqlbot;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -55,7 +67,7 @@ nginx_config:
 
         # SQLBot API
         location /api {
-            proxy_pass http://starbi-sqlbot:8000;
+            proxy_pass http://$starbi_sqlbot;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

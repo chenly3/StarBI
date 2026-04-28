@@ -118,7 +118,7 @@ services:
     networks:
       - starbi-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9080/"]
+      test: ["CMD-SHELL", "test -s /usr/local/apisix/logs/nginx.pid && kill -0 $(cat /usr/local/apisix/logs/nginx.pid)"]
       interval: 10s
       timeout: 5s
       retries: 10
