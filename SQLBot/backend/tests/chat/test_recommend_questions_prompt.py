@@ -302,3 +302,64 @@ def test_normalize_recommend_questions_content_converts_line_output_to_json(monk
         "华东高销售额是否集中在少数客户？",
         "下月各地区销售额预计如何变化？",
     ]
+
+
+def test_normalize_recommend_questions_content_limits_json_output_to_three(monkeypatch):
+    llm = load_llm_module(monkeypatch)
+
+    result = llm.LLMService._normalize_recommend_questions_content(
+        '["问题一", "问题二", "问题三", "问题四"]'
+    )
+
+    assert orjson.loads(result) == ["问题一", "问题二", "问题三"]
+
+
+def test_load_recommend_result_context_adds_full_record_fields(monkeypatch):
+    llm = load_llm_module(monkeypatch)
+    service = object.__new__(llm.LLMService)
+    service.record = types.SimpleNamespace(id=9, question="精简问题")
+    for field in (
+        "id",
+        "question",
+        "sql",
+        "sql_answer",
+        "data",
+        "chart_answer",
+        "analysis",
+        "predict",
+        "predict_data",
+    ):
+        setattr(llm.ChatRecord, field, field)
+    monkeypatch.setattr(llm, "and_", lambda *args: True)
+    monkeypatch.setattr(llm, "select", lambda *args: types.SimpleNamespace(where=lambda *where_args: "stmt"))
+
+    class FakeQueryResult:
+        @staticmethod
+        def first():
+            return types.SimpleNamespace(
+                question="本月各地区销售额",
+                sql="select region, sum(amount) from orders group by region",
+                sql_answer='{"content":"华东销售额最高"}',
+                data='[{"region":"华东","sales":1200}]',
+                chart_answer="区域柱状图",
+                analysis="华北环比下降",
+                predict="下月华东预计增长",
+                predict_data='[{"region":"华东","predict":1300}]',
+            )
+
+    class FakeSession:
+        executed = None
+
+        def execute(self, stmt):
+            self.executed = stmt
+            return FakeQueryResult()
+
+    session = FakeSession()
+
+    service._load_recommend_result_context(session)
+
+    assert service.record.question == "本月各地区销售额"
+    assert service.record.sql == "select region, sum(amount) from orders group by region"
+    assert service.record.data == '[{"region":"华东","sales":1200}]'
+    assert service.record.analysis == "华北环比下降"
+    assert service.record.predict_data == '[{"region":"华东","predict":1300}]'

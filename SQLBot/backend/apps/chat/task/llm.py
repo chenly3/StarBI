@@ -710,6 +710,7 @@ class LLMService:
                 question=self.chat_question.question,
                 embedding=False)
 
+        self._load_recommend_result_context(_session)
         guess_msg = self._build_recommend_questions_messages()
 
         self.current_logs[OperationEnum.GENERATE_RECOMMENDED_QUESTIONS] = start_log(session=_session,
@@ -758,6 +759,38 @@ class LLMService:
                                                      articles_number=self.articles_number)
 
         yield {'recommended_question': self.record.recommended_question}
+
+    def _load_recommend_result_context(self, _session: Session):
+        if not self.record or not getattr(self.record, 'id', None):
+            return
+
+        stmt = select(
+            ChatRecord.question,
+            ChatRecord.sql,
+            ChatRecord.sql_answer,
+            ChatRecord.data,
+            ChatRecord.chart_answer,
+            ChatRecord.analysis,
+            ChatRecord.predict,
+            ChatRecord.predict_data,
+        ).where(and_(ChatRecord.id == self.record.id))
+        row = _session.execute(stmt).first()
+        if not row:
+            return
+
+        for field in (
+            'question',
+            'sql',
+            'sql_answer',
+            'data',
+            'chart_answer',
+            'analysis',
+            'predict',
+            'predict_data',
+        ):
+            value = getattr(row, field, None)
+            if value is not None:
+                setattr(self.record, field, value)
 
     def _build_recommend_questions_messages(self) -> List[Union[BaseMessage, dict[str, Any]]]:
         system_prompt = f"""### 请使用语言：{self.chat_question.lang} 回答，不需要输出深度思考过程
@@ -814,6 +847,7 @@ SQL:
         append_payload('图表分析', self.record.chart_answer)
         append_payload('分析结论', self.record.analysis)
         append_payload('预测结论', self.record.predict)
+        append_payload('预测数据', getattr(self.record, 'predict_data', None))
 
         return '\n\n'.join(summary_parts) if summary_parts else '暂无可用结果摘要'
 
@@ -827,7 +861,7 @@ SQL:
             try:
                 parsed = orjson.loads(json_str)
                 if isinstance(parsed, list):
-                    return orjson.dumps(parsed).decode()
+                    return orjson.dumps(parsed[:3]).decode()
             except Exception:
                 pass
 
