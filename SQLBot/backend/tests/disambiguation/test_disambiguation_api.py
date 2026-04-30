@@ -69,3 +69,14 @@ def test_save_history_uses_forwarded_user_header_when_body_omits_user():
     assert result["data"]["orgId"] == 7
     assert result["data"]["questionPattern"] == "近30天销售额"
     assert result["data"]["resolution"]["datasource"]["value"] == "sales"
+
+
+def test_disambiguation_history_has_alembic_migration():
+    migration = BACKEND_ROOT / "alembic/versions/071_ai_query_disambiguation_history.py"
+    source = migration.read_text()
+
+    assert 'revision = "071_disambiguation_history"' in source
+    assert 'down_revision = "070_qrl_feedback_loop"' in source
+    assert '"ai_query_disambiguation_history"' in source
+    assert '"resolution", postgresql.JSONB' in source
+    assert '"ix_ai_query_disambiguation_history_user_pattern"' in source
