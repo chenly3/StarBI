@@ -61,6 +61,7 @@ const {
   pageTitle,
   pageSubtitle,
   requestRecordAnalysis,
+  requestRecordPredict,
   resetConversation,
   restoredHistoryContext,
   restoreHistorySession,
@@ -1337,6 +1338,10 @@ const handleInterpretRecord = (record: SqlbotNewConversationRecordItem) => {
   void requestRecordAnalysis(record, effectiveExecutionContext.value)
 }
 
+const handlePredictRecord = (record: SqlbotNewConversationRecordItem) => {
+  void requestRecordPredict(record, effectiveExecutionContext.value)
+}
+
 const handleFollowUpRecord = (record: SqlbotNewConversationRecordItem) => {
   primeFollowUpQuestion(record)
 }
@@ -2153,6 +2158,7 @@ const conversationAnswerTurnMap = computed(() => {
                           @clarification-selection-change="handleClarificationSelectionChange"
                           @prefill-question="handlePrefillQuestion"
                           @interpret="handleInterpretRecord"
+                          @predict="handlePredictRecord"
                           @followup="handleFollowUpRecord"
                           @learning-fix="openLearningFixDialog"
                           @insert-dashboard="handleInsertDashboardRecord"

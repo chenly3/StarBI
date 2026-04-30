@@ -19,6 +19,7 @@ import {
   getSQLBotRecordUsage,
   startSQLBotAssistantChat,
   streamSQLBotRecordAnalysis,
+  streamSQLBotRecordPredict,
   streamSQLBotQuestion,
   upsertSQLBotNewSnapshot,
   validateSQLBotAssistant,
@@ -84,6 +85,13 @@ export interface SqlbotNewConversationRecord {
   analysisRecordId?: number
   analysisDuration?: number
   analysisTotalTokens?: number
+  predict?: string
+  predictThinking?: string
+  predictLoading?: boolean
+  predictError?: string
+  predictRecordId?: number
+  predictDuration?: number
+  predictTotalTokens?: number
   clarification?: SqlbotNewClarificationState
   interpretation?: SqlbotNewInterpretationMeta
   executionSummary?: SqlbotNewExecutionSummary
@@ -372,6 +380,10 @@ const createLocalRecord = (question: string) =>
     analysisThinking: '',
     analysisLoading: false,
     analysisError: '',
+    predict: '',
+    predictThinking: '',
+    predictLoading: false,
+    predictError: '',
     clarification: undefined,
     interpretation: undefined,
     executionSummary: undefined,
@@ -519,6 +531,7 @@ export const useSqlbotNewConversation = () => {
   const activeExecutionContextRef = ref<SqlbotNewExecutionContext | null>(null)
   const sqlbotAbortController = ref<AbortController | null>(null)
   const sqlbotAnalysisControllerMap = new Map<string, AbortController>()
+  const sqlbotPredictControllerMap = new Map<string, AbortController>()
   const runtimeModelIds = ref<string[]>([])
   const runtimeDefaultModelId = ref('')
   const datasourceDatasetIdCache = ref<Record<string, string>>(readDatasourceDatasetCache())
@@ -941,6 +954,13 @@ export const useSqlbotNewConversation = () => {
       analysisRecordId: normalizeNumericValue(record?.analysisRecordId, record?.analysis_record_id),
       analysisDuration: normalizeNumericValue(record?.analysisDuration),
       analysisTotalTokens: normalizeNumericValue(record?.analysisTotalTokens),
+      predict: String(record?.predict || record?.predictContent || record?.predict_content || ''),
+      predictThinking: String(record?.predictThinking || record?.predict_thinking || ''),
+      predictLoading: false,
+      predictError: String(record?.predictError || ''),
+      predictRecordId: normalizeNumericValue(record?.predictRecordId, record?.predict_record_id),
+      predictDuration: normalizeNumericValue(record?.predictDuration),
+      predictTotalTokens: normalizeNumericValue(record?.predictTotalTokens),
       clarification: record?.clarification
         ? (() => {
             const combinationDraft =
@@ -2107,6 +2127,30 @@ export const useSqlbotNewConversation = () => {
     }
   }
 
+  const hydrateSQLBotPredictUsage = async (
+    record: SqlbotNewConversationRecord,
+    executionContext: SqlbotNewExecutionContext
+  ) => {
+    if (!record.predictRecordId) {
+      return
+    }
+
+    try {
+      const assistantToken = await ensureAssistantToken(executionContext)
+      const usage = await getSQLBotRecordUsage(
+        buildRequestContext(executionContext, assistantToken),
+        record.predictRecordId
+      )
+      if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
+        return
+      }
+      record.predictDuration = usage?.duration
+      record.predictTotalTokens = usage?.total_tokens
+    } catch (error) {
+      console.error('load sqlbot-new predict usage failed', error)
+    }
+  }
+
   const hydrateSQLBotChartData = async (
     record: SqlbotNewConversationRecord,
     executionContext: SqlbotNewExecutionContext
@@ -2318,6 +2362,41 @@ export const useSqlbotNewConversation = () => {
       case 'analysis_finish':
         record.analysisLoading = false
         await hydrateSQLBotAnalysisUsage(record, executionContext)
+        break
+      default:
+        break
+    }
+  }
+
+  const applySQLBotPredictEvent = async (
+    record: SqlbotNewConversationRecord,
+    event: SQLBotStreamEvent,
+    executionContext: SqlbotNewExecutionContext
+  ) => {
+    switch (event.type) {
+      case 'id':
+        if (event.id) {
+          record.predictRecordId = Number(event.id)
+        }
+        break
+      case 'predict-result':
+        record.predict += String(event.content || '')
+        record.predictThinking += String(event.reasoning_content || '')
+        break
+      case 'predict-success':
+        record.predictError = ''
+        break
+      case 'predict-failed':
+        record.predictError = record.predict || '趋势预测失败'
+        record.predictLoading = false
+        break
+      case 'error':
+        record.predictError = String(event.content || '趋势预测失败')
+        record.predictLoading = false
+        break
+      case 'predict_finish':
+        record.predictLoading = false
+        await hydrateSQLBotPredictUsage(record, executionContext)
         break
       default:
         break
@@ -2931,9 +3010,74 @@ export const useSqlbotNewConversation = () => {
     }
   }
 
+  const requestRecordPredict = async (
+    record: SqlbotNewConversationRecord,
+    executionContext?: SqlbotNewExecutionContext
+  ) => {
+    const effectiveExecutionContext = record.executionContext || executionContext
+
+    if (activeTab.value !== 'query') {
+      ElMessage.info('当前版本暂时只支持问数预测')
+      return
+    }
+
+    if (!record.id) {
+      ElMessage.warning('当前结果尚未完成，暂时不能预测')
+      return
+    }
+
+    if (record.predictLoading) {
+      return
+    }
+
+    let requestContext: SQLBotRequestContext
+    try {
+      if (!effectiveExecutionContext) {
+        throw new Error('当前记录缺少执行上下文，暂时不能预测')
+      }
+      const assistantToken = await ensureAssistantToken(effectiveExecutionContext)
+      requestContext = buildRequestContext(effectiveExecutionContext, assistantToken)
+    } catch (error) {
+      console.error('prepare sqlbot-new predict failed', error)
+      ElMessage.error(error instanceof Error ? error.message : '趋势预测准备失败')
+      return
+    }
+
+    record.predict = ''
+    record.predictThinking = ''
+    record.predictError = ''
+    record.predictLoading = true
+    record.predictRecordId = undefined
+    record.predictDuration = undefined
+    record.predictTotalTokens = undefined
+
+    const controller = new AbortController()
+    sqlbotPredictControllerMap.set(record.localId, controller)
+
+    try {
+      await streamSQLBotRecordPredict(requestContext, record.id, {
+        signal: controller.signal,
+        onEvent: event => {
+          void applySQLBotPredictEvent(record, event, effectiveExecutionContext)
+        }
+      })
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return
+      }
+      console.error('stream sqlbot-new predict failed', error)
+      record.predictError = error instanceof Error ? error.message : '趋势预测执行失败'
+    } finally {
+      record.predictLoading = false
+      sqlbotPredictControllerMap.delete(record.localId)
+    }
+  }
+
   const abortAllAnalysisRequests = () => {
     sqlbotAnalysisControllerMap.forEach(controller => controller.abort())
     sqlbotAnalysisControllerMap.clear()
+    sqlbotPredictControllerMap.forEach(controller => controller.abort())
+    sqlbotPredictControllerMap.clear()
   }
 
   const resetConversation = () => {
@@ -3076,6 +3220,7 @@ export const useSqlbotNewConversation = () => {
     recommendedQuestions,
     clearRestoredHistoryContext,
     requestRecordAnalysis,
+    requestRecordPredict,
     resetConversation,
     restoredHistoryContext,
     restoreHistorySession,

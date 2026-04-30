@@ -73,6 +73,10 @@ interface SQLBotChatRecordLike {
   analysisError?: string
   analysisDuration?: number
   analysisTotalTokens?: number
+  predict?: string
+  predictThinking?: string
+  predictLoading?: boolean
+  predictError?: string
   reasoning?: Record<string, any>
   sql?: string
   chart?: string
@@ -102,17 +106,20 @@ const props = withDefaults(
     sourceInsights?: SqlbotNewSourceInsights | null
     reasoningExpanded?: boolean
     showExecutionDetails?: boolean
+    showPredictAction?: boolean
   }>(),
   {
     sourceInsights: undefined,
     reasoningExpanded: false,
-    showExecutionDetails: false
+    showExecutionDetails: false,
+    showPredictAction: false
   }
 )
 
 const emit = defineEmits<{
   (event: 'toggle-reasoning'): void
   (event: 'interpret'): void
+  (event: 'predict'): void
   (event: 'followup'): void
   (event: 'retry'): void
   (event: 'learning-fix', record: SQLBotChatRecordLike): void
@@ -129,6 +136,7 @@ const fullscreenVisible = ref(false)
 const currentChartType = ref<ChartType>('table')
 const showLabel = ref(true)
 const analysisExpanded = ref(false)
+const predictExpanded = ref(false)
 
 const formatClock = (value?: string | number) => {
   if (!value) {
@@ -582,6 +590,29 @@ const analysisActionText = computed(() => {
   return '数据解读'
 })
 
+const predictContent = computed(() => String(props.record.predict || '').trim())
+const predictAvailable = computed(() => Boolean(predictContent.value))
+const predictLoading = computed(() => Boolean(props.record.predictLoading))
+const predictStatusText = computed(() => {
+  if (props.record.predictError) {
+    return '预测失败'
+  }
+  if (predictLoading.value) {
+    return '生成中'
+  }
+  if (predictAvailable.value) {
+    return '已完成'
+  }
+  return ''
+})
+
+const predictActionText = computed(() => {
+  if (predictLoading.value) {
+    return '趋势预测中...'
+  }
+  return predictAvailable.value ? '查看预测' : '趋势预测'
+})
+
 const sourceInsightsValue = computed(() => props.sourceInsights || null)
 const sourceInsightDatasets = computed(() => sourceInsightsValue.value?.datasets || [])
 const sourceInsightRelations = computed(() => sourceInsightsValue.value?.relations || [])
@@ -611,6 +642,13 @@ const showAnalysisPanel = computed(() => {
   return Boolean(
     analysisExpanded.value &&
       (analysisLoading.value || analysisAvailable.value || props.record.analysisError)
+  )
+})
+
+const showPredictPanel = computed(() => {
+  return Boolean(
+    predictExpanded.value &&
+      (predictLoading.value || predictAvailable.value || props.record.predictError)
   )
 })
 
@@ -720,6 +758,15 @@ const handleInterpretAction = () => {
     return
   }
   analysisExpanded.value = !analysisExpanded.value
+}
+
+const handlePredictAction = () => {
+  if (!predictAvailable.value && !predictLoading.value) {
+    predictExpanded.value = true
+    emit('predict')
+    return
+  }
+  predictExpanded.value = !predictExpanded.value
 }
 </script>
 
@@ -899,6 +946,37 @@ const handleInterpretAction = () => {
       </div>
     </div>
 
+    <div
+      v-if="showPredictPanel"
+      class="starbi-analysis-panel"
+      :class="{ loading: predictLoading, error: !!record.predictError }"
+    >
+      <div class="starbi-analysis-head">
+        <div class="starbi-analysis-head-main">
+          <div class="starbi-analysis-kicker">趋势预测</div>
+          <div class="starbi-analysis-title">
+            {{ predictAvailable ? '预测结果与风险提示' : 'StarBI 正在生成趋势预测' }}
+          </div>
+        </div>
+        <span v-if="predictStatusText" class="starbi-analysis-status">
+          {{ predictStatusText }}
+        </span>
+      </div>
+
+      <div v-if="predictLoading && !predictAvailable" class="starbi-analysis-loading">
+        <span class="starbi-analysis-dot"></span>
+        <span class="starbi-analysis-dot"></span>
+        <span class="starbi-analysis-dot"></span>
+        <span>正在基于当前结果生成预测，请稍候</span>
+      </div>
+
+      <StarbiMarkdown v-if="predictAvailable" :message="record.predict || ''" />
+
+      <div v-if="record.predictError" class="starbi-analysis-error">
+        {{ record.predictError }}
+      </div>
+    </div>
+
     <div v-if="showSourceInsights" class="starbi-analysis-source-card">
       <div class="starbi-analysis-source-head">
         <div class="starbi-analysis-source-title">数据来源与关联关系</div>
@@ -966,7 +1044,7 @@ const handleInterpretAction = () => {
           重试
         </button>
         <button
-          v-if="record.finish && !record.error && record.id"
+          v-if="showPredictAction && record.finish && !record.error && record.id"
           class="starbi-foot-btn"
           :class="{ disabled: analysisLoading }"
           type="button"
@@ -976,6 +1054,18 @@ const handleInterpretAction = () => {
           @click.stop="handleInterpretAction"
         >
           {{ analysisActionText }}
+        </button>
+        <button
+          v-if="record.finish && !record.error && record.id"
+          class="starbi-foot-btn ghost"
+          :class="{ disabled: predictLoading }"
+          type="button"
+          :disabled="predictLoading"
+          @pointerdown.stop
+          @mousedown.stop
+          @click.stop="handlePredictAction"
+        >
+          {{ predictActionText }}
         </button>
         <button
           v-if="record.finish && !record.error && record.sql"
