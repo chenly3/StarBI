@@ -6,6 +6,7 @@ import Exceljs from 'exceljs'
 import { saveAs } from 'file-saver'
 import html2canvas from 'html2canvas'
 import NativeChartPreview from '@/views/sqlbot/NativeChartPreview.vue'
+import ReasoningPanel from '@/views/sqlbot/components/ReasoningPanel.vue'
 import { explainSqlbotError } from '@/views/sqlbot/sqlbotErrorInfo'
 import StarbiMarkdown from '@/views/sqlbot/StarbiMarkdown.vue'
 import { canAttemptSqlbotChartInsert } from '@/views/sqlbot-new/sqlbotChartInsert'
@@ -59,6 +60,7 @@ interface SQLBotChatRecordLike {
   analysisError?: string
   analysisDuration?: number
   analysisTotalTokens?: number
+  reasoning?: Record<string, any>
   sql?: string
   chart?: string
   data?: ChartDataset | string
@@ -336,6 +338,13 @@ const thinkingText = computed(() => {
   return sanitizeNarrative(String(props.record.chartAnswer || props.record.sqlAnswer || ''))
 })
 
+const structuredReasoning = computed(() => {
+  const reasoning = props.record.reasoning
+  return reasoning && typeof reasoning === 'object' && !Array.isArray(reasoning)
+    ? reasoning
+    : undefined
+})
+
 const errorInfo = computed(() => {
   return explainSqlbotError(String(props.record.error || ''))
 })
@@ -381,7 +390,40 @@ const showReasoningBlock = computed(() => {
   if (!props.record.finish) {
     return true
   }
-  return Boolean(props.reasoningExpanded && (thinkingText.value || props.record.sql))
+  return Boolean(
+    props.reasoningExpanded && (thinkingText.value || structuredReasoning.value || props.record.sql)
+  )
+})
+
+const reasoningDuration = computed(() => {
+  const duration = props.record.duration
+  return Number.isFinite(duration) ? `${duration} 秒` : undefined
+})
+
+const reasoningExecutionSteps = computed(() => {
+  const steps: Array<{ key: string; label: string; value: string }> = []
+  if (props.record.sql) {
+    steps.push({
+      key: 'sql',
+      label: 'SQL 生成',
+      value: '已生成查询语句'
+    })
+  }
+  if (chartLoaded.value) {
+    steps.push({
+      key: 'data',
+      label: '数据加载',
+      value: hasRows.value ? `已返回 ${chartRows.value.length} 行数据` : '已完成查询，暂无数据'
+    })
+  }
+  if (props.record.chart) {
+    steps.push({
+      key: 'chart',
+      label: '图表渲染',
+      value: showChartBlock.value ? '已生成可视化图表' : '已生成图表配置'
+    })
+  }
+  return steps
 })
 
 const showChartBlock = computed(() => {
@@ -616,7 +658,7 @@ const handleInterpretAction = () => {
       </div>
       <div class="starbi-result-head-side">
         <button
-          v-if="thinkingText || record.sql"
+          v-if="thinkingText || structuredReasoning || record.sql"
           class="starbi-result-link"
           type="button"
           @click="emit('toggle-reasoning')"
@@ -714,6 +756,17 @@ const handleInterpretAction = () => {
     </div>
 
     <div v-if="showReasoningBlock" class="starbi-detail-grid">
+      <ReasoningPanel
+        v-if="structuredReasoning"
+        :reasoning="structuredReasoning"
+        :row-count="chartLoaded ? chartRows.length : undefined"
+        :duration="reasoningDuration"
+        :token-count="record.totalTokens"
+        :execution-sql="record.sql"
+        :execution-steps="reasoningExecutionSteps"
+        :record-id="record.id"
+      />
+
       <div v-if="thinkingText" class="starbi-detail-panel" :class="{ live: !record.finish }">
         <div class="starbi-detail-title">{{ reasoningPanelTitle }}</div>
         <div class="starbi-detail-copy">{{ thinkingText }}</div>

@@ -87,6 +87,7 @@ export interface SqlbotNewConversationRecord {
   clarification?: SqlbotNewClarificationState
   interpretation?: SqlbotNewInterpretationMeta
   executionSummary?: SqlbotNewExecutionSummary
+  reasoning?: Record<string, any>
   sql?: string
   chart?: string
   data?: Record<string, any>
@@ -258,6 +259,15 @@ const normalizeNumericValue = (...values: unknown[]) => {
   return undefined
 }
 
+const normalizeObjectValue = (...values: unknown[]) => {
+  for (const value of values) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, any>
+    }
+  }
+  return undefined
+}
+
 const normalizeContextSwitchValue = (...values: unknown[]) => {
   for (const value of values) {
     if (value !== null && value !== undefined) {
@@ -355,6 +365,7 @@ const createLocalRecord = (question: string) =>
     clarification: undefined,
     interpretation: undefined,
     executionSummary: undefined,
+    reasoning: undefined,
     error: '',
     createTime: Date.now(),
     finish: false,
@@ -1031,6 +1042,7 @@ export const useSqlbotNewConversation = () => {
             )
           }
         : undefined,
+      reasoning: normalizeObjectValue(record?.reasoning, record?.reasoning_content),
       sql: record?.sql ? String(record.sql) : undefined,
       chart: record?.chart ? String(record.chart) : undefined,
       data: record?.data || undefined,
@@ -1084,6 +1096,7 @@ export const useSqlbotNewConversation = () => {
         record.clarification ||
         record.interpretation ||
         record.executionSummary ||
+        record.reasoning ||
         record.sql ||
         record.chart ||
         record.data
@@ -2156,6 +2169,13 @@ export const useSqlbotNewConversation = () => {
       case 'sql-result':
         record.sqlAnswer += String(event.reasoning_content || '')
         break
+      case 'reasoning': {
+        const reasoning = normalizeObjectValue(event.content)
+        if (reasoning) {
+          record.reasoning = reasoning
+        }
+        break
+      }
       case 'sql':
         record.sql = String(event.content || '')
         break
