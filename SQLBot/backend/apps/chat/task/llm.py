@@ -34,7 +34,7 @@ from apps.chat.curd.chat import save_question, save_sql_answer, save_sql, \
     get_last_execute_sql_error, format_json_data, format_chart_fields, get_chat_brief_generate, get_chat_predict_data, \
     get_chat_chart_config, trigger_log_error
 from apps.chat.models.chat_model import ChatQuestion, ChatRecord, Chat, RenameChat, ChatLog, OperationEnum, \
-    ChatFinishStep, AxisObj, SystemPromptMessage, HumanPromptMessage, AIPromptMessage
+    ChatFinishStep, AxisObj, SystemPromptMessage, HumanPromptMessage, AIPromptMessage, build_sql_system_messages
 from apps.chat.task.clarification import (
     build_clarification_payload,
     build_execution_summary,
@@ -433,13 +433,7 @@ class LLMService:
         self.sql_message = []
         # add sys prompt
         _system_templates = self.chat_question.sql_sys_question(self.ds.type, self.enable_sql_row_limit)
-        self.sql_message.append(SystemPromptMessage(content=_system_templates['system']))
-        self.sql_message.append(HumanPromptMessage(content=_system_templates['rules']))
-        self.sql_message.append(
-            AIPromptMessage(content='我已掌握所有规则，包括表结构、SQL规范、安全限制和输出格式，我会严格遵守这些规则。'))
-        self.sql_message.append(HumanPromptMessage(content=_system_templates['schema']))
-        self.sql_message.append(
-            AIPromptMessage(content='我已确认您提供的数据库信息与表结构schema，我生成的SQL不会超出您提供的范围。'))
+        self.sql_message.extend(build_sql_system_messages(_system_templates))
         if _system_templates.get('custom_prompt'):
             self.sql_message.append(HumanPromptMessage(content=_system_templates['custom_prompt']))
             self.sql_message.append(AIPromptMessage(content='我已确认您提供的额外信息，我会进行参考。'))

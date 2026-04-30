@@ -9,13 +9,20 @@ template:
     regenerate_hint: |
       你之前生成的回答不符合预期或者系统出现了其他问题，请再次检查提示词内要求的规则和提供的信息，重新回答：
     reasoning_instruction: &reasoning_instruction |
-      在生成 SQL 之前，先简要说明你对问题的理解，以 JSON 格式输出：
+      在生成 SQL 时，必须将 reasoning 作为最终回答JSON的一部分输出，禁止在最终回答JSON之前或之后单独输出额外JSON块。reasoning 字段用于简要说明你对问题的理解，格式如下：
       {
-        "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
-        "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
-        "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
-        "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
-        "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
+        "success": true,
+        "reasoning": {
+          "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
+          "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
+          "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
+          "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
+          "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
+        },
+        "sql": "你生成的SQL语句",
+        "tables": ["表名"],
+        "chart-type": "table",
+        "brief": "标题"
       }
 
     process_check: |
