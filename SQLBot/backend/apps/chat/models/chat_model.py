@@ -392,6 +392,7 @@ class AiModelQuestion(BaseModel):
                                                                      example_answer_1=_example_answer_1,
                                                                      example_answer_2=_example_answer_2,
                                                                      example_answer_3=_example_answer_3)
+        templates['reasoning'] = _base_template['reasoning_instruction']
         templates['schema'] = _base_template['generate_basic_info'].format(engine=self.engine, schema=self.db_schema)
 
         if self.terminologies:

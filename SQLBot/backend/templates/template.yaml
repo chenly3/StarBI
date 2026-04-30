@@ -8,6 +8,15 @@ template:
   sql:
     regenerate_hint: |
       你之前生成的回答不符合预期或者系统出现了其他问题，请再次检查提示词内要求的规则和提供的信息，重新回答：
+    reasoning_instruction: &reasoning_instruction |
+      在生成 SQL 之前，先简要说明你对问题的理解，以 JSON 格式输出：
+      {
+        "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
+        "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
+        "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
+        "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
+        "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
+      }
 
     process_check: |
       <SQL-Generation-Process>
@@ -768,12 +777,4 @@ template:
       ### 子查询映射表:
       {sub_query}
 reasoning:
-  instruction: |
-    在生成 SQL 之前，先简要说明你对问题的理解，以 JSON 格式输出：
-    {
-      "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
-      "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
-      "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
-      "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
-      "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
-    }
+  instruction: *reasoning_instruction
