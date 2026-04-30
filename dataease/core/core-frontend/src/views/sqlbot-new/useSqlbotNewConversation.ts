@@ -264,6 +264,16 @@ const normalizeObjectValue = (...values: unknown[]) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       return value as Record<string, any>
     }
+    if (typeof value === 'string' && value.trim()) {
+      try {
+        const parsed = JSON.parse(value)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, any>
+        }
+      } catch {
+        /* ignore non-JSON object strings */
+      }
+    }
   }
   return undefined
 }
@@ -2170,7 +2180,7 @@ export const useSqlbotNewConversation = () => {
         record.sqlAnswer += String(event.reasoning_content || '')
         break
       case 'reasoning': {
-        const reasoning = normalizeObjectValue(event.content)
+        const reasoning = normalizeObjectValue(event.content, event.reasoning_content)
         if (reasoning) {
           record.reasoning = reasoning
         }

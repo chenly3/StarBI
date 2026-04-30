@@ -48,6 +48,19 @@ interface ChartDataset {
   sql?: string
 }
 
+interface ReasoningFieldValue {
+  field: string
+  value: string
+}
+
+interface ReasoningData {
+  time_range?: ReasoningFieldValue
+  metrics?: ReasoningFieldValue[]
+  dimensions?: ReasoningFieldValue[]
+  filters?: ReasoningFieldValue[]
+  datasource?: ReasoningFieldValue
+}
+
 interface SQLBotChatRecordLike {
   localId: string
   id?: number
@@ -338,11 +351,73 @@ const thinkingText = computed(() => {
   return sanitizeNarrative(String(props.record.chartAnswer || props.record.sqlAnswer || ''))
 })
 
+const readReasoningValue = (source: Record<string, any>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key]
+    if (value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+  return undefined
+}
+
+const normalizeReasoningEntry = (value: unknown, fallbackField: string): ReasoningFieldValue | undefined => {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const item = value as Record<string, any>
+    const field = String(item.field || item.name || item.label || fallbackField)
+    const entryValue = readReasoningValue(item, 'value', 'text', 'target', 'fieldName')
+    const renderedValue = entryValue === undefined ? '' : String(entryValue)
+    if (!field && !renderedValue) {
+      return undefined
+    }
+    return {
+      field,
+      value: renderedValue || field
+    }
+  }
+  return {
+    field: fallbackField,
+    value: String(value)
+  }
+}
+
+const normalizeReasoningList = (value: unknown, fallbackField: string) => {
+  const rawItems = Array.isArray(value) ? value : value === undefined ? [] : [value]
+  return rawItems
+    .map(item => normalizeReasoningEntry(item, fallbackField))
+    .filter((item): item is ReasoningFieldValue => Boolean(item))
+}
+
+const normalizeReasoningData = (value?: Record<string, any>): ReasoningData | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const normalized: ReasoningData = {
+    time_range: normalizeReasoningEntry(readReasoningValue(value, 'time_range', 'timeRange'), '时间范围'),
+    metrics: normalizeReasoningList(readReasoningValue(value, 'metrics', 'metric'), '指标'),
+    dimensions: normalizeReasoningList(readReasoningValue(value, 'dimensions', 'dimension'), '维度'),
+    filters: normalizeReasoningList(readReasoningValue(value, 'filters', 'filter'), '筛选条件'),
+    datasource: normalizeReasoningEntry(readReasoningValue(value, 'datasource', 'dataSource'), '数据源')
+  }
+
+  if (
+    normalized.time_range ||
+    normalized.metrics?.length ||
+    normalized.dimensions?.length ||
+    normalized.filters?.length ||
+    normalized.datasource
+  ) {
+    return normalized
+  }
+  return undefined
+}
+
 const structuredReasoning = computed(() => {
-  const reasoning = props.record.reasoning
-  return reasoning && typeof reasoning === 'object' && !Array.isArray(reasoning)
-    ? reasoning
-    : undefined
+  return normalizeReasoningData(props.record.reasoning)
 })
 
 const errorInfo = computed(() => {
