@@ -1044,7 +1044,7 @@ const handlePredictAction = () => {
           重试
         </button>
         <button
-          v-if="showPredictAction && record.finish && !record.error && record.id"
+          v-if="record.finish && !record.error && record.id"
           class="starbi-foot-btn"
           :class="{ disabled: analysisLoading }"
           type="button"
@@ -1056,7 +1056,7 @@ const handlePredictAction = () => {
           {{ analysisActionText }}
         </button>
         <button
-          v-if="record.finish && !record.error && record.id"
+          v-if="showPredictAction && record.finish && !record.error && record.id"
           class="starbi-foot-btn ghost"
           :class="{ disabled: predictLoading }"
           type="button"
