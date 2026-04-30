@@ -45,6 +45,7 @@ from apps.chat.task.clarification import (
     infer_query_interpretation,
     should_request_clarification,
 )
+from apps.chat.task.reasoning import build_reasoning_stream_event, parse_reasoning_from_response
 from apps.data_training.curd.data_training import get_training_template
 from apps.datasource.crud.datasource import get_table_schema
 from apps.datasource.crud.permission import get_row_permission_filters, is_normal_user
@@ -75,62 +76,6 @@ dynamic_subsql_prefix = 'select * from sqlbot_dynamic_temp_table_'
 session_maker = scoped_session(sessionmaker(bind=engine, class_=Session))
 
 i18n = I18n()
-
-
-def _extract_json_values(text: str) -> list[Any]:
-    stack = []
-    start_index = -1
-    results = []
-
-    for index, char in enumerate(text):
-        if char in '{[':
-            if not stack:
-                start_index = index
-            stack.append(char)
-        elif char in '}]':
-            if stack and ((char == '}' and stack[-1] == '{') or (char == ']' and stack[-1] == '[')):
-                stack.pop()
-                if not stack:
-                    json_str = text[start_index:index + 1]
-                    try:
-                        results.append(orjson.loads(json_str))
-                    except Exception:
-                        pass
-            else:
-                stack = []
-
-    return results
-
-
-def _is_sql_answer_json(data: dict) -> bool:
-    return 'success' in data or 'sql' in data or 'message' in data
-
-
-def parse_reasoning_from_response(response_text: str) -> dict | None:
-    json_values = _extract_json_values(response_text)
-
-    for data in reversed(json_values):
-        if isinstance(data, dict) and isinstance(data.get('reasoning'), dict):
-            return data['reasoning']
-
-    fenced_json_blocks = re.findall(r'```(?:json)?\s*([\s\S]*?)```', response_text, flags=re.IGNORECASE)
-    for block in fenced_json_blocks:
-        try:
-            data = orjson.loads(block.strip())
-        except Exception:
-            continue
-        if isinstance(data, dict) and not _is_sql_answer_json(data):
-            return data
-
-    return None
-
-
-def build_reasoning_stream_event(response_text: str) -> str | None:
-    reasoning = parse_reasoning_from_response(response_text)
-    if not reasoning:
-        return None
-
-    return 'data:' + orjson.dumps({'type': 'reasoning', 'content': reasoning}).decode() + '\n\n'
 
 
 def build_learning_context_block(
