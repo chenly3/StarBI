@@ -1203,6 +1203,10 @@ const ensureActiveThemeSelectionReady = async () => {
   if (!activeThemeId.value) {
     return true
   }
+  if (selectionActionInFlight.value) {
+    ElMessage.info('正在切换问数范围，请稍后再提交')
+    return false
+  }
 
   const scopedDatasetIds = (activeTheme.value?.datasetIds || [])
     .map(item => String(item))
@@ -1212,8 +1216,16 @@ const ensureActiveThemeSelectionReady = async () => {
     return false
   }
 
-  const currentDatasetId = String(selectedDatasetId.value || '').trim()
-  if (currentDatasetId && scopedDatasetIds.includes(currentDatasetId)) {
+  const scopedDatasetSet = new Set(scopedDatasetIds)
+  const currentContext = effectiveExecutionContext.value
+  const currentSourceIds =
+    currentContext.queryMode === 'dataset-combination'
+      ? (currentContext.sourceIds || []).map(item => String(item)).filter(Boolean)
+      : [String(selectedDatasetId.value || currentContext.sourceId || '').trim()].filter(Boolean)
+  if (
+    currentSourceIds.length &&
+    currentSourceIds.every(datasetId => scopedDatasetSet.has(datasetId))
+  ) {
     return true
   }
 
