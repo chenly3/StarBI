@@ -29,7 +29,7 @@ from apps.chat.curd.chat import save_question, save_sql_answer, save_sql, \
     save_error_message, save_sql_exec_data, save_chart_answer, save_chart, \
     finish_record, save_analysis_answer, save_predict_answer, save_predict_data, \
     save_select_datasource_answer, save_recommend_question_answer, \
-    get_old_questions, save_analysis_predict_record, rename_chat, get_chart_config, \
+    save_analysis_predict_record, rename_chat, get_chart_config, \
     get_chat_chart_data, list_generate_sql_logs, list_generate_chart_logs, start_log, end_log, \
     get_last_execute_sql_error, format_json_data, format_chart_fields, get_chat_brief_generate, get_chat_predict_data, \
     get_chat_chart_config, trigger_log_error
@@ -710,12 +710,7 @@ class LLMService:
                 question=self.chat_question.question,
                 embedding=False)
 
-        guess_msg: List[Union[BaseMessage, dict[str, Any]]] = []
-        guess_msg.append(SystemPromptMessage(content=self.chat_question.guess_sys_question(self.articles_number)))
-
-        old_questions = list(map(lambda q: q.strip(), get_old_questions(_session, self.record.datasource)))
-        guess_msg.append(
-            HumanMessage(content=self.chat_question.guess_user_question(orjson.dumps(old_questions).decode())))
+        guess_msg = self._build_recommend_questions_messages()
 
         self.current_logs[OperationEnum.GENERATE_RECOMMENDED_QUESTIONS] = start_log(session=_session,
                                                                                     ai_modal_id=self.chat_question.ai_modal_id,
@@ -756,10 +751,96 @@ class LLMService:
                                                                                   reasoning_content=full_thinking_text,
                                                                                   token_usage=token_usage)
         self.record = save_recommend_question_answer(session=_session, record_id=self.record.id,
-                                                     answer={'content': full_guess_text},
+                                                     answer={
+                                                         'content': self._normalize_recommend_questions_content(
+                                                             full_guess_text)
+                                                     },
                                                      articles_number=self.articles_number)
 
         yield {'recommended_question': self.record.recommended_question}
+
+    def _build_recommend_questions_messages(self) -> List[Union[BaseMessage, dict[str, Any]]]:
+        system_prompt = f"""### 请使用语言：{self.chat_question.lang} 回答，不需要输出深度思考过程
+
+### 说明：
+你的任务是基于当前分析结果，推荐 3 个下一步分析问题。
+请遵循以下要求：
+1. 必须基于当前结果中的指标、维度、趋势或异常点。
+2. 问题应支持连续分析，例如下钻、对比、归因、预测。
+3. 不要推荐与当前结果无关的问题。
+4. 不要复述当前问题本身。
+5. 推荐格式：直接返回问题文本，每行一个，不要编号，不要输出其他说明。"""
+
+        user_prompt = f"""当前问题:
+{self.chat_question.question or self.record.question or ''}
+
+SQL:
+{self.record.sql or getattr(self.chat_question, 'sql', '') or ''}
+
+结果摘要:
+{self._build_recommend_result_summary()}"""
+
+        return [
+            SystemPromptMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+
+    def _build_recommend_result_summary(self) -> str:
+        summary_parts: list[str] = []
+
+        def append_payload(title: str, value: Any):
+            if value is None:
+                return
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if not cleaned:
+                    return
+                try:
+                    parsed = orjson.loads(cleaned)
+                    cleaned = orjson.dumps(prepare_for_orjson(parsed)).decode()
+                except Exception:
+                    pass
+            else:
+                try:
+                    cleaned = orjson.dumps(prepare_for_orjson(value)).decode()
+                except Exception:
+                    cleaned = str(value)
+            if len(cleaned) > 4000:
+                cleaned = cleaned[:4000] + '...'
+            summary_parts.append(f'{title}:\n{cleaned}')
+
+        append_payload('SQL回答', self.record.sql_answer)
+        append_payload('查询结果', self.record.data)
+        append_payload('图表分析', self.record.chart_answer)
+        append_payload('分析结论', self.record.analysis)
+        append_payload('预测结论', self.record.predict)
+
+        return '\n\n'.join(summary_parts) if summary_parts else '暂无可用结果摘要'
+
+    @staticmethod
+    def _normalize_recommend_questions_content(content: str) -> str:
+        if not content or not content.strip():
+            return '[]'
+
+        json_str = extract_nested_json(content)
+        if json_str:
+            try:
+                parsed = orjson.loads(json_str)
+                if isinstance(parsed, list):
+                    return orjson.dumps(parsed).decode()
+            except Exception:
+                pass
+
+        questions = []
+        for line in content.splitlines():
+            question = re.sub(r'^\s*(?:[-*]|\d+[.、)]|[一二三四五六七八九十]+[、.])\s*', '', line).strip()
+            question = question.strip('"\'` ，,;；')
+            if question and question not in questions:
+                questions.append(question)
+            if len(questions) >= 3:
+                break
+
+        return orjson.dumps(questions).decode()
 
     def select_datasource(self, _session: Session):
         datasource_msg: List[Union[BaseMessage, dict[str, Any]]] = []
