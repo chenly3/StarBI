@@ -78,3 +78,5 @@ def test_template_removes_ban_on_clarification():
         content = f.read()
     assert "禁止要求额外信息" not in content
     assert "即使查询条件不完整" not in content
+    assert "则忽略数据源的信息" not in content
+    assert "列出候选供用户选择" in content
