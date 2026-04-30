@@ -12,6 +12,7 @@ from apps.chat.models.chat_model import Chat, ChatRecord, CreateChat, ChatInfo, 
     TypeEnum, OperationEnum, ChatRecordResult, ChatLogHistory, ChatLogHistoryItem, ChatSessionSnapshot, \
     ChatSessionEvent, SqlbotNewSnapshotUpsert, SqlbotNewContextSwitchCreate, SqlbotNewHistoryEntry, \
     SqlbotNewContextPayload
+from apps.chat.task.reasoning import parse_reasoning_from_response
 from apps.datasource.crud.datasource import get_ds
 from apps.datasource.crud.recommended_problem import get_datasource_recommended_chart
 from apps.datasource.models.datasource import CoreDatasource
@@ -624,6 +625,9 @@ def format_record(record: ChatRecordResult):
             record.sql_answer.strip()[-1] == '}':
         _obj = orjson.loads(record.sql_answer)
         _dict['sql_answer'] = _obj.get('reasoning_content')
+        reasoning = parse_reasoning_from_response(record.sql_answer)
+        if reasoning:
+            _dict['reasoning'] = reasoning
     if record.sql_reasoning_content and record.sql_reasoning_content.strip() != '':
         _dict['sql_answer'] = record.sql_reasoning_content
     if record.chart_answer and record.chart_answer.strip() != '' and record.chart_answer.strip()[0] == '{' and \

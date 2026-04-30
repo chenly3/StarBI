@@ -132,3 +132,12 @@ def test_build_reasoning_stream_event_uses_existing_data_event_format():
     payload = json.loads(event.removeprefix("data:"))
     assert payload["type"] == "reasoning"
     assert payload["content"]["time_range"]["value"] == "本月"
+
+
+def test_history_format_restores_structured_reasoning():
+    chat_curd_path = BACKEND_ROOT / "apps/chat/curd/chat.py"
+    source = chat_curd_path.read_text()
+
+    assert "from apps.chat.task.reasoning import parse_reasoning_from_response" in source
+    assert "reasoning = parse_reasoning_from_response(record.sql_answer)" in source
+    assert "_dict['reasoning'] = reasoning" in source

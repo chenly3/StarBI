@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 
+from apps.analytics import api as analytics
 from apps.chat.api import chat
 from apps.dashboard.api import dashboard_api
 from apps.data_training.api import data_training
+from apps.disambiguation import api as disambiguation
 from apps.datasource.api import datasource, table_relation, recommended_problem
 from apps.mcp import mcp
 from apps.query_resource_learning import api as query_resource_learning
@@ -31,6 +33,8 @@ api_router.include_router(apikey.router)
 
 api_router.include_router(recommended_problem.router)
 api_router.include_router(query_resource_learning.router)
+api_router.include_router(disambiguation.router)
+api_router.include_router(analytics.router)
 
 api_router.include_router(variable_api.router)
 
