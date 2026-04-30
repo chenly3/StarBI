@@ -180,6 +180,7 @@ template:
           <requirements>
             <requirement>只基于表结构和问题生成SQL，不考虑额外业务想象</requirement>
             <requirement>当缺少关键时间范围、指标口径、维度对象或数据集归属时，不要直接猜测</requirement>
+            <requirement>如果数据源/指标存在歧义且无法通过知识库消歧，列出候选供用户选择</requirement>
             <requirement>若不澄清就会高概率误答，应先返回结构化澄清问题</requirement>
             <requirement>只有在可以安全默认的场景下，才允许直接补全并继续生成SQL</requirement>
           </requirements>
@@ -766,3 +767,13 @@ template:
       
       ### 子查询映射表:
       {sub_query}
+reasoning:
+  instruction: |
+    在生成 SQL 之前，先简要说明你对问题的理解，以 JSON 格式输出：
+    {
+      "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
+      "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
+      "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
+      "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
+      "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
+    }
