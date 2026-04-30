@@ -45,7 +45,7 @@ from apps.chat.task.clarification import (
     infer_query_interpretation,
     should_request_clarification,
 )
-from apps.chat.task.reasoning import build_reasoning_stream_event, parse_reasoning_from_response
+from apps.chat.task.reasoning import build_reasoning_stream_event
 from apps.data_training.curd.data_training import get_training_template
 from apps.datasource.crud.datasource import get_table_schema
 from apps.datasource.crud.permission import get_row_permission_filters, is_normal_user
