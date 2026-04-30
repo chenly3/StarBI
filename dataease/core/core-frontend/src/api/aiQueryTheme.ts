@@ -126,6 +126,30 @@ const normalizeTheme = (theme: any): AIQueryTheme => {
   }
 }
 
+const normalizeThemeSaveRequest = (data: AIQueryThemeSaveRequest): AIQueryThemeSaveRequest => {
+  const datasetIds = [
+    ...new Set((data.datasetIds || []).map(item => String(item)).filter(Boolean))
+  ]
+
+  if (!datasetIds.length) {
+    throw new Error('分析主题至少需要绑定一个数据集')
+  }
+
+  const defaultDatasetIds = [
+    ...new Set(
+      (data.defaultDatasetIds || [])
+        .map(item => String(item))
+        .filter(item => item && datasetIds.includes(item))
+    )
+  ]
+
+  return {
+    ...data,
+    datasetIds,
+    defaultDatasetIds: defaultDatasetIds.length ? defaultDatasetIds : [datasetIds[0]]
+  }
+}
+
 export const listAIQueryThemes = async (): Promise<AIQueryTheme[]> => {
   return request.get({ url: '/ai/query/themes' }).then((res: any) => {
     return (res?.data || res || []).map(normalizeTheme)
@@ -139,15 +163,19 @@ export const getAIQueryTheme = async (id: string): Promise<AIQueryTheme> => {
 }
 
 export const createAIQueryTheme = async (data: AIQueryThemeSaveRequest): Promise<AIQueryTheme> => {
-  return request.post({ url: '/ai/query/themes', data }).then((res: any) => {
-    return normalizeTheme(res?.data || res)
-  })
+  return request
+    .post({ url: '/ai/query/themes', data: normalizeThemeSaveRequest(data) })
+    .then((res: any) => {
+      return normalizeTheme(res?.data || res)
+    })
 }
 
 export const updateAIQueryTheme = async (data: AIQueryThemeSaveRequest): Promise<AIQueryTheme> => {
-  return request.put({ url: '/ai/query/themes', data }).then((res: any) => {
-    return normalizeTheme(res?.data || res)
-  })
+  return request
+    .put({ url: '/ai/query/themes', data: normalizeThemeSaveRequest(data) })
+    .then((res: any) => {
+      return normalizeTheme(res?.data || res)
+    })
 }
 
 export const deleteAIQueryTheme = async (id: string) => {
