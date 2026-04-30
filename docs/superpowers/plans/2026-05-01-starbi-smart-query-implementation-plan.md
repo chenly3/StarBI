@@ -209,15 +209,15 @@ def parse_reasoning_from_response(response_text: str) -> dict | None:
 # 在 stream_sql() 中，生成 SQL 之前增加：
 def stream_sql(session, current_user, request_question, current_assistant, in_chat, stream, ...):
     # ... 现有代码 ...
-    
+
     # 生成 LLM 响应
     llm_response = call_llm(prompt)
-    
+
     # 提取 reasoning 并作为 SSE 事件发送（在 SQL 之前）
     reasoning = parse_reasoning_from_response(llm_response)
     if reasoning:
         yield f"event: reasoning\ndata: {json.dumps(reasoning, ensure_ascii=False)}\n\n"
-    
+
     # 原有 SQL 生成逻辑
     # ... existing code ...
 ```
@@ -306,12 +306,12 @@ const applySQLBotStreamEvent = (record, event, context) => {
       </div>
     </div>
   </div>
-  
+
   <div class="reasoning-section reasoning-summary">
     <div class="reasoning-title">📈 执行摘要</div>
     <span>{{ executionSummary }}</span>
   </div>
-  
+
   <div class="reasoning-section reasoning-details" :class="{ expanded: expanded }">
     <div class="reasoning-title" @click="expanded = !expanded">
       {{ expanded ? '▲' : '▼' }} 查看技术详情
