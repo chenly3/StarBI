@@ -15,12 +15,15 @@ from apps.chat.curd.chat import delete_chat_with_user, get_chart_data_with_user,
     delete_chat, get_chat_chart_data, get_chat_predict_data, get_chat_with_records_with_data, get_chat_record_by_id, \
     format_json_data, format_json_list_data, get_chart_config, list_recent_questions, get_chat as get_chat_exec, \
     rename_chat_with_user, get_chat_log_history, get_chart_data_with_user_live, list_sqlbot_new_histories, \
-    get_sqlbot_new_context, upsert_sqlbot_new_snapshot, create_sqlbot_new_event
+    get_sqlbot_new_context, upsert_sqlbot_new_snapshot, create_sqlbot_new_event, save_question, save_sql_answer, \
+    save_sql, save_sql_exec_data, save_chart_answer, save_chart, finish_record
 from apps.chat.models.chat_model import CreateChat, ChatRecord, RenameChat, ChatQuestion, AxisObj, QuickCommand, \
     ChatInfo, Chat, ChatFinishStep, SqlbotNewSnapshotUpsert, SqlbotNewContextSwitchCreate, SqlbotNewHistoryEntry, \
     SqlbotNewContextPayload, ChatSessionSnapshot, ChatSessionEvent
 from apps.chat.task.llm import LLMService
-from apps.system.crud.assistant import get_assistant_user
+from apps.db.db import exec_sql
+from apps.query_resource_learning.service import find_active_sql_override_patch, record_patch_apply_log
+from apps.system.crud.assistant import AssistantOutDsFactory, get_assistant_user
 from apps.swagger.i18n import PLACEHOLDER_PREFIX
 from apps.system.schemas.permission import SqlbotPermission, require_permissions
 from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
@@ -30,6 +33,158 @@ from common.audit.models.log_model import OperationType, OperationModules
 from common.audit.schemas.logger_decorator import LogConfig, system_log
 
 router = APIRouter(tags=["Data Q&A"], prefix="/chat")
+
+
+def _sse(payload: dict) -> str:
+    return 'data:' + orjson.dumps(payload).decode() + '\n\n'
+
+
+def _extract_learning_override_sql(patch) -> str:
+    patch_payload = patch.patch_payload if isinstance(patch.patch_payload, dict) else {}
+    after_snapshot = patch_payload.get('after_snapshot') if isinstance(patch_payload.get('after_snapshot'), dict) else {}
+    return str(
+        after_snapshot.get('sql')
+        or after_snapshot.get('matched_sql')
+        or after_snapshot.get('override_sql')
+        or patch_payload.get('sql')
+        or patch_payload.get('override_sql')
+        or ''
+    ).strip()
+
+
+def _build_table_chart(fields: list) -> dict:
+    columns = [
+        {
+            'name': str(field),
+            'value': str(field).lower(),
+        }
+        for field in fields or []
+    ]
+    return {
+        'type': 'table',
+        'columns': columns,
+    }
+
+
+def _try_learning_sql_override_stream(
+        session: SessionDep,
+        current_user: CurrentUser,
+        request_question: ChatQuestion,
+        current_assistant: Optional[CurrentAssistant],
+        in_chat: bool,
+        stream: bool,
+):
+    if not in_chat or not stream:
+        return None
+    if not current_assistant or current_assistant.type != 4:
+        return None
+    if not request_question.chat_id or not request_question.question:
+        return None
+
+    chat = session.get(Chat, request_question.chat_id)
+    if not chat or not chat.datasource:
+        return None
+    chat_datasource = chat.datasource
+
+    question_text = request_question.question.strip()
+    if not question_text:
+        return None
+
+    resource_ids = []
+    for resource_id in (f'datasource:{chat_datasource}', str(chat_datasource)):
+        if resource_id not in resource_ids:
+            resource_ids.append(resource_id)
+
+    matched_patch = None
+    matched_resource_id = ''
+    for resource_id in resource_ids:
+        patch = find_active_sql_override_patch(
+            session,
+            resource_id=resource_id,
+            question_text=question_text,
+        )
+        if patch:
+            matched_patch = patch
+            matched_resource_id = resource_id
+            break
+
+    if not matched_patch:
+        return None
+
+    override_sql = _extract_learning_override_sql(matched_patch)
+    if not override_sql:
+        return None
+    matched_patch_id = matched_patch.id
+
+    def _stream():
+        record = save_question(session=session, current_user=current_user, question=request_question)
+        sql_answer = orjson.dumps({
+            'success': True,
+            'sql': override_sql,
+            'tables': [],
+            'chart-type': 'table',
+            'brief': question_text[:20],
+        }).decode()
+        save_sql_answer(session=session, record_id=record.id, answer=orjson.dumps({'content': sql_answer}).decode())
+        save_sql(session=session, record_id=record.id, sql=override_sql)
+        record_patch_apply_log(
+            session,
+            resource_id=matched_resource_id,
+            chat_record_id=record.id,
+            trace_id=f'qrl_apply_{record.id}',
+            question_text=question_text,
+            pre_sql=None,
+            post_sql=override_sql,
+            applied_patch_ids=[matched_patch_id],
+            apply_result='applied',
+        )
+        session.commit()
+
+        out_ds_instance = AssistantOutDsFactory.get_instance(current_assistant)
+        ds = out_ds_instance.get_ds(chat_datasource)
+        result = exec_sql(ds=ds, sql=override_sql, origin_column=False)
+        result['data'] = DataFormat.convert_large_numbers_in_object_array(result.get('data'))
+        result['datasource'] = ds.id
+        save_sql_exec_data(session=session, record_id=record.id, data=orjson.dumps(result).decode())
+
+        chart = _build_table_chart(result.get('fields') or [])
+        chart_text = orjson.dumps(chart).decode()
+        save_chart_answer(session=session, record_id=record.id, answer=orjson.dumps({'content': chart_text}).decode())
+        save_chart(session=session, record_id=record.id, chart=chart_text)
+        finish_record(session=session, record_id=record.id)
+
+        yield _sse({'type': 'id', 'id': record.id})
+        yield _sse({'type': 'question', 'question': question_text})
+        yield _sse({'type': 'sql-result', 'content': sql_answer, 'reasoning_content': ''})
+        yield _sse({'type': 'info', 'msg': 'sql generated'})
+        yield _sse({'type': 'sql', 'content': override_sql})
+        yield _sse({
+            'type': 'query_interpretation',
+            'content': {
+                'metric': [field for field in (result.get('fields') or [])],
+                'dimension': [],
+                'time_range': '',
+                'filters': [],
+                'defaulted_fields': [],
+            },
+        })
+        yield _sse({'content': 'execute-success', 'type': 'sql-data'})
+        yield _sse({'type': 'chart-result', 'content': chart_text, 'reasoning_content': ''})
+        yield _sse({'type': 'info', 'msg': 'chart generated'})
+        yield _sse({'type': 'chart', 'content': chart_text})
+        yield _sse({
+            'type': 'execution_summary',
+            'content': {
+                'scope_label': f'数据源 {chat_datasource}',
+                'datasource_label': getattr(ds, 'name', ''),
+                'summary': '命中问数资源学习修正，已直接执行治理后的 SQL。',
+                'failure_stage': '',
+                'next_action': '可继续追问或在学习修正中调整口径。',
+            },
+        })
+        yield _sse({'type': 'finish'})
+
+    return StreamingResponse(_stream(), media_type="text/event-stream")
 
 
 @router.get("/list", response_model=List[Chat], summary=f"{PLACEHOLDER_PREFIX}get_chat_list")
@@ -322,6 +477,9 @@ async def ask_recommend_questions(session: SessionDep, current_user: CurrentUser
         llm_service.set_articles_number(articles_number)
         llm_service.run_recommend_questions_task_async()
     except Exception as e:
+        if "The system default model has not been set" in str(e):
+            return StreamingResponse(_return_empty(), media_type="text/event-stream")
+
         traceback.print_exc()
 
         def _err(_e: Exception):
@@ -458,6 +616,17 @@ async def stream_sql(session: SessionDep, current_user: CurrentUser, request_que
                      finish_step: ChatFinishStep = ChatFinishStep.GENERATE_CHART, embedding: bool = False,
                      return_img: bool = True):
     try:
+        learning_override_response = _try_learning_sql_override_stream(
+            session,
+            current_user,
+            request_question,
+            current_assistant,
+            in_chat,
+            stream,
+        )
+        if learning_override_response:
+            return learning_override_response
+
         llm_service = await LLMService.create(session, current_user, request_question, current_assistant,
                                               embedding=embedding)
         llm_service.init_record(session=session)

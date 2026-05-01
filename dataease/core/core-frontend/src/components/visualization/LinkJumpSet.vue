@@ -829,10 +829,11 @@ const init = viewItem => {
   const request = { busiFlag: 'dashboard-dataV' } as BusiTreeRequest
   // 获取可关联的仪表板
   queryTreeApi(request).then(rsp => {
-    if (rsp && rsp[0]?.id === '0') {
-      state.panelList = rsp[0].children
+    const treeData = (rsp?.data ?? rsp) as any[]
+    if (treeData && treeData[0]?.id === '0') {
+      state.panelList = treeData[0].children
     } else {
-      state.panelList = rsp
+      state.panelList = treeData
     }
     state.panelList = filterEmptyFolderTree(state.panelList)
     const curSortType = wsCache.get(`TreeSort-${dvInfo.value.type}`) || 'time_asc'
@@ -986,21 +987,23 @@ const getPanelViewList = dvId => {
       })
     }
     // 增加过滤组件匹配
-    JSON.parse(rsp.data.bashComponentData).forEach(componentItem => {
-      if (componentItem.component === 'VQuery' && componentItem.propValue instanceof Array) {
-        componentItem.propValue.forEach(filterItem => {
-          state.currentLinkPanelViewArray.push({
-            id: filterItem.id,
-            type: 'filter',
-            name: filterItem.name,
-            title: filterItem.name
+    ;(JSON.parse(rsp.data.bashComponentData) as Array<Record<string, any>>).forEach(
+      componentItem => {
+        if (componentItem.component === 'VQuery' && componentItem.propValue instanceof Array) {
+          componentItem.propValue.forEach(filterItem => {
+            state.currentLinkPanelViewArray.push({
+              id: filterItem.id,
+              type: 'filter',
+              name: filterItem.name,
+              title: filterItem.name
+            })
+            state.viewIdFieldArrayMap[filterItem.id] = [
+              { id: '1000001', name: t('visualization.filter_no_select') }
+            ]
           })
-          state.viewIdFieldArrayMap[filterItem.id] = [
-            { id: '1000001', name: t('visualization.filter_no_select') }
-          ]
-        })
+        }
       }
-    })
+    )
   })
 }
 

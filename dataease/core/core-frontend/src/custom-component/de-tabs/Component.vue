@@ -334,7 +334,8 @@ const calcTabLength = () => {
       )
       if (containerDom) {
         tabsAreaScroll.value =
-          containerDom?.parentNode?.clientWidth > tabComponentRef.value.clientWidth - 100
+          (containerDom?.parentNode as HTMLElement)?.clientWidth >
+          tabComponentRef.value.clientWidth - 100
       }
     } else {
       tabsAreaScroll.value = false
@@ -355,7 +356,7 @@ const curPreviewGap = computed(() =>
 )
 
 function sureCurTitle() {
-  state.curItem.title = state.textarea
+  ;(state.curItem as Record<string, any>).title = state.textarea
   state.dialogVisible = false
   snapshotStore.recordSnapshotCache('sureCurTitle')
 }

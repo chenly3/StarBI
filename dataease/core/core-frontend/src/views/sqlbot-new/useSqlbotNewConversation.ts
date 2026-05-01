@@ -959,8 +959,7 @@ export const useSqlbotNewConversation = () => {
                 ? {
                     name: String(combinationDraft.name || ''),
                     primaryDatasetId: normalizeOptionalId(
-                      combinationDraft.primaryDatasetId,
-                      combinationDraft.primary_dataset_id
+                      combinationDraft.primaryDatasetId || combinationDraft.primary_dataset_id
                     ),
                     secondaryDatasetIds: normalizeOptionalIdList(
                       combinationDraft.secondaryDatasetIds,
@@ -969,13 +968,11 @@ export const useSqlbotNewConversation = () => {
                     relations: Array.isArray(combinationDraft.relations)
                       ? combinationDraft.relations.map((item: Record<string, any>) => ({
                           leftDatasetId: normalizeOptionalId(
-                            item.leftDatasetId,
-                            item.left_dataset_id
+                            item.leftDatasetId || item.left_dataset_id
                           ),
                           leftField: String(item.leftField || item.left_field || ''),
                           rightDatasetId: normalizeOptionalId(
-                            item.rightDatasetId,
-                            item.right_dataset_id
+                            item.rightDatasetId || item.right_dataset_id
                           ),
                           rightField: String(item.rightField || item.right_field || ''),
                           relationType: normalizeCombinationRelationType(
@@ -1149,10 +1146,10 @@ export const useSqlbotNewConversation = () => {
       entry.sourceIds
     )
     const combinationId = normalizeOptionalId(
-      snapshot?.activeCombinationId,
-      latestContextEvent?.combinationId,
-      latestEventMetadata.combinationId,
-      entry.combinationId
+      snapshot?.activeCombinationId ||
+        latestContextEvent?.combinationId ||
+        latestEventMetadata.combinationId ||
+        entry.combinationId
     )
     const combinationName = pickFirstNonEmptyString(
       snapshot?.activeCombinationName,
@@ -1231,8 +1228,6 @@ export const useSqlbotNewConversation = () => {
         detail?.datasource_name
       ),
       brief: pickFirstNonEmptyString(detail?.brief, entry.title),
-      sourceKind: executionContext.queryMode,
-      sourceId: executionContext.sourceId,
       lastQuestion: entry.lastQuestion,
       sessionId: entry.id
     })
@@ -2016,6 +2011,7 @@ export const useSqlbotNewConversation = () => {
     const context = buildRequestContext(executionContext, assistantToken)
     const response = await startSQLBotAssistantChat(context, {
       origin: 2,
+      skip_first_chat_record: true,
       datasource: executionContext.datasourceId || undefined
     })
 

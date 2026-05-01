@@ -17,6 +17,13 @@ import { valueFormatter } from '@/views/chart/components/js/formatter'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
+
+type RuntimeHeatmapOptions = HeatmapOptions & Record<string, any>
+type RuntimeHeatmapLabel = NonNullable<HeatmapOptions['label']> & {
+  fullDisplay?: boolean
+  layout?: any[]
+}
+
 /**
  * 热力图
  */
@@ -144,11 +151,11 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
       meta: {
         [xField]: {
           type: 'cat',
-          values: this.sortData(xAxis[0], [...new Set(data.map(i => i[[xField]]))])
+          values: this.sortData(xAxis[0], [...new Set(data.map(i => i[xField]))])
         },
         [xFieldExt]: {
           type: 'cat',
-          values: this.sortData(xAxisExt[0], [...new Set(data.map(i => i[[xFieldExt]]))]).reverse()
+          values: this.sortData(xAxisExt[0], [...new Set(data.map(i => i[xFieldExt]))]).reverse()
         }
       },
       legend: {
@@ -211,7 +218,7 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
 
   protected configTheme(chart: Chart, options: HeatmapOptions): HeatmapOptions {
     const tmp = super.configTheme(chart, options)
-    tmp.theme.innerLabels.offset = 0
+    ;((tmp as RuntimeHeatmapOptions).theme as Record<string, any>).innerLabels.offset = 0
     return tmp
   }
 
@@ -329,12 +336,13 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
     if (tmpOptions.label) {
       const extColor = deepCopy(chart.extColor)
       const { label: labelAttr } = parseJson(chart.customAttr)
+      const runtimeLabel = tmpOptions.label as RuntimeHeatmapLabel
       const layout = []
-      if (!tmpOptions.label.fullDisplay) {
-        layout.push(...tmpOptions.label.layout)
+      if (!runtimeLabel.fullDisplay) {
+        layout.push(...(Array.isArray(runtimeLabel.layout) ? runtimeLabel.layout : []))
       }
       const label = {
-        ...tmpOptions.label,
+        ...runtimeLabel,
         position: 'middle',
         layout,
         formatter: data => {
@@ -347,7 +355,7 @@ export class TableHeatmap extends G2PlotChartView<HeatmapOptions, Heatmap> {
       }
       return {
         ...tmpOptions,
-        label
+        label: label as HeatmapOptions['label']
       }
     }
     return tmpOptions

@@ -94,6 +94,7 @@ let inputComponentName = ref({ id: null, name: null })
 let componentNameInput = ref(null)
 
 const { t } = useI18n()
+type AnyRecord = Record<string, any>
 const loading = ref(false)
 const tabActive = ref('data')
 const datasetSelector = ref(null)
@@ -234,22 +235,22 @@ const state = reactive({
     renameType: ''
   },
   quotaFilterEdit: false,
-  quotaItem: {},
+  quotaItem: {} as AnyRecord,
   resultFilterEdit: false,
-  filterItem: {},
-  chartForFilter: {},
+  filterItem: {} as AnyRecord,
+  chartForFilter: {} as AnyRecord,
   searchField: '',
-  quotaItemCompare: {},
+  quotaItemCompare: {} as AnyRecord,
   showEditQuotaCompare: false,
   showValueFormatter: false,
-  valueFormatterItem: {},
+  valueFormatterItem: {} as AnyRecord,
   showCustomSort: false,
   showSortPriority: false,
   sortPriority: [],
   customSortList: [],
-  customSortField: {},
-  currEditField: {},
-  worldTree: [],
+  customSortField: {} as AnyRecord,
+  currEditField: {} as AnyRecord,
+  worldTree: [] as AnyRecord[],
   areaId: '',
   chartTypeOptions: [],
   useless: null
@@ -333,7 +334,7 @@ watch(
       if (!state.worldTree?.length) {
         getWorldTree().then(async res => {
           const customAreaList = (await listCustomGeoArea()).data
-          const customRoot = {
+          const customRoot: AnyRecord = {
             id: 'customRoot',
             name: '自定义区域',
             disabled: true
@@ -1990,7 +1991,9 @@ const drop = (ev: MouseEvent, type = 'xAxis') => {
     const obj = cloneDeep(arr[i])
     state.moveId = obj.id as unknown as number
     view.value[type] ??= []
-    const targetId = ev.srcElement.offsetParent?.querySelector('.node-id_private')?.dataset?.id
+    const targetId = (
+      ev.srcElement as HTMLElement | null
+    )?.offsetParent?.querySelector<HTMLElement>('.node-id_private')?.dataset?.id
     const index = view.value[type].findIndex(ele => ele.id === targetId && ele.id !== obj.id)
     let newDraggableIndex
     if (index !== -1) {

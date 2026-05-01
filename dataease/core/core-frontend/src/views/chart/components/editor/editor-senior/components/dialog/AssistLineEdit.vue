@@ -10,21 +10,42 @@ import { iconFieldMap } from '@/components/icon-group/field-list'
 
 const { t } = useI18n()
 
+type AssistLineField = {
+  id: string | number
+  name?: string
+  deType?: number
+}
+
+type AssistLineItem = {
+  name: string
+  field: string
+  fieldId?: string | number
+  summary: string
+  axis: string
+  yAxisType: string
+  value: string | number
+  lineType: string
+  color: string
+  curField: AssistLineField | Record<string, never> | null
+  fontSize: string | number
+  deType?: number
+}
+
 const props = defineProps({
   chart: {
     type: Object as PropType<ChartObj>,
     required: true
   },
   line: {
-    type: Array,
+    type: Array as PropType<AssistLineItem[]>,
     required: true
   },
   quotaFields: {
-    type: Array,
+    type: Array as PropType<AssistLineField[]>,
     required: true
   },
   quotaExtFields: {
-    type: Array,
+    type: Array as PropType<AssistLineField[]>,
     required: true
   },
   useQuotaExt: {
@@ -39,7 +60,7 @@ const yAxisTypes = [
 ]
 
 const state = reactive({
-  lineArr: [],
+  lineArr: [] as AssistLineItem[],
   lineObj: {
     name: t('chart.assist_line'),
     field: '0', // 固定值
@@ -52,7 +73,7 @@ const state = reactive({
     color: '#ff0000',
     curField: {},
     fontSize: '10'
-  },
+  } as AssistLineItem,
   fieldOptions: [
     { label: t('chart.field_fixed'), value: '0' },
     { label: t('chart.field_dynamic'), value: '1' }

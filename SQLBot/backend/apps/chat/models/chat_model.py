@@ -246,6 +246,7 @@ class CreateChat(BaseModel):
     question: str = None
     datasource: int = None
     origin: Optional[int] = 0  # 0是页面上，mcp是1，小助手是2
+    skip_first_chat_record: bool = False
 
 
 class RenameChat(BaseModel):

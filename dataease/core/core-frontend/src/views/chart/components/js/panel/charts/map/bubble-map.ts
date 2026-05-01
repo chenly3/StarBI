@@ -4,7 +4,7 @@ import {
   L7PlotDrawOptions
 } from '@/views/chart/components/js/panel/types/impl/l7plot'
 import { Choropleth, ChoroplethOptions } from '@antv/l7plot/dist/esm/plots/choropleth'
-import { Dot, DotOptions, IPlotLayer } from '@antv/l7plot'
+import { Dot, DotOptions } from '@antv/l7plot'
 import {
   MAP_AXIS_TYPE,
   MAP_EDITOR_PROPERTY,
@@ -27,6 +27,15 @@ import { TextLayer } from '@antv/l7plot/dist/esm'
 import { centroid } from '@turf/centroid'
 
 const { t } = useI18n()
+
+type RuntimeDotLayer = Dot & {
+  options: DotOptions
+  addToScene: (scene: unknown) => void
+}
+
+type RuntimeChoropleth = Choropleth & {
+  currentDistrictData?: FeatureCollection
+}
 
 /**
  * 气泡地图
@@ -186,7 +195,8 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     mapRendering(container)
     view.once('loaded', () => {
       // 修改地图鼠标样式为默认
-      view.scene.map._canvasContainer.lastElementChild.style.cursor = 'default'
+      ;(view.scene.map as Record<string, any>)._canvasContainer.lastElementChild.style.cursor =
+        'default'
       const { layers } = context
       if (layers) {
         layers.forEach(l => {
@@ -206,7 +216,8 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
           const area = customSubArea.find(a => a.name === evData.name)
           scope = area?.scopeArr
         } else {
-          adcode = view.currentDistrictData.features.find(
+          const runtimeView = view as unknown as Record<string, any>
+          adcode = runtimeView.currentDistrictData?.features.find(
             i => i.properties.name === ev.feature.properties.name
           )?.properties.adcode
         }
@@ -241,7 +252,7 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     geoJson: FeatureCollection,
     drawOption: L7PlotDrawOptions<Choropleth>,
     customSubArea: CustomGeoSubArea[]
-  ): IPlotLayer {
+  ): RuntimeDotLayer {
     const { areaId } = drawOption
     const { basicStyle, tooltip } = parseJson(chart.customAttr)
     const { bubbleCfg } = parseJson(chart.senior)
@@ -403,9 +414,9 @@ export class BubbleMap extends L7PlotChartView<ChoroplethOptions, Choropleth> {
           speed: bubbleCfg.speed,
           rings: bubbleCfg.rings
         }
-      })
+      }) as RuntimeDotLayer
     }
-    return new Dot(options)
+    return new Dot(options) as RuntimeDotLayer
   }
 
   private configBasicStyle(

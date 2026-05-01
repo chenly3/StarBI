@@ -7,6 +7,7 @@ import {
 } from '@/views/chart/components/js/panel/types/impl/l7'
 import { MAP_EDITOR_PROPERTY_INNER } from '@/views/chart/components/js/panel/charts/map/common'
 import {
+  flow,
   getColorFormAlphaColor,
   hexColorToRGBA,
   parseJson,
@@ -26,6 +27,10 @@ import {
 import { configCarouselTooltip } from '@/views/chart/components/js/panel/charts/map/tooltip-carousel'
 import { filter } from 'lodash-es'
 const { t } = useI18n()
+
+type SymbolicAxisField = {
+  dataeaseName: string
+}
 
 /**
  * 符号地图
@@ -99,7 +104,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
     if (rect?.height <= 0) {
       return new L7Wrapper(drawOption.chartObj?.getScene(), [])
     }
-    const xAxis = deepCopy(chart.xAxis)
+    const xAxis = deepCopy(chart.xAxis) as unknown as SymbolicAxisField[]
     let basicStyle
     let miscStyle
     if (chart.customAttr) {
@@ -117,10 +122,12 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       xAxis?.length === 2 &&
       chart.data?.tableRow.length
     ) {
+      const tableRows = chart.data.tableRow as unknown as Record<string, any>[]
+      const firstRow = tableRows[0]
       // 经度
-      const lng = chart.data?.tableRow?.[0][chart.xAxis[0].dataeaseName]
+      const lng = firstRow[xAxis[0].dataeaseName]
       // 纬度
-      const lat = chart.data?.tableRow?.[0][chart.xAxis[1].dataeaseName]
+      const lat = firstRow[xAxis[1].dataeaseName]
       center = [lng, lat]
     }
     const chartObj = drawOption.chartObj as unknown as L7Wrapper<L7Config, Scene>
@@ -483,7 +490,7 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
           const tooltipElement = containerElement.getElementsByClassName('l7-popup')
           for (let i = 0; i < tooltipElement?.length; i++) {
             const element = tooltipElement[i] as HTMLElement
-            element.firstElementChild.style.display = 'none'
+            ;(element.firstElementChild as HTMLElement).style.display = 'none'
             element.style.transform = 'translate(15px, 12px)'
             const isNearRightEdge =
               containerElement.clientWidth - mouseX <= element.clientWidth + 10
@@ -623,5 +630,9 @@ export class SymbolicMap extends L7ChartView<Scene, L7Config> {
       mapStyle: 'normal'
     }
     return chart
+  }
+
+  protected setupOptions(chart: Chart, config: L7Config): L7Config {
+    return flow(this.configEmptyDataStrategy)(chart, config)
   }
 }

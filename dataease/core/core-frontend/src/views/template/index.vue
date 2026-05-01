@@ -244,7 +244,7 @@ import DeCategoryChange from '@/views/template/component/DeCategoryChange.vue'
 
 const roleValidator = (rule, value, callback) => {
   if (nameRepeat(value)) {
-    const { nodeType } = state.templateEditForm || {}
+    const { nodeType } = (state.templateEditForm || {}) as Record<string, any>
     callback(
       new Error(
         t(
@@ -358,7 +358,7 @@ const currentTemplateShowListComputed = computed(() => {
 })
 
 const nameList = computed(() => {
-  const { nodeType } = state.templateEditForm || {}
+  const { nodeType } = (state.templateEditForm || {}) as Record<string, any>
   if (nodeType === 'template') {
     return state.currentTemplateShowList.map(ele => ele.label)
   }

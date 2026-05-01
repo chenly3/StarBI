@@ -353,7 +353,7 @@ const renderChart = async (view, callback?) => {
   }
 }
 let myChart = null
-let g2Timer: number
+let g2Timer: ReturnType<typeof setTimeout>
 const renderG2Plot = async (chart, chartView: G2PlotChartView<any, any>) => {
   g2Timer && clearTimeout(g2Timer)
   g2Timer = setTimeout(async () => {
@@ -365,7 +365,7 @@ const renderG2Plot = async (chart, chartView: G2PlotChartView<any, any>) => {
       myChart = await chartView.drawChart({
         chartObj: myChart,
         container: containerId,
-        chart: chart,
+        chart: chart as unknown as Chart,
         scale: 1,
         action,
         quadrantDefaultBaseline
@@ -385,7 +385,7 @@ const country = ref('')
 let gadmName
 const chartContainer = ref<HTMLElement>(null)
 let scope
-let mapTimer: number
+let mapTimer: ReturnType<typeof setTimeout>
 const renderL7Plot = async (chart: ChartObj, chartView: L7PlotChartView<any, any>, callback) => {
   const map = parseJson(chart.customAttr).map
   let areaId = map.id
@@ -408,7 +408,7 @@ const renderL7Plot = async (chart: ChartObj, chartView: L7PlotChartView<any, any
     myChart = await chartView.drawChart({
       chartObj: myChart,
       container: containerId,
-      chart,
+      chart: chart as unknown as Chart,
       areaId,
       action,
       scope,
@@ -419,7 +419,7 @@ const renderL7Plot = async (chart: ChartObj, chartView: L7PlotChartView<any, any
   }, 500)
 }
 
-let mapL7Timer: number
+let mapL7Timer: ReturnType<typeof setTimeout>
 const renderL7 = async (chart: ChartObj, chartView: L7ChartView<any, any>, callback) => {
   mapL7Timer && clearTimeout(mapL7Timer)
   mapL7Timer = setTimeout(async () => {
@@ -427,7 +427,7 @@ const renderL7 = async (chart: ChartObj, chartView: L7ChartView<any, any>, callb
     myChart = await chartView.drawChart({
       chartObj: myChart,
       container: containerId,
-      chart: chart,
+      chart: chart as unknown as Chart,
       action
     })
     myChart?.render()

@@ -14,10 +14,18 @@ import dvInfoSvg from '@/assets/svg/dv-info.svg'
 import { useI18n } from '@/hooks/web/useI18n'
 const snapshotStore = snapshotStoreWithOut()
 const { t } = useI18n()
+
+type SidebarElement = {
+  id?: string | number
+  name?: string
+  label?: string
+}
+
 const props = defineProps({
   element: {
+    type: Object as PropType<SidebarElement>,
     required: false,
-    default: {}
+    default: () => ({})
   },
   scrollWidth: {
     required: false,

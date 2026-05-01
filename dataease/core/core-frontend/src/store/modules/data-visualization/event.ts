@@ -17,7 +17,10 @@ export const eventStore = defineStore('event', {
 
     displayEventChange(component) {
       component.events.displayChange.value = !component.events.displayChange.value
-      dvMainStore.canvasStateChange({ key: 'curPointArea', value: area })
+      dvMainStore.canvasStateChange({
+        key: 'curPointArea',
+        value: component.events.displayChange.value ? 'hidden' : 'base'
+      })
       componentData.value.forEach(item => {
         if (item.category === 'hidden') {
           item.isShow = component.events.displayChange.value

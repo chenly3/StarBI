@@ -388,10 +388,26 @@ export const DEFAULT_LABEL: ChartLabelAttr = {
   showStackQuota: false,
   fullDisplay: false,
   proportionSeriesFormatter: {
+    id: '',
+    name: '',
+    dataeaseName: '',
+    originName: '',
+    deType: 0,
+    extField: 0,
+    type: '',
+    groupType: 'q',
+    summary: '',
+    sort: 'none',
+    customSort: [],
+    hide: false,
+    chartShowName: '',
+    seriesId: '',
+    axisType: '',
     show: false,
     color: '#000',
     fontSize: 12,
     formatterCfg: {
+      ...formatterItem,
       decimalCount: 2
     }
   }
@@ -440,6 +456,7 @@ export const DEFAULT_TABLE_TOTAL: ChartTableTotalAttr = {
     label: t('chart.total_show'),
     subLabel: t('chart.sub_total_show'),
     subTotalsDimensions: [],
+    subTotalsDimensionsNew: true,
     calcTotals: {
       aggregation: 'SUM',
       cfg: []
@@ -679,7 +696,8 @@ export const DEFAULT_XAXIS_STYLE: ChartAxisStyle = {
     unit: 1,
     suffix: '',
     decimalCount: 2,
-    thousandSeparator: true
+    thousandSeparator: true,
+    showTotalPercent: false
   }
 }
 export const DEFAULT_YAXIS_STYLE: ChartAxisStyle = {
@@ -726,12 +744,14 @@ export const DEFAULT_YAXIS_STYLE: ChartAxisStyle = {
     unit: 1,
     suffix: '',
     decimalCount: 2,
-    thousandSeparator: true
+    thousandSeparator: true,
+    showTotalPercent: false
   }
 }
 export const DEFAULT_YAXIS_EXT_STYLE: ChartAxisStyle = {
   show: true,
   position: 'right',
+  nameShow: false,
   name: '',
   color: '#333333',
   fontSize: 12,
@@ -740,7 +760,8 @@ export const DEFAULT_YAXIS_EXT_STYLE: ChartAxisStyle = {
     color: '#333333',
     fontSize: 12,
     rotate: 0,
-    formatter: '{value}'
+    formatter: '{value}',
+    lengthLimit: 10
   },
   axisLine: {
     show: false,
@@ -771,7 +792,8 @@ export const DEFAULT_YAXIS_EXT_STYLE: ChartAxisStyle = {
     unit: 1,
     suffix: '',
     decimalCount: 2,
-    thousandSeparator: true
+    thousandSeparator: true,
+    showTotalPercent: false
   }
 }
 export const DEFAULT_BACKGROUND_COLOR = {
@@ -850,7 +872,8 @@ export const DEFAULT_THRESHOLD: ChartThreshold = {
   labelThreshold: [],
   tableThreshold: [],
   textLabelThreshold: [],
-  lineLabelThreshold: []
+  lineThreshold: [],
+  symbolicBubbleThreshold: []
 }
 export const DEFAULT_SCROLL: ScrollCfg = {
   open: false,

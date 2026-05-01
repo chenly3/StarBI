@@ -22,7 +22,7 @@ export const getFileFieldKind = (field: Record<string, any>): FileFieldKind => {
 }
 
 export const buildFileFieldMetas = (fields: Record<string, any>[] = []): FileFieldMeta[] => {
-  return fields
+  const metas = fields
     .map((field, index) => {
       const name = normalizeFieldName(field?.name || field?.originName || `字段${index + 1}`)
       if (!name) {
@@ -37,7 +37,8 @@ export const buildFileFieldMetas = (fields: Record<string, any>[] = []): FileFie
         deExtractType: typeof field?.deExtractType === 'number' ? field.deExtractType : undefined
       }
     })
-    .filter((field): field is FileFieldMeta => Boolean(field))
+    .filter(field => field !== null)
+  return metas as FileFieldMeta[]
 }
 
 export const uniqueFieldNames = (fields: string[]) => {

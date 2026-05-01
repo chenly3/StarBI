@@ -171,6 +171,16 @@ gunzip -c images/starbi-images.tar.gz | docker load
 ```bash
 sed -i 's|^STARBI_PUBLIC_URL=.*|STARBI_PUBLIC_URL=http://SERVER_IP:9080|' .env
 sed -i 's|^SQLBOT_CORS_ORIGINS=.*|SQLBOT_CORS_ORIGINS=http://SERVER_IP:9080|' .env
+sed -i 's|^STARBI_SQLBOT_DOMAIN=.*|STARBI_SQLBOT_DOMAIN=http://starbi-sqlbot:8000|' .env
+```
+
+确认 `.env` 里这 4 个值存在，且 `STARBI_SQLBOT_ASSISTANT_SECRET` 不要为空。DataEase 和 SQLBot 会同时读取这组值，首次启动时自动生成 SQLBot 默认应用并写入 DataEase 的 `sqlbot.*` 系统参数：
+
+```text
+STARBI_SQLBOT_DOMAIN=http://starbi-sqlbot:8000
+STARBI_SQLBOT_ASSISTANT_ID=1
+STARBI_SQLBOT_ASSISTANT_SECRET=一个随机长密钥
+STARBI_SQLBOT_ENABLED=true
 ```
 
 然后启动：
@@ -183,6 +193,23 @@ docker compose up -d --no-build
 
 ```bash
 docker compose ps
+```
+
+启动后验证 SQLBot 默认应用和 DataEase 问数配置是否真实落库：
+
+```bash
+docker compose exec starbi-postgres psql -U root -d sqlbot -c \
+"select id,name,type,domain,app_id,app_secret,oid from sys_assistant order by id limit 10;"
+
+docker compose exec starbi-mysql sh -lc \
+'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" dataease -e "select pkey,pval from core_sys_setting where pkey like '\''sqlbot.%'\'' order by pkey;"'
+```
+
+应该能看到：
+
+```text
+sys_assistant 里有 id=1 的 StarBI 应用
+core_sys_setting 里有 sqlbot.domain / sqlbot.id / sqlbot.secret / sqlbot.enabled / sqlbot.valid
 ```
 
 访问：

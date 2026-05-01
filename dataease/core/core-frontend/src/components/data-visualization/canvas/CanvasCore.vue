@@ -49,6 +49,21 @@ import DeGrid from '@/components/data-visualization/DeGrid.vue'
 import DeGridScreen from '@/components/data-visualization/DeGridScreen.vue'
 import GroupAreaShadow from '@/custom-component/group-area/ComponentShadow.vue'
 
+type CanvasComponent = Record<string, any> & {
+  id: string
+  component: string
+  isLock?: boolean
+  isShow?: boolean
+  y?: number
+  sizeY?: number
+  style: Record<string, any>
+}
+
+type CanvasStyleData = Record<string, any> & {
+  component?: Record<string, any>
+  dashboard?: Record<string, any>
+}
+
 const snapshotStore = snapshotStoreWithOut()
 const dvMainStore = dvMainStoreWithOut()
 const composeStore = composeStoreWithOut()
@@ -201,6 +216,9 @@ const {
   themes
 } = toRefs(props)
 
+const getComponents = () => componentData.value as CanvasComponent[]
+const getCanvasStyleData = () => canvasStyleData.value as CanvasStyleData
+
 const mainCanvasFlag = isMainCanvas(canvasId.value)
 const editorX = ref(0)
 const editorY = ref(0)
@@ -275,11 +293,8 @@ const watermarkUpdate = () => {
 
 const initWatermark = (waterDomId = 'editor-canvas-main') => {
   try {
-    if (
-      dvInfo.value.watermarkInfo &&
-      dvInfo.value.watermarkInfo.settingContent &&
-      isMainCanvas(canvasId.value)
-    ) {
+    const watermarkInfo = dvInfo.value.watermarkInfo as Record<string, any>
+    if (watermarkInfo && watermarkInfo.settingContent && isMainCanvas(canvasId.value)) {
       activeWatermarkCheckUser(waterDomId, canvasId.value, curScale.value)
     }
   } catch (e) {
@@ -511,7 +526,7 @@ const getSelectArea = () => {
   // 区域起点坐标
   const { x, y } = start.value
   // 计算所有的组件数据，判断是否在选中区域内
-  componentData.value.forEach(component => {
+  getComponents().forEach(component => {
     if (component.isLock || !component.isShow) return
 
     const styleInfo = getComponentRotatedStyle(component.style)
@@ -708,7 +723,7 @@ function findPositionX(item) {
   let pb = positionBox.value
   if (width <= 0) return
   // 查找组件最高位置索引 component 规则 y最新为1
-  componentData.value.forEach(component => {
+  getComponents().forEach(component => {
     const componentYIndex = component.y + component.sizeY - 2
     if (checkPointYIndex < componentYIndex) {
       checkPointYIndex = componentYIndex
@@ -948,7 +963,7 @@ function removeItemComponent(item) {
 }
 
 function removeItem(index) {
-  let item = componentData.value[index]
+  let item = getComponents()[index]
   if (item && isSameCanvas(item, canvasId.value)) {
     removeItemComponent(item)
     dvMainStore.removeLinkageInfo(item['id'])
@@ -1219,7 +1234,7 @@ const maxYCount = () => {
   if (componentData.value.length === 0) {
     return 1
   } else {
-    return componentData.value
+    return getComponents()
       .filter(item => item.y)
       .map(item => item.y + item.sizeY) // 计算每个元素的 y + sizeY
       .reduce((max, current) => Math.max(max, current), 0)
@@ -1420,7 +1435,7 @@ const handleDragOver = e => {
   }
   infoBox.value.moveItem.style.left = e.pageX
   infoBox.value.moveItem.style.top = e.pageY + mainScrollTop.value
-  onDragging(e, infoBox.value.moveItem, 0)
+  onDragging(e, infoBox.value.moveItem)
 }
 
 const getMoveItem = () => {
@@ -1486,7 +1501,7 @@ const showGridScreen = computed(() => {
 
 const dataVBatchOptAdaptor = () => {
   dvMainStore.setBatchOptStatus(true)
-  areaData.value.components.forEach(component => {
+  ;(areaData.value.components as CanvasComponent[]).forEach(component => {
     dvMainStore.addCurBatchComponent(component)
   })
 }
@@ -1501,7 +1516,7 @@ const itemShow = item => {
 const groupAreaShadowShow = computed(
   () =>
     componentData.value.length > 0 &&
-    componentData.value[componentData.value.length - 1].component === 'GroupArea' &&
+    getComponents()[componentData.value.length - 1].component === 'GroupArea' &&
     isCtrlOrCmdDown.value
 )
 // 点击事件导致选择区域变更

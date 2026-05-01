@@ -95,7 +95,7 @@
   </el-row>
 </template>
 
-<script setup>
+<script lang="ts" setup>
 import { onMounted, reactive } from 'vue'
 import { watermarkFind, watermarkSave } from '@/api/watermark'
 import { ElMessage } from 'element-plus-secondary/es'
@@ -105,7 +105,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import ParamsTips from '@/views/watermark/ParamsTips.vue'
 const { t } = useI18n()
 
-const state = reactive({
+const state = reactive<any>({
   userLoginInfo: {
     username: '',
     nickName: '',

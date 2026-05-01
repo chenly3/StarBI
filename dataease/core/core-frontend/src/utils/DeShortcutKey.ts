@@ -207,7 +207,7 @@ function move(keyCode) {
 
 function groupAreaAdaptor(leftOffset = 0, topOffset = 0) {
   const canvasId = curComponent.value.canvasId
-  const parentNode = document.querySelector('#editor-' + canvasId)
+  const parentNode = document.querySelector<HTMLElement>('#editor-' + canvasId)
 
   //如果当前画布是Group内部画布 则对应组件定位在resize时要还原到groupStyle中
   if (isGroupCanvas(canvasId) || isTabCanvas(canvasId)) {

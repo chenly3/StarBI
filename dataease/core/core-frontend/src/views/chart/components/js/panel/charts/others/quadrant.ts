@@ -231,7 +231,7 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
       configYaxisTitleLengthLimit(chart, newChart)
       configAxisLabelLengthLimit(chart, newChart, 'axis-title')
     }
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     return newChart
   }
 
@@ -462,7 +462,7 @@ export class Quadrant extends G2PlotChartView<ScatterOptions, G2Scatter> {
     } else {
       size = DEFAULT_LEGEND_STYLE.size
     }
-    optionTmp.legend.marker.style = style => {
+    ;(optionTmp.legend as any).marker.style = style => {
       return {
         r: size,
         fill: style.fill

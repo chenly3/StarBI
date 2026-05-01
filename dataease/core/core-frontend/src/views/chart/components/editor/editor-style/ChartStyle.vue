@@ -35,7 +35,8 @@ import BulletMeasureSelector from '@/views/chart/components/editor/editor-style/
 import BulletRangeSelector from '@/views/chart/components/editor/editor-style/components/bullet/BulletRangeSelector.vue'
 import {
   DEFAULT_LEGEND_STYLE,
-  DEFAULT_TITLE_STYLE
+  DEFAULT_TITLE_STYLE,
+  DEFAULT_YAXIS_EXT_STYLE
 } from '@/views/chart/components/editor/util/chart'
 
 const snapshotStore = snapshotStoreWithOut()
@@ -149,7 +150,10 @@ const ensureChartStyle = () => {
   if (!chart.value) {
     return
   }
-  const customStyle = (chart.value.customStyle = chart.value.customStyle || {})
+  if (!chart.value.customStyle) {
+    chart.value.customStyle = {} as ChartStyle
+  }
+  const customStyle = chart.value.customStyle as ChartStyle
   customStyle.text = {
     ...DEFAULT_TITLE_STYLE,
     ...(customStyle.text || {})
@@ -158,7 +162,7 @@ const ensureChartStyle = () => {
     ...DEFAULT_LEGEND_STYLE,
     ...(customStyle.legend || {})
   }
-  customStyle.yAxisExt = customStyle.yAxisExt || { show: false }
+  customStyle.yAxisExt = customStyle.yAxisExt || { ...DEFAULT_YAXIS_EXT_STYLE, show: false }
 }
 
 const onMiscChange = (val, prop) => {

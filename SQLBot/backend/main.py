@@ -19,6 +19,7 @@ from apps.swagger.i18n import PLACEHOLDER_PREFIX, tags_metadata, i18n_list
 from apps.swagger.i18n import get_translation, DEFAULT_LANG
 from apps.system.crud.aimodel_manage import async_model_info
 from apps.system.crud.assistant import init_dynamic_cors
+from apps.system.bootstrap import ensure_default_starbi_assistant
 from apps.system.middleware.auth import TokenMiddleware, InternalUserMiddleware
 from apps.system.schemas.permission import RequestContextMiddleware
 from common.audit.schemas.request_context import RequestContextMiddlewareCommon
@@ -58,6 +59,7 @@ def init_table_and_ds_embedding():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()
+    ensure_default_starbi_assistant()
     init_sqlbot_cache()
     init_dynamic_cors(app)
     if settings.EMBEDDING_ENABLED:

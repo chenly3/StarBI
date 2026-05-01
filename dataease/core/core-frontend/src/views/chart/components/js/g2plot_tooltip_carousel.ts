@@ -1,4 +1,6 @@
 import { DualAxes, Plot } from '@antv/g2plot'
+import type { PickOptions } from '@antv/g2plot/lib/core/plot'
+import { parseJson } from '@/views/chart/components/js/util'
 
 /**
  * 使用 Map 来存储实例，键为 chart.container 对象
@@ -65,11 +67,20 @@ type CarouselConfig = {
   loop?: boolean
 }
 
+type CarouselPlot = Plot<PickOptions> & {
+  options: Record<string, any>
+  chart: Record<string, any>
+}
+
+const getCarouselTooltipAttr = (chart: Chart) => {
+  return (parseJson(chart.customAttr) as DeepPartial<ChartAttr>)?.tooltip
+}
+
 /**
  * 图表轮播提示管理类
  * */
 class ChartCarouselTooltip {
-  private plot: Plot | DualAxes
+  private plot: CarouselPlot | DualAxes
   private config: Required<CarouselConfig>
   private currentIndex = 0
   private values: string[] = []
@@ -83,7 +94,7 @@ class ChartCarouselTooltip {
   // 图表是否在可视范围内
   private chartIsVisible: boolean
 
-  private constructor(plot: Plot | DualAxes, private chart: Chart, config: CarouselConfig) {
+  private constructor(plot: CarouselPlot | DualAxes, private chart: Chart, config: CarouselConfig) {
     this.plot = plot
     this.config = { ...DEFAULT_CAROUSEL_CONFIG, ...config }
     this.init()
@@ -92,7 +103,7 @@ class ChartCarouselTooltip {
   /**
    * 创建或更新实例
    * */
-  static manage(plot: Plot | DualAxes, chart: Chart, config: CarouselConfig) {
+  static manage(plot: CarouselPlot | DualAxes, chart: Chart, config: CarouselConfig) {
     if (!isSupport(chart.type)) return null
     const container = chart.container
     let instance = CAROUSEL_MANAGER_INSTANCES.get(container)
@@ -267,8 +278,8 @@ class ChartCarouselTooltip {
    *  判断是否满足启动条件' */
   private shouldStart() {
     return (
-      this.chart.customAttr?.tooltip?.show &&
-      this.chart.customAttr?.tooltip?.carousel?.enable &&
+      getCarouselTooltipAttr(this.chart)?.show &&
+      getCarouselTooltipAttr(this.chart)?.carousel?.enable &&
       this.values.length > 0 &&
       this.chartIsVisible &&
       !this.hasParentWithSwitchHidden(this.plot.chart.ele)
@@ -310,19 +321,22 @@ class ChartCarouselTooltip {
     if (this.plot instanceof DualAxes) {
       return this.getDualAxesTooltipPosition(view, value)
     }
-    const types = view
-      .scale()
+    const runtimeView = view as Record<string, any>
+    const types = runtimeView
+      .scale?.()
       .getGeometries()
       .map(item => item.type)
     let point = { x: 0, y: 0 }
     if (!types.length) return point
     types.forEach(type => {
       if (type === 'interval' || type === 'point') {
-        point = view
-          .scale()
+        point = runtimeView
+          .scale?.()
           .getGeometries()
           .find(item => item.type === type)
-          .elements.find(item => item.data.field === value && (item.model.x || item.model.y))?.model
+          .elements.find(
+            item => item['data'].field === value && (item['model'].x || item['model'].y)
+          )?.['model']
       }
     })
     // 处理柱状图和折线图,柱状图固定y轴位置
@@ -392,7 +406,7 @@ class ChartCarouselTooltip {
   private highlightElement(value: string) {
     if (CHART_CATEGORY.LINE.includes(this.chart.type)) return
     this.unHighlightPoint(value)
-    this.plot.setState(
+    ;(this.plot as Record<string, any>).setState(
       this.getHighlightType(),
       (data: any) => data[this.config.xField] === value,
       true
@@ -404,7 +418,7 @@ class ChartCarouselTooltip {
    * **/
   private unHighlightPoint(value?: string) {
     if (CHART_CATEGORY.LINE.includes(this.chart.type)) return
-    this.plot.setState(
+    ;(this.plot as Record<string, any>).setState(
       this.getHighlightType(),
       (data: any) => data[this.config.xField] !== value,
       false
@@ -432,7 +446,7 @@ class ChartCarouselTooltip {
     if (!tooltipCtl) {
       return
     }
-    return tooltipCtl.tooltip?.cfg?.container
+    return (tooltipCtl as Record<string, any>).tooltip?.cfg?.container
   }
 
   /**
@@ -634,7 +648,7 @@ class ChartCarouselTooltip {
   /**
    * 更新配置
    * */
-  private update(plot: Plot | DualAxes, chart: Chart, config: CarouselConfig) {
+  private update(plot: CarouselPlot | DualAxes, chart: Chart, config: CarouselConfig) {
     this.stop()
     this.plot = plot
     this.chart = chart

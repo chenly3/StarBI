@@ -724,7 +724,7 @@ const checkFieldIsAllowEmpty = (allField?) => {
       // 如果有限制长度，且字段长度不足，标记为空并跳出
       if (
         value['limit'] &&
-        (!view.value?.[key] || view.value?.[key]?.length < parseInt(value['limit']))
+        (!view.value?.[key] || view.value?.[key]?.length < parseInt(String(value['limit'])))
       ) {
         showEmpty.value = true
         break
@@ -1132,7 +1132,7 @@ const clearG2Tooltip = () => {
   const g2TooltipWrapper = document.getElementById('g2-tooltip-wrapper')
   if (g2TooltipWrapper) {
     for (const ele of g2TooltipWrapper.children) {
-      ele.style.display = 'none'
+      ;(ele as HTMLElement).style.display = 'none'
     }
   }
 }

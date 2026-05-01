@@ -162,7 +162,7 @@ const customPopStyle = computed(() => {
 const popCanvasStyle = computed(() => {
   if (canvasState.value.curPointArea === 'hidden') {
     let queryCount = 0
-    popComponentData.value.forEach(popItem => {
+    ;(popComponentData.value as Array<Record<string, any>>).forEach(popItem => {
       queryCount = 0 + popItem.propValue.length
     })
     return {

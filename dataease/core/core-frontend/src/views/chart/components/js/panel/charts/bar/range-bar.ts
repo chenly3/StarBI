@@ -27,12 +27,17 @@ import { Group } from '@antv/g-canvas'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
+type RuntimeRangeData = Chart['data'] & Record<string, any>
+type RuntimeBarOptions = Omit<BarOptions, 'label'> & {
+  [key: string]: any
+  label?: any
+}
 
 /**
  * 区间条形图
  */
 export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
-  axisConfig = {
+  axisConfig: AxisConfig = {
     xAxis: {
       name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
       type: 'd'
@@ -74,7 +79,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
     ]
   }
   axis: AxisType[] = [...BAR_AXIS_TYPE, 'yAxisExt']
-  protected baseOptions: BarOptions = {
+  protected baseOptions: RuntimeBarOptions = {
     data: [],
     xField: 'values',
     yField: 'field',
@@ -96,7 +101,8 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
 
     const ifAggregate = !!chart.aggregate
 
-    const isDate = !!chart.data.isDate
+    const chartData = chart.data as RuntimeRangeData
+    const isDate = !!chartData.isDate
 
     const axis = chart.yAxis ?? chart.yAxisExt ?? []
     let dateFormat: string
@@ -127,11 +133,11 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
         dateFormat = 'YYYY-MM-dd HH:mm:ss'
     }
 
-    const minTime = chart.data.minTime
-    const maxTime = chart.data.maxTime
+    const minTime = chartData.minTime
+    const maxTime = chartData.maxTime
 
-    const minNumber = chart.data.min
-    const maxNumber = chart.data.max
+    const minNumber = chartData.min
+    const maxNumber = chartData.max
 
     // options
     const initOptions: BarOptions = {
@@ -141,7 +147,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
       seriesField: isDate ? (ifAggregate ? 'category' : undefined) : 'category',
       isGroup: isDate ? !ifAggregate : false,
       isStack: isDate ? !ifAggregate : false,
-      meta: isDate
+      meta: (isDate
         ? {
             values: {
               type: 'time',
@@ -162,7 +168,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
             tempId: {
               key: true
             }
-          }
+          }) as unknown as BarOptions['meta']
     }
 
     const options = this.setupOptions(chart, initOptions)
@@ -183,7 +189,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
         })
       })
     }
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     configAxisLabelLengthLimit(chart, newChart)
     return newChart
   }
@@ -195,7 +201,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
     }
     const xAxis = parseJson(chart.customStyle).xAxis
     const axisValue = xAxis.axisValue
-    const isDate = !!chart.data.isDate
+    const isDate = !!(chart.data as RuntimeRangeData).isDate
     if (tmpOptions.xAxis.label) {
       tmpOptions.xAxis.label.formatter = value => {
         if (isDate) {
@@ -227,7 +233,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
   }
 
   protected configTooltip(chart: Chart, options: BarOptions): BarOptions {
-    const isDate = !!chart.data.isDate
+    const isDate = !!(chart.data as RuntimeRangeData).isDate
     let tooltip
     let customAttr: DeepPartial<ChartAttr>
     if (chart.customAttr) {
@@ -269,7 +275,7 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
   }
 
   protected configBasicStyle(chart: Chart, options: BarOptions): BarOptions {
-    const isDate = !!chart.data.isDate
+    const isDate = !!(chart.data as RuntimeRangeData).isDate
     const ifAggregate = !!chart.aggregate
     const basicStyle = parseJson(chart.customAttr).basicStyle
 
@@ -337,7 +343,10 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
       barWidthRatio = 1
     }
     if (barWidthRatio) {
-      options.barWidthRatio = barWidthRatio
+      options = {
+        ...options,
+        barWidthRatio
+      } as RuntimeBarOptions
     }
 
     return options
@@ -354,10 +363,10 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
   }
 
   protected configLabel(chart: Chart, options: BarOptions): BarOptions {
-    const isDate = !!chart.data.isDate
+    const isDate = !!(chart.data as RuntimeRangeData).isDate
     const ifAggregate = !!chart.aggregate
 
-    const tmpOptions = super.configLabel(chart, options)
+    const tmpOptions = super.configLabel(chart, options) as RuntimeBarOptions
     if (!tmpOptions.label) {
       return {
         ...tmpOptions,
@@ -370,8 +379,9 @@ export class RangeBar extends G2PlotChartView<BarOptions, Bar> {
       if (!tmpOptions.label.layout) {
         tmpOptions.label.layout = []
       }
-      tmpOptions.label.layout.push({ type: 'interval-hide-overlap' })
-      tmpOptions.label.layout.push({ type: 'limit-in-plot', cfg: { action: 'hide' } })
+      const layout = tmpOptions.label.layout as any[]
+      layout.push({ type: 'interval-hide-overlap' })
+      layout.push({ type: 'limit-in-plot', cfg: { action: 'hide' } })
     }
 
     const label = {

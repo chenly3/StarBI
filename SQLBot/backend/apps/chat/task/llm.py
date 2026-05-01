@@ -987,6 +987,7 @@ class LLMService:
             override_sql = str(override_sql).strip()
             if not override_sql:
                 continue
+            patch_id = patch.id
 
             self.sql_message.append(HumanMessage(
                 self.chat_question.sql_user_question(current_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -1035,12 +1036,12 @@ class LLMService:
                 question_text=question_text,
                 pre_sql=None,
                 post_sql=override_sql,
-                applied_patch_ids=[patch.id],
+                applied_patch_ids=[patch_id],
                 apply_result='applied',
             )
             return {
                 'resource_id': resource_id,
-                'patch_id': patch.id,
+                'patch_id': patch_id,
                 'sql': override_sql,
                 'sql_answer': full_sql_text,
             }

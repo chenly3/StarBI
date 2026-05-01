@@ -366,7 +366,9 @@ const getTreeOption = debounce(() => {
         if (!isValid) {
           config.value.selectValue = null
           ElMessage({
-            message: `【${config.value?.name}】${t('v_query.before_querying')}`,
+            message: `【${(config.value as SelectConfig & { name?: string })?.name}】${t(
+              'v_query.before_querying'
+            )}`,
             type: 'error',
             duration: 3000
           })

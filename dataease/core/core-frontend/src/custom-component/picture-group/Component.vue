@@ -43,7 +43,8 @@ const state = reactive({
   showUrl: null,
   firstRender: true,
   previewFirstRender: true,
-  curImgList: []
+  curImgList: [],
+  totalItems: 0
 })
 const initReady = ref(true)
 const props = defineProps({
@@ -91,7 +92,7 @@ const isEditMode = computed(
 watch([() => props.searchCount], () => {
   // 内部计时器启动 忽略外部计时器
   if (!innerRefreshTimer) {
-    calcData(view.value, () => {
+    calcData(view.value as unknown as Chart, () => {
       // do searchCount
     })
   }
@@ -107,7 +108,7 @@ const buildInnerRefreshTimer = (
     innerRefreshTimer && clearInterval(innerRefreshTimer)
     const timerRefreshTime = refreshUnit === 'second' ? refreshTime * 1000 : refreshTime * 60000
     innerRefreshTimer = setInterval(() => {
-      calcData(view.value, () => {
+      calcData(view.value as unknown as Chart, () => {
         // do innerRefreshTimer
       })
       innerSearchCount++
@@ -184,7 +185,7 @@ const initCurFields = chartDetails => {
       dataRowNameSelect.value[sourceFieldNameIdMap[key]] = rowData[key]
     }
   }
-  conditionAdaptor(view.value)
+  conditionAdaptor(view.value as unknown as Chart)
 }
 
 const conditionAdaptor = (chart: Chart) => {

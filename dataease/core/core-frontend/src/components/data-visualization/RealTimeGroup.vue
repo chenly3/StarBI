@@ -69,7 +69,7 @@ import { layerStoreWithOut } from '@/store/modules/data-visualization/layer'
 import { storeToRefs } from 'pinia'
 import { ElIcon, ElMessage, ElRow } from 'element-plus-secondary'
 import Icon from '../icon-custom/src/Icon.vue'
-import { nextTick, ref, toRefs } from 'vue'
+import { nextTick, PropType, ref, toRefs } from 'vue'
 import draggable from 'vuedraggable'
 import { lockStoreWithOut } from '@/store/modules/data-visualization/lock'
 import ContextMenuAsideDetails from '@/components/data-visualization/canvas/ContextMenuAsideDetails.vue'
@@ -92,13 +92,26 @@ const { areaData } = storeToRefs(composeStore)
 
 const { curComponent, canvasViewInfo } = storeToRefs(dvMainStore)
 
+type RealTimeComponent = {
+  id: string
+  name: string
+  component: string
+  icon?: string
+  innerType?: string
+  isLock?: boolean
+  isShow?: boolean
+}
+
 const props = defineProps({
   tabPosition: {
     type: String,
     required: false,
     default: 'main'
   },
-  componentData: []
+  componentData: {
+    type: Array as PropType<RealTimeComponent[]>,
+    default: () => []
+  }
 })
 
 const { componentData } = toRefs(props)

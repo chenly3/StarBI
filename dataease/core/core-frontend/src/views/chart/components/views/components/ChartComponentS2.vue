@@ -31,6 +31,25 @@ import { isDashboard, trackBarStyleCheck } from '@/utils/canvasUtils'
 import { type SpreadSheet } from '@antv/s2'
 import { parseJson } from '../../js/util'
 import { useI18n } from '@/hooks/web/useI18n'
+import { toS2TextAlign } from '@/views/chart/components/js/panel/common/common_table'
+
+type RuntimeChart = Chart & {
+  customAttr: ChartAttr
+  customStyle: ChartStyle
+  senior: ChartSenior
+  chartExtRequest: Record<string, any>
+  dataFrom?: string
+}
+
+type RuntimeFacet = NonNullable<SpreadSheet['facet']> & {
+  timer?: {
+    stop?: () => void
+  }
+}
+
+type RuntimeSpreadSheet = SpreadSheet & {
+  facet?: RuntimeFacet
+}
 
 const dvMainStore = dvMainStoreWithOut()
 const {
@@ -135,20 +154,30 @@ let chartData = shallowRef<Partial<Chart['data']>>({
 const containerId = 'container-' + showPosition.value + '-' + view.value.id + '-' + suffixId.value
 const viewTrack = ref(null)
 
-const calcData = (viewInfo: Chart, callback, resetPageInfo = true) => {
-  if (viewInfo.customAttr.basicStyle.tablePageStyle === 'general') {
+const toRuntimeChart = (chart: Chart | ChartObj): RuntimeChart => chart as unknown as RuntimeChart
+
+const getRuntimeFacet = () => myChart?.facet as RuntimeFacet | undefined
+
+const stopFacetTimer = () => {
+  getRuntimeFacet()?.timer?.stop?.()
+}
+
+const calcData = (viewInfo: Chart | ChartObj, callback, resetPageInfo = true) => {
+  const runtimeViewInfo = toRuntimeChart(viewInfo)
+  runtimeViewInfo.chartExtRequest ||= {}
+  if (runtimeViewInfo.customAttr.basicStyle.tablePageStyle === 'general') {
     if (state.currentPageSize !== 0) {
-      viewInfo.chartExtRequest.pageSize = state.currentPageSize
+      runtimeViewInfo.chartExtRequest.pageSize = state.currentPageSize
       state.pageInfo.pageSize = state.currentPageSize
     } else {
-      viewInfo.chartExtRequest.pageSize = state.pageInfo.pageSize
+      runtimeViewInfo.chartExtRequest.pageSize = state.pageInfo.pageSize
     }
   } else {
-    delete viewInfo.chartExtRequest?.pageSize
+    delete runtimeViewInfo.chartExtRequest?.pageSize
   }
-  if (viewInfo.tableId || viewInfo['dataFrom'] === 'template') {
+  if (runtimeViewInfo.tableId || runtimeViewInfo.dataFrom === 'template') {
     isError.value = false
-    const v = JSON.parse(JSON.stringify(viewInfo))
+    const v = JSON.parse(JSON.stringify(runtimeViewInfo))
     getData(v)
       .then(res => {
         if (res.code && res.code !== 0) {
@@ -157,7 +186,7 @@ const calcData = (viewInfo: Chart, callback, resetPageInfo = true) => {
         } else {
           chartData.value = res?.data as Partial<Chart['data']>
           state.totalItems = res?.totalItems
-          dvMainStore.setViewDataDetails(viewInfo.id, res)
+          dvMainStore.setViewDataDetails(runtimeViewInfo.id, res)
           emit('onDrillFilters', res?.drillFilters)
           renderChart(res as unknown as Chart, resetPageInfo)
         }
@@ -171,16 +200,16 @@ const calcData = (viewInfo: Chart, callback, resetPageInfo = true) => {
   }
 }
 // 图表对象不用响应式
-let myChart: SpreadSheet = null
+let myChart: RuntimeSpreadSheet = null
 // 实际渲染的图表信息，适应缩放
 let actualChart: ChartObj
-const renderChartFromDialog = (viewInfo: Chart, chartDataInfo) => {
+const renderChartFromDialog = (viewInfo: Chart | ChartObj, chartDataInfo) => {
   chartData.value = chartDataInfo
   renderChart(viewInfo, false)
 }
 // 处理存量图表的默认值
 const handleDefaultVal = (chart: Chart) => {
-  const customAttr = parseJson(chart.customAttr)
+  const customAttr = parseJson(chart.customAttr) as ChartAttr
   // 明细表默认合并单元格，存量的不合并
   if (customAttr.tableCell.mergeCells === undefined) {
     customAttr.tableCell.mergeCells = false
@@ -196,24 +225,24 @@ const handleDefaultVal = (chart: Chart) => {
       tableHeader.tableHeaderColBgColor = tableHeader.tableHeaderBgColor
       tableHeader.tableHeaderColFontColor = tableHeader.tableHeaderFontColor
       tableHeader.tableTitleColFontSize = tableHeader.tableTitleFontSize
-      tableHeader.tableHeaderColAlign = tableHeader.tableHeaderAlign
+      tableHeader.tableHeaderColAlign = toS2TextAlign(tableHeader.tableHeaderAlign) ?? 'left'
       tableHeader.isColBolder = tableHeader.isBolder
       tableHeader.isColItalic = tableHeader.isItalic
 
       tableHeader.tableHeaderCornerBgColor = tableHeader.tableHeaderBgColor
       tableHeader.tableHeaderCornerFontColor = tableHeader.tableHeaderFontColor
       tableHeader.tableTitleCornerFontSize = tableHeader.tableTitleFontSize
-      tableHeader.tableHeaderCornerAlign = tableHeader.tableHeaderAlign
+      tableHeader.tableHeaderCornerAlign = toS2TextAlign(tableHeader.tableHeaderAlign) ?? 'left'
       tableHeader.isCornerBolder = tableHeader.isBolder
       tableHeader.isCornerItalic = tableHeader.isItalic
     }
   }
 }
-const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
+const renderChart = (viewInfo: Chart | ChartObj, resetPageInfo: boolean) => {
   if (!viewInfo) {
     return
   }
-  handleDefaultVal(viewInfo)
+  handleDefaultVal(viewInfo as Chart)
   // view 为引用对象 需要存库 view.data 直接赋值会导致保存不必要的数据
   actualChart = deepCopy({
     ...defaultsDeep(viewInfo, cloneDeep(BASE_VIEW_CONFIG)),
@@ -225,11 +254,11 @@ const renderChart = (viewInfo: Chart, resetPageInfo: boolean) => {
   recursionTransObj(customStyleTrans, actualChart.customStyle, scale.value, terminal.value)
 
   setupPage(actualChart, resetPageInfo)
-  nextTick(() => debounceRender(resetPageInfo))
+  nextTick(() => debounceRender())
 }
 
 const debounceRender = debounce(() => {
-  myChart?.facet?.timer?.stop()
+  stopFacetTimer()
   myChart?.facet?.cancelScrollFrame()
   myChart?.destroy()
   myChart?.getCanvasElement()?.remove()
@@ -239,7 +268,7 @@ const debounceRender = debounce(() => {
   ) as S2ChartView<any>
   myChart = chartView.drawChart({
     container: containerId,
-    chart: toRaw(actualChart),
+    chart: toRaw(actualChart) as unknown as Chart,
     chartObj: myChart,
     pageInfo: state.pageInfo,
     action,
@@ -275,7 +304,7 @@ const setupPage = (chart: ChartObj, resetPageInfo?: boolean) => {
 }
 
 const mouseMove = () => {
-  myChart?.facet?.timer?.stop()
+  stopFacetTimer()
 }
 
 const mouseLeave = () => {
@@ -297,7 +326,7 @@ const initScroll = () => {
       !state.showPage
     ) {
       // 防止多次渲染
-      myChart.facet.timer?.stop()
+      stopFacetTimer()
       // 已滚动的距离
       let scrolledOffset = myChart.store.get('scrollY') || 0
       // 平滑滚动，兼容原有的滚动速率设置
@@ -388,7 +417,7 @@ const handleCurrentChange = pageNum => {
     extReq = { ...extReq, ...chartExtRequest.value }
   }
   const chart = { ...view.value, chartExtRequest: extReq }
-  calcData(chart, null, false)
+  calcData(chart as unknown as RuntimeChart, null, false)
 }
 
 const handlePageSizeChange = pageSize => {
@@ -402,7 +431,7 @@ const handlePageSizeChange = pageSize => {
     extReq = { ...extReq, ...chartExtRequest.value }
   }
   const chart = { ...view.value, chartExtRequest: extReq }
-  calcData(chart, null, false)
+  calcData(chart as unknown as RuntimeChart, null, false)
 }
 
 const pointClickTrans = () => {
@@ -632,8 +661,8 @@ const trackMenuCalc = itemId => {
 
 const resizeAction = resizeColumn => {
   // 从头开始滚动
-  if (myChart?.facet.timer) {
-    myChart?.facet.timer.stop()
+  if (getRuntimeFacet()?.timer) {
+    stopFacetTimer()
     nextTick(initScroll)
   }
   if (showPosition.value !== 'canvas') {
@@ -668,9 +697,9 @@ const resize = (width, height) => {
   }
   timer = setTimeout(() => {
     if (!myChart?.facet) {
-      debounceRender(false)
+      debounceRender()
     } else {
-      myChart?.facet?.timer?.stop()
+      stopFacetTimer()
       myChart?.changeSheetSize(width, height)
       myChart?.render()
     }
@@ -702,7 +731,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   try {
-    myChart?.facet.timer?.stop()
+    stopFacetTimer()
     myChart?.destroy()
     myChart = null
     resizeObserver?.disconnect()

@@ -163,10 +163,18 @@ import { ElButton, ElMessage } from 'element-plus-secondary'
 import ImgViewDialog from '@/custom-component/ImgViewDialog.vue'
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { storeToRefs } from 'pinia'
+import type { UploadFile } from 'element-plus-secondary'
 const snapshotStore = snapshotStoreWithOut()
 const { t } = useI18n()
 const files = ref(null)
 const maxImageSize = 15000000
+
+const buildUploadFile = (url: string): UploadFile => ({
+  name: url,
+  status: 'success',
+  uid: Date.now(),
+  url
+})
 
 const dvMainStore = dvMainStoreWithOut()
 const { canvasStyleData, dvInfo } = storeToRefs(dvMainStore)
@@ -194,8 +202,8 @@ const state = reactive({
 const showWatermarkSetting = computed(() => {
   return (
     dvInfo.value.watermarkInfo &&
-    dvInfo.value.watermarkInfo?.settingContent?.enable &&
-    dvInfo.value.watermarkInfo?.settingContent?.enablePanelCustom
+    (dvInfo.value.watermarkInfo as Record<string, any>)?.settingContent?.enable &&
+    (dvInfo.value.watermarkInfo as Record<string, any>)?.settingContent?.enablePanelCustom
   )
 })
 
@@ -215,14 +223,14 @@ const reUpload = e => {
   }
   uploadFileResult(file, fileUrl => {
     canvasStyleData.value.background = fileUrl
-    state.fileList = [{ url: imgUrlTrans(canvasStyleData.value.background) }]
+    state.fileList = [buildUploadFile(imgUrlTrans(canvasStyleData.value.background))]
     onBackgroundChange()
   })
 }
 
 const init = () => {
   if (canvasStyleData.value.background) {
-    state.fileList.push({ url: imgUrlTrans(canvasStyleData.value.background) })
+    state.fileList.push(buildUploadFile(imgUrlTrans(canvasStyleData.value.background)))
   } else {
     state.fileList = []
   }

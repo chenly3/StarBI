@@ -194,7 +194,7 @@ const handleFileChange = e => {
   const reader = new FileReader()
   reader.onload = res => {
     state.templateSelected = true
-    const result = res.target.result
+    const result = res.target.result as string
     state.importTemplateInfo = JSON.parse(result)
     state.dvCreateInfo.name = state.importTemplateInfo['name'].name
     state.dvCreateInfo.canvasStyleData = state.importTemplateInfo['canvasStyleData']

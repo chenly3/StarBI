@@ -21,8 +21,10 @@ import { DEFAULT_BASIC_STYLE } from '@/views/chart/components/editor/util/chart'
 
 const { t } = useI18n()
 
+type RuntimeLabel = Record<string, any>
+
 export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
-  axisConfig = {
+  axisConfig: AxisConfig = {
     xAxis: {
       name: `${t('chart.form_type')} / ${t('chart.dimension')}`,
       type: 'd',
@@ -152,7 +154,7 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
     const newChart = new G2Progress(container, options)
 
     newChart.on('interval:click', action)
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     configAxisLabelLengthLimit(chart, newChart)
     return newChart
   }
@@ -200,7 +202,10 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
       barWidthRatio = 1
     }
     if (barWidthRatio) {
-      options.barWidthRatio = barWidthRatio
+      options = {
+        ...options,
+        barWidthRatio
+      }
     }
 
     return options
@@ -303,8 +308,9 @@ export class ProgressBar extends G2PlotChartView<BarOptions, G2Progress> {
       if (rotate < -75) {
         textBaseline = 'bottom'
       }
-      baseOption.yAxis.label.style.textBaseline = textBaseline
-      baseOption.yAxis.label.style.textAlign = textAlign
+      const labelStyle = baseOption.yAxis.label.style as RuntimeLabel
+      labelStyle.textBaseline = textBaseline
+      labelStyle.textAlign = textAlign
     }
 
     /*if (baseOption.yAxis.position === 'left') {

@@ -26,6 +26,10 @@ import type { Options } from '@antv/g2plot/esm'
 import { Group } from '@antv/g-canvas'
 
 const { t } = useI18n()
+
+type RuntimeShapeAttrs = Record<string, any>
+type RuntimeLabel = Record<string, any>
+
 /**
  * 对称柱状图
  */
@@ -179,7 +183,7 @@ export class BidirectionalHorizontalBar extends G2PlotChartView<
         ...sourceData[0]
       }
     })
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     configAxisLabelLengthLimit(chart, newChart)
     return newChart
   }
@@ -226,7 +230,7 @@ export class BidirectionalHorizontalBar extends G2PlotChartView<
       return tmpOptions
     }
     if (tmpOptions.xAxis.label) {
-      delete tmpOptions.xAxis.label.style.textAlign
+      delete (tmpOptions.xAxis.label.style as RuntimeShapeAttrs).textAlign
       const { lengthLimit } = parseJson(chart.customStyle).xAxis.axisLabel
       defaults(tmpOptions.xAxis.label, {
         formatter: value => {
@@ -438,7 +442,7 @@ export class BidirectionalHorizontalBar extends G2PlotChartView<
           const layout = []
           if (!labelAttr.fullDisplay) {
             const tmpOptions = super.configLabel(chart, options)
-            layout.push(...tmpOptions.label.layout)
+            layout.push(...((tmpOptions.label as RuntimeLabel).layout ?? []))
           }
           label = {
             position: l.position,

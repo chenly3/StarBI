@@ -42,6 +42,9 @@ import { getItemsOfView } from '@antv/g2/lib/interaction/action/active-region'
 
 const { t } = useI18n()
 const DEFAULT_DATA: any[] = []
+
+type RuntimeLabel = Record<string, any>
+type RuntimeColumnOptions = ColumnOptions & Record<string, any>
 /**
  * 柱状图
  */
@@ -154,10 +157,11 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
       return pre
     }, {})
     // 默认是灰色
-    tmpOptions.label.style.fill = DEFAULT_LABEL.color
+    const runtimeLabel = tmpOptions.label as RuntimeLabel
+    runtimeLabel.style.fill = DEFAULT_LABEL.color
     const label = {
       fields: [],
-      ...tmpOptions.label,
+      ...runtimeLabel,
       formatter: (data: Datum) => {
         if (data.EXTREME) {
           return ''
@@ -191,14 +195,14 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
       },
       position: data => {
         if (data.value < 0) {
-          if (tmpOptions.label?.position === 'top') {
+          if (runtimeLabel.position === 'top') {
             return 'bottom'
           }
-          if (tmpOptions.label?.position === 'bottom') {
+          if (runtimeLabel.position === 'bottom') {
             return 'top'
           }
         }
-        return tmpOptions.label?.position
+        return runtimeLabel.position
       }
     }
     return {
@@ -238,7 +242,10 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
       columnWidthRatio = 1
     }
     if (columnWidthRatio) {
-      options.columnWidthRatio = columnWidthRatio
+      options = {
+        ...options,
+        columnWidthRatio
+      }
     }
 
     return options
@@ -431,14 +438,14 @@ export class StackBar extends Bar {
         // 用值域限定排序，有可能出现新数据但是未出现在图表上，所以这边要遍历一下子维度，加到后面，让新数据显示出来
         const data = options.data
         const cats =
-          data?.reduce((p, n) => {
+          data?.reduce<string[]>((p, n) => {
             const cat = n['category']
             if (cat && !p.includes(cat)) {
               p.push(cat)
             }
             return p
           }, []) || []
-        const values = sort.reduce((p, n) => {
+        const values = sort.reduce<string[]>((p, n) => {
           if (cats.includes(n)) {
             const index = cats.indexOf(n)
             if (index !== -1) {
@@ -449,11 +456,14 @@ export class StackBar extends Bar {
           return p
         }, [])
         cats.length > 0 && values.push(...cats)
-        options.meta = {
-          ...options.meta,
-          category: {
-            type: 'cat',
-            values
+        options = {
+          ...options,
+          meta: {
+            ...options.meta,
+            category: {
+              type: 'cat',
+              values
+            }
           }
         }
       }
@@ -502,7 +512,7 @@ export class StackBar extends Bar {
       size = DEFAULT_LEGEND_STYLE.size
     }
 
-    optionTmp.legend.marker.style = style => {
+    ;(optionTmp.legend as any).marker.style = style => {
       return {
         r: size,
         fill: style.fill
@@ -518,7 +528,10 @@ export class StackBar extends Bar {
           return p
         }, {}) || {}
       const dupCheck = new Set()
-      const colors = optionTmp.color ?? optionTmp.theme.styleSheet.paletteQualitative10
+      const runtimeOptions = optionTmp as RuntimeColumnOptions
+      const colors =
+        runtimeOptions.color ??
+        (runtimeOptions.theme as Record<string, any>)?.styleSheet?.paletteQualitative10
       const items = optionTmp.data?.reduce((arr, item) => {
         if (!dupCheck.has(item.category)) {
           const fill = seriesMap[item.category]?.color ?? colors[dupCheck.size % colors.length]
@@ -552,7 +565,7 @@ export class StackBar extends Bar {
         })
         items.unshift(...tmp)
       }
-      optionTmp.legend.items = items
+      ;(optionTmp.legend as any).items = items
       if (extStack?.customSort?.length > 0) {
         delete optionTmp.meta?.category.values
       }
@@ -645,7 +658,7 @@ export class GroupBar extends StackBar {
       return plot
     }
     plot.chart.once('beforepaint', () => {
-      const geo = plot.chart.geometries[0]
+      const geo = plot.chart.geometries[0] as any
       const originMapping = geo.beforeMapping.bind(geo)
       geo.beforeMapping = originData => {
         const values = geo.getXScale().values

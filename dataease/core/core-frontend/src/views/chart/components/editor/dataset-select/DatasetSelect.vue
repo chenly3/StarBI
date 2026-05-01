@@ -44,7 +44,7 @@ const loadingDatasetTree = ref(false)
 
 const orgCheck = ref(true)
 
-const datasetTree = ref<Tree[]>([])
+const datasetTree = ref<any[]>([])
 
 const selectSource =
   props.sourceType === 'datasource'
@@ -68,7 +68,7 @@ const sortTypeChange = arr => {
 const initDataset = () => {
   loadingDatasetTree.value = true
   const method = props.sourceType === 'datasource' ? getDatasourceList : getDatasetTree
-  const params = props.sourceType === 'datasource' ? null : {}
+  const params = props.sourceType === 'datasource' ? undefined : ({} as any)
   method(params)
     .then(res => {
       sortTypeChange((res as unknown as Tree[]) || [])

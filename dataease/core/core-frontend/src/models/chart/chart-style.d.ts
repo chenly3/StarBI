@@ -2,6 +2,7 @@
  * 图表样式设置
  */
 declare interface ChartStyle {
+  [key: string]: any
   /**
    * 标题样式设置
    */

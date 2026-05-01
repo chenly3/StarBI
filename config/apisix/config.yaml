@@ -43,7 +43,8 @@ nginx_config:
         server_name _;
 
         set $starbi_dataease "starbi-dataease:8100";
-        set $starbi_sqlbot "starbi-sqlbot:8000";
+        # SQLBot 已退化为无头服务，不再对外暴露
+        # 保留变量供内网参考: starbi-sqlbot:8000
 
         # DataEase 前端静态资源
         location / {
@@ -55,9 +56,9 @@ nginx_config:
             client_max_body_size 500m;
         }
 
-        # SQLBot 智能问数
-        location /sqlbot {
-            proxy_pass http://$starbi_sqlbot;
+        # DataEase 后端 API（含 AI 代理）
+        location /api {
+            proxy_pass http://$starbi_dataease;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -65,15 +66,18 @@ nginx_config:
             client_max_body_size 500m;
         }
 
-        # SQLBot API
-        location /api {
-            proxy_pass http://$starbi_sqlbot;
+        # AI 网关代理（DataEase 后端代理 SQLBot）
+        location /ai {
+            proxy_pass http://$starbi_dataease;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
             client_max_body_size 500m;
         }
+
+        # SQLBot 内部 API（仅内网访问，不再对外暴露）
+        # location /sqlbot-internal { ... }
     }
 
   http:

@@ -102,7 +102,7 @@ export const snapshotStore = defineStore('snapshot', {
         componentSnapshot.dvInfo.id = dvInfo.value.id
         componentSnapshot.dvInfo.pid = dvInfo.value.pid
         componentSnapshot.dvInfo.dataState = dvInfo.value.dataState
-        componentSnapshot.dvInfo.contentId = dvInfo.value.contentId
+        componentSnapshot.dvInfo.contentId = (dvInfo.value as any).contentId
         // undo 是当前没有记录
         this.snapshotPublish(componentSnapshot)
         this.styleChangeTimes++
@@ -117,7 +117,7 @@ export const snapshotStore = defineStore('snapshot', {
         snapshotInfo.dvInfo.id = dvInfo.value.id
         snapshotInfo.dvInfo.pid = dvInfo.value.pid
         snapshotInfo.dvInfo.dataState = dvInfo.value.dataState
-        snapshotInfo.dvInfo.contentId = dvInfo.value.contentId
+        snapshotInfo.dvInfo.contentId = (dvInfo.value as any).contentId
         this.snapshotPublish(snapshotInfo)
         this.styleChangeTimes++
         this.snapshotDisableTime = Date.now() + 3000

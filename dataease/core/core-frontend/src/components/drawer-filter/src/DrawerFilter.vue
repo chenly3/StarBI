@@ -14,9 +14,7 @@ const props = defineProps({
   title: propTypes.string,
   property: {
     type: Object,
-    default: () => {
-      placeholder: ''
-    }
+    default: () => ({ placeholder: '' })
   }
 })
 

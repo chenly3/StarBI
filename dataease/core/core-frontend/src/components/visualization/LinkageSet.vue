@@ -323,17 +323,18 @@ const { dvInfo, canvasViewInfo, componentData, curComponent } = storeToRefs(dvMa
 const linkageInfoTree = ref(null)
 const linkageInfoTreeDiffDs = ref(null)
 const { t } = useI18n()
+type LinkageRecord = Record<string, any>
 const dialogShow = ref(false)
 const loading = ref(false)
-const curLinkageTargetViewsInfo = ref([])
-const curLinkageTargetViewsInfoSameDs = ref([])
-const curLinkageTargetViewsInfoDiffDs = ref([])
+const curLinkageTargetViewsInfo = ref<LinkageRecord[]>([])
+const curLinkageTargetViewsInfoSameDs = ref<LinkageRecord[]>([])
+const curLinkageTargetViewsInfoDiffDs = ref<LinkageRecord[]>([])
 const snapshotStore = snapshotStoreWithOut()
 const state = reactive({
-  sourceLinkageInfo: {},
+  sourceLinkageInfo: {} as LinkageRecord,
   showSelected: false,
-  curLinkageViewInfo: {},
-  curDatasetInfo: {},
+  curLinkageViewInfo: {} as LinkageRecord,
+  curDatasetInfo: {} as LinkageRecord,
   initState: false,
   viewId: null,
   tableId: null,
@@ -342,7 +343,7 @@ const state = reactive({
     label: 'targetViewName',
     children: 'children'
   },
-  linkageInfo: null
+  linkageInfo: null as LinkageRecord | null
 })
 const sameDatasetComponentCheckAll = ref(false)
 

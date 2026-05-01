@@ -12,15 +12,17 @@ import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
 import { formatterItem, valueFormatter } from '@/views/chart/components/js/formatter'
 import {
   BaseTooltip,
-  ColumnNode,
   S2DataConfig,
   S2Event,
   S2Options,
+  S2CellType,
+  SortParam,
   TableSheet,
   TooltipShowOptions,
   ColCell,
-  Node,
+  type Node as S2Node,
   LayoutResult,
+  ViewMeta,
   TableDataCell,
   TableColCell,
   TextTheme
@@ -31,13 +33,21 @@ import { computed, nextTick, onMounted, onUnmounted, PropType } from 'vue'
 import { uuid } from 'vue-uuid'
 import { useI18n } from '@/hooks/web/useI18n'
 import {
+  DeS2Theme,
   getColumns,
   getCustomTheme,
-  getLeafNodes
+  getLeafNodes,
+  toS2TextAlign
 } from '@/views/chart/components/js/panel/common/common_table'
 
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
+type HeaderColumnNode = ColumnNode & Record<string, any>
+type HeaderMeta = Record<string, any>
+type RuntimeCell = S2CellType<ViewMeta> & Record<string, any>
+type RuntimeParent = HeaderMeta & {
+  children?: Array<HeaderColumnNode | RuntimeCell>
+}
 const props = defineProps({
   chart: {
     type: Object as PropType<ChartObj>,
@@ -110,14 +120,14 @@ let s2: TableSheet
 class CustomDataCell extends TableDataCell {
   protected getTextStyle(): TextTheme {
     const textStyle = super.getTextStyle()
-    const dataCellAlignConfig = this.theme.dataCellAlignConfig
+    const dataCellAlignConfig = (this.theme as DeS2Theme).dataCellAlignConfig
     if (dataCellAlignConfig) {
       const align = dataCellAlignConfig[this.meta.valueField]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     }
-    if (textStyle.textAlign === 'custom') {
+    if ((textStyle.textAlign as any) === 'custom') {
       textStyle.textAlign = 'left'
     }
     return textStyle
@@ -126,7 +136,7 @@ class CustomDataCell extends TableDataCell {
 class CustomColCell extends TableColCell {
   protected getTextStyle(): TextTheme {
     const textStyle = super.getTextStyle()
-    const colCellAlignConfig = this.theme.colCellAlignConfig
+    const colCellAlignConfig = (this.theme as DeS2Theme).colCellAlignConfig
     if (colCellAlignConfig) {
       // 分组单元格居中
       if (this.meta.children?.length) {
@@ -135,10 +145,10 @@ class CustomColCell extends TableColCell {
       }
       const align = colCellAlignConfig[this.meta.field]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     }
-    if (textStyle.textAlign === 'custom') {
+    if ((textStyle.textAlign as any) === 'custom') {
       textStyle.textAlign = 'left'
     }
     return textStyle
@@ -152,9 +162,9 @@ const renderTable = (chart: ChartObj) => {
     realData = data.tableRow.slice(0, 10)
   }
   const { headerGroupConfig } = chart.customAttr.tableHeader
-  const meta = [...headerGroupConfig.meta]
+  const meta: HeaderMeta[] = [...headerGroupConfig.meta]
   const columns = headerGroupConfig.columns
-  const axisMap = allAxis.value.reduce((pre, cur) => {
+  const axisMap = allAxis.value.reduce<Record<string, any>>((pre, cur) => {
     pre[cur.dataeaseName] = cur
     return pre
   }, {})
@@ -246,7 +256,7 @@ const renderTable = (chart: ChartObj) => {
   }
   s2 = new TableSheet(containerDom, s2DataConfig, s2Options)
   const { tableHeader, tableCell } = chart.customAttr
-  const theme = getCustomTheme(chart)
+  const theme = getCustomTheme(chart as unknown as Chart) as DeS2Theme
   if (tableHeader.tableHeaderAlign === 'custom') {
     theme.colCellAlignConfig =
       tableHeader.alignConfig?.reduce((pre, cur) => {
@@ -265,12 +275,12 @@ const renderTable = (chart: ChartObj) => {
   const groupMenuContainer = document.getElementById(menuGroupId.value)
   s2.on(S2Event.COL_CELL_CONTEXT_MENU, e => {
     e.preventDefault()
-    const curColumns = s2.dataCfg.fields.columns as Array<ColumnNode>
-    const curMeta = s2.dataCfg.meta
+    const curColumns = s2.dataCfg.fields.columns as HeaderColumnNode[]
+    const curMeta = s2.dataCfg.meta as HeaderMeta[]
     const activeCells = s2.interaction.getActiveCells()
     const colKeys = activeCells?.map(cell => cell.getMeta().field)
-    const activeColumns = getColumns(colKeys, curColumns)
-    const curCell = s2.getCell(e.target)
+    const activeColumns = getColumns(colKeys, curColumns) as HeaderColumnNode[]
+    const curCell = s2.getCell(e.target) as RuntimeCell
     groupMenuContainer.innerText = ''
     // 右键点击的目标单元格不在已选的单元格中，清空已选单元格，隐藏菜单
     if (activeColumns?.length) {
@@ -290,10 +300,10 @@ const renderTable = (chart: ChartObj) => {
       cancelBtn.innerText = t('chart.cancel_group')
       cancelBtn.onclick = () => {
         s2.hideTooltip()
-        const parent = curCell.getMeta().parent
+        const parent = curCell.getMeta().parent as HeaderMeta
         if (parent?.id === 'root') {
           const startIndex = curColumns.findIndex(cell => cell.key === curCell.getMeta().field)
-          const [curCol] = getColumns([curCell.getMeta().field], curColumns)
+          const [curCol] = getColumns([curCell.getMeta().field], curColumns) as HeaderColumnNode[]
           curColumns.splice(startIndex, 1, ...curCol.children)
           const index = curMeta.findIndex(meta => meta.field === curCell.getMeta().field)
           curMeta.splice(index, 1)
@@ -305,12 +315,15 @@ const renderTable = (chart: ChartObj) => {
           })
           s2.render(true)
         } else {
-          const [parentColumn] = getColumns([parent.field], curColumns)
+          const [parentColumn] = getColumns([parent.field], curColumns) as HeaderColumnNode[]
           if (parentColumn) {
             const startIndex = parentColumn.children?.findIndex(
               cell => cell.key === curCell.getMeta().field
             )
-            const [curCol] = getColumns([curCell.getMeta().field], parentColumn.children)
+            const [curCol] = getColumns(
+              [curCell.getMeta().field],
+              parentColumn.children as HeaderColumnNode[]
+            ) as HeaderColumnNode[]
             parentColumn.children?.splice(startIndex, 1, ...curCol.children)
             const index = curMeta.findIndex(meta => meta.field === curCell.getMeta().field)
             curMeta.splice(index, 1)
@@ -330,9 +343,9 @@ const renderTable = (chart: ChartObj) => {
       cancelAllBtn.innerText = t('chart.cancel_all_group')
       cancelAllBtn.onclick = () => {
         s2.hideTooltip()
-        const parent = curCell.getMeta().parent
+        const parent = curCell.getMeta().parent as RuntimeParent
         if (parent?.id === 'root') {
-          const [curCol] = getColumns([curCell.getMeta().field], curColumns)
+          const [curCol] = getColumns([curCell.getMeta().field], curColumns) as HeaderColumnNode[]
           const leafNodes = getLeafNodes(curCol.children)
           const startIndex = curColumns.findIndex(cell => cell.key === curCell.getMeta().field)
           curColumns.splice(startIndex, 1, ...leafNodes)
@@ -346,9 +359,12 @@ const renderTable = (chart: ChartObj) => {
           })
           s2.render(true)
         } else {
-          const [parentColumn] = getColumns([parent.field], curColumns)
+          const [parentColumn] = getColumns([parent.field], curColumns) as HeaderColumnNode[]
           if (parentColumn) {
-            const [curCol] = getColumns([curCell.getMeta().field], parentColumn.children)
+            const [curCol] = getColumns(
+              [curCell.getMeta().field],
+              parentColumn.children as HeaderColumnNode[]
+            ) as HeaderColumnNode[]
             const leafNodes = getLeafNodes(curCol.children)
             const startIndex = parentColumn.children?.findIndex(
               cell => cell.key === curCell.getMeta().field
@@ -412,7 +428,9 @@ const renderTable = (chart: ChartObj) => {
     //如果有多个cell都在同一个层级，并且parent相同，那就是可以进行合并分组操作
     if (activeColumns?.length > 1) {
       const sameParent = activeCells.every(
-        cell => cell.getMeta().parent.id === curCell.getMeta().parent.id
+        cell =>
+          (cell.getMeta().parent as RuntimeParent).id ===
+          (curCell.getMeta().parent as RuntimeParent).id
       )
       if (!sameParent) {
         return
@@ -425,11 +443,13 @@ const renderTable = (chart: ChartObj) => {
       }
       let startIndex = -1
       let endIndex = -1
-      const parent = curCell.getMeta().parent
+      const parent = curCell.getMeta().parent as RuntimeParent
       // 分组的节点
       if (parent.colIndex !== -1) {
         activeColumns.forEach(cell => {
-          const index = parent.children.findIndex(item => item.getMeta().field === cell.key)
+          const index = parent.children.findIndex(
+            item => (item as RuntimeCell).getMeta().field === cell.key
+          )
           if (index < startIndex || startIndex === -1) {
             startIndex = index
           }
@@ -439,7 +459,9 @@ const renderTable = (chart: ChartObj) => {
         })
       } else {
         activeColumns.forEach(cell => {
-          const index = parent.children.findIndex(item => item.key === cell.key)
+          const index = parent.children.findIndex(
+            item => (item as HeaderColumnNode).key === cell.key
+          )
           if (index < startIndex || startIndex === -1) {
             startIndex = index
           }
@@ -452,7 +474,7 @@ const renderTable = (chart: ChartObj) => {
       if (parent?.id === 'root') {
         totalColumns.push(...curColumns.slice(startIndex, endIndex + 1))
       } else {
-        const [parentColumn] = getColumns([parent.field], curColumns)
+        const [parentColumn] = getColumns([parent.field], curColumns) as HeaderColumnNode[]
         totalColumns.push(...parentColumn.children?.slice(startIndex, endIndex + 1))
       }
       const chiildDepth = getTreesMaxDepth(totalColumns)
@@ -500,7 +522,7 @@ const renderTable = (chart: ChartObj) => {
               })
               s2.render(true)
             } else {
-              const [parentColumn] = getColumns([parent.field], curColumns)
+              const [parentColumn] = getColumns([parent.field], curColumns) as HeaderColumnNode[]
               const newKey = uuid.v4()
               parentColumn.children?.splice(startIndex, endIndex - startIndex + 1, {
                 key: newKey,
@@ -558,7 +580,7 @@ const renderTable = (chart: ChartObj) => {
       ) {
         return
       }
-      const parent = curMeta.parent as Node
+      const parent = curMeta.parent as S2Node
       const lastIndex = parent.children.findIndex(item => item.key === lastMeta.key)
       const curIndex = parent.children.findIndex(item => item.key === curMeta.key)
       const startIndex = Math.min(lastIndex, curIndex)

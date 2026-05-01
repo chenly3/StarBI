@@ -11,6 +11,8 @@ import { defaults } from 'lodash-es'
 
 const { t } = useI18n()
 
+type RuntimeRadarOptions = Partial<RadarOptions> & Record<string, any>
+
 export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
   properties: EditorProperty[] = [
     'background-overall-component',
@@ -130,7 +132,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
         })
       })
     }
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     return newChart
   }
 
@@ -138,13 +140,19 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
     const { radarShowPoint, radarPointSize, radarAreaColor } = parseJson(
       chart.customAttr
     ).basicStyle
-    const tempOptions: RadarOptions = {}
+    let tempOptions: RuntimeRadarOptions = {}
 
     if (radarShowPoint) {
-      tempOptions['point'] = { shape: 'circle', size: radarPointSize, style: { fill: null } }
+      tempOptions = {
+        ...tempOptions,
+        point: { shape: 'circle', size: radarPointSize, style: { fill: null } }
+      }
     }
     if (radarAreaColor) {
-      tempOptions['area'] = {}
+      tempOptions = {
+        ...tempOptions,
+        area: {}
+      }
     }
 
     return { ...options, ...tempOptions }
@@ -279,7 +287,7 @@ export class Radar extends G2PlotChartView<RadarOptions, G2Radar> {
     } else {
       size = DEFAULT_LEGEND_STYLE.size
     }
-    optionTmp.legend.marker.style = style => {
+    ;(optionTmp.legend as any).marker.style = style => {
       return {
         r: size,
         fill: style.stroke

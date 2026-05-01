@@ -83,7 +83,7 @@ const closeEditComponentName = () => {
 const dragOnEnd = ({ newIndex }) => {
   const source = componentData.value[newIndex]
   dvMainStore.setCurTabName(source.title)
-  eventBus.emit('onTabSortChange-' + tabElement.value?.id)
+  eventBus.emit('onTabSortChange-' + (tabElement.value as Record<string, any>)?.id)
   snapshotStore.recordSnapshotCache('dragOnEnd')
 }
 

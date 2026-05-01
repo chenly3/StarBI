@@ -219,7 +219,7 @@ const setMobileStyle = debounce(() => {
     transformOrigin: '0 0'
   }
 }, 100)
-const curComponentChangeHandle = () => {
+const curComponentChangeHandle = (_info?: any) => {
   // do change
 }
 onMounted(() => {

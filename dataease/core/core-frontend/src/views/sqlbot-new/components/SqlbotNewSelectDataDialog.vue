@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, onMounted, onUpdated, ref, watch } from 'vue'
+import type { FileCardItem } from '../types'
 
 type DialogTab = 'dataset' | 'file'
 
@@ -9,19 +10,14 @@ interface DatasetItem {
   tone: 'blue' | 'green' | 'purple' | 'orange'
   badge: string
   fields: string[]
-  selectedPreview?: boolean
-}
-
-interface FileItem {
-  id: string
-  title: string
-  uploadedAt: string
-  format: 'Excel' | 'CSV'
-  fields: string[]
   metricFields?: string[]
   dimensionFields?: string[]
   fieldsLoaded?: boolean
+  selectedPreview?: boolean
 }
+
+type FileItem = FileCardItem
+type FieldPreviewItem = DatasetItem | FileItem
 
 const props = defineProps<{
   visible: boolean
@@ -41,7 +37,6 @@ const props = defineProps<{
 
 const instance = getCurrentInstance()
 const renderVisible = ref(props.visible)
-const visibleState = computed(() => props.visible)
 const activeTabState = computed(() => props.activeTab)
 const datasetKeywordState = computed(() => props.datasetKeyword)
 const fileKeywordState = computed(() => props.fileKeyword)
@@ -202,7 +197,7 @@ const inferDimensionFields = (fields: string[]) => {
   )
 }
 
-const getMetricFields = (item: FileItem) => {
+const getMetricFields = (item: FieldPreviewItem) => {
   const explicitFields = (item.metricFields || []).filter(Boolean)
   if (explicitFields.length) {
     return explicitFields.slice(0, 3)
@@ -215,7 +210,7 @@ const getMetricFields = (item: FileItem) => {
   return (inferred.length ? inferred : item.fields.slice(0, 2)).slice(0, 3)
 }
 
-const getDimensionFields = (item: FileItem) => {
+const getDimensionFields = (item: FieldPreviewItem) => {
   const explicitFields = (item.dimensionFields || []).filter(Boolean)
   if (explicitFields.length) {
     return explicitFields.slice(0, 4)
@@ -317,7 +312,7 @@ const handleFileSelect = (id: string) => {
                 <div class="field-group">
                   <span class="field-group-label">关键指标</span>
                   <span
-                    v-for="field in getMetricFields(item.fields)"
+                    v-for="field in getMetricFields(item)"
                     :key="`dataset-metric-${item.id}-${field}`"
                     class="field-pill metric"
                   >
@@ -327,7 +322,7 @@ const handleFileSelect = (id: string) => {
                 <div class="field-group">
                   <span class="field-group-label">分析维度</span>
                   <span
-                    v-for="field in getDimensionFields(item.fields)"
+                    v-for="field in getDimensionFields(item)"
                     :key="`dataset-dimension-${item.id}-${field}`"
                     class="field-pill dimension"
                   >

@@ -27,7 +27,7 @@ import {
   MergedCell,
   MergedCellInfo,
   type Meta,
-  type Node,
+  type Node as S2Node,
   type PivotSheet,
   renderPolygon,
   renderText,
@@ -69,6 +69,23 @@ import Decimal from 'decimal.js'
 
 const { t: i18nt } = useI18n()
 
+export type DeTextAlign = 'left' | 'center' | 'right' | 'custom'
+export type DeS2Theme = S2Theme & {
+  dataCellAlignConfig?: Record<string, DeTextAlign>
+  colCellAlignConfig?: Record<string, DeTextAlign>
+}
+
+export const toS2TextAlign = (align?: DeTextAlign) => (align === 'custom' ? 'left' : align)
+
+const toFieldKey = (field: unknown) => String(field ?? '')
+const buildMetaMap = (meta?: Meta[]) =>
+  (meta ?? []).reduce<Record<string, Meta>>((p, n) => {
+    if (n.field) {
+      p[String(n.field)] = n
+    }
+    return p
+  }, {})
+
 export function getCustomTheme(chart: Chart): S2Theme {
   const headerColor = hexColorToRGBA(
     DEFAULT_TABLE_HEADER.tableHeaderBgColor,
@@ -85,6 +102,8 @@ export function getCustomTheme(chart: Chart): S2Theme {
   const scrollBarHoverColor = resetRgbOpacity(scrollBarColor, 3)
   const textFontFamily =
     chart.fontFamily && chart.fontFamily !== 'inherit' ? chart.fontFamily : FONT_FAMILY
+  const headerTextAlign = toS2TextAlign(headerAlign)
+  const itemTextAlign = toS2TextAlign(itemAlign)
   const theme: S2Theme = {
     background: {
       color: '#00000000'
@@ -107,19 +126,19 @@ export function getCustomTheme(chart: Chart): S2Theme {
       text: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       bolderText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       measureText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       }
     },
@@ -132,26 +151,26 @@ export function getCustomTheme(chart: Chart): S2Theme {
       text: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         textBaseline: 'middle',
         fontFamily: textFontFamily
       },
       bolderText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       measureText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       seriesText: {
         fill: DEFAULT_TABLE_CELL.tableItemBgColor,
         fontSize: DEFAULT_TABLE_CELL.tableItemFontSize,
-        textAlign: itemAlign,
+        textAlign: itemTextAlign,
         fontFamily: textFontFamily
       }
     },
@@ -164,19 +183,19 @@ export function getCustomTheme(chart: Chart): S2Theme {
       text: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       bolderText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       },
       measureText: {
         fill: DEFAULT_TABLE_HEADER.tableHeaderFontColor,
         fontSize: DEFAULT_TABLE_HEADER.tableTitleFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       }
     },
@@ -189,19 +208,19 @@ export function getCustomTheme(chart: Chart): S2Theme {
       text: {
         fill: DEFAULT_TABLE_CELL.tableFontColor,
         fontSize: DEFAULT_TABLE_CELL.tableItemFontSize,
-        textAlign: itemAlign,
+        textAlign: itemTextAlign,
         fontFamily: textFontFamily
       },
       bolderText: {
         fill: DEFAULT_TABLE_CELL.tableFontColor,
         fontSize: DEFAULT_TABLE_CELL.tableItemFontSize,
-        textAlign: itemAlign,
+        textAlign: itemTextAlign,
         fontFamily: textFontFamily
       },
       measureText: {
         fill: DEFAULT_TABLE_CELL.tableFontColor,
         fontSize: DEFAULT_TABLE_CELL.tableItemFontSize,
-        textAlign: headerAlign,
+        textAlign: headerTextAlign,
         fontFamily: textFontFamily
       }
     },
@@ -269,6 +288,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
       const fontStyle = tableHeader.isItalic ? 'italic' : 'normal'
       const fontWeight = tableHeader.isBolder === false ? 'normal' : 'bold'
       const { tableHeaderAlign, tableTitleFontSize } = tableHeader
+      const tableHeaderTextAlign = toS2TextAlign(tableHeaderAlign)
       const tmpTheme: S2Theme = {
         cornerCell: {
           cell: {
@@ -277,7 +297,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           bolderText: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -285,7 +305,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           text: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -293,7 +313,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           measureText: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -306,7 +326,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           bolderText: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -314,7 +334,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           text: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -322,7 +342,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           measureText: {
             fill: tableHeaderFontColor,
             fontSize: tableTitleFontSize,
-            textAlign: tableHeaderAlign,
+            textAlign: tableHeaderTextAlign,
             fontStyle,
             fontWeight,
             fontFamily: textFontFamily
@@ -384,6 +404,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
       const fontStyle = tableCell.isItalic ? 'italic' : 'normal'
       const fontWeight = tableCell.isBolder === false ? 'normal' : 'bold'
       const { tableItemAlign, tableItemFontSize, enableTableCrossBG } = tableCell
+      const tableItemTextAlign = toS2TextAlign(tableItemAlign)
       const tmpTheme: S2Theme = {
         rowCell: {
           cell: {
@@ -393,25 +414,25 @@ export function getCustomTheme(chart: Chart): S2Theme {
           },
           bolderText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontFamily: textFontFamily
           },
           text: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontFamily: textFontFamily
           },
           measureText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontFamily: textFontFamily
           },
           seriesText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontFamily: textFontFamily
           }
@@ -423,7 +444,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           },
           bolderText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight,
@@ -431,7 +452,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           },
           text: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight,
@@ -439,7 +460,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           },
           measureText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight,
@@ -447,7 +468,7 @@ export function getCustomTheme(chart: Chart): S2Theme {
           },
           seriesText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight,
@@ -1749,9 +1770,9 @@ export function configHeaderInteraction(chart: Chart, option: S2Options) {
         })
         const parent = document.getElementById(chart.container)
         if (parent?.childNodes?.length) {
-          const child = Array.from(parent.childNodes)
-            .filter(node => node.nodeType === Node.ELEMENT_NODE)
-            .find(node => node.classList.contains('antv-s2-tooltip-container'))
+          const child = Array.from(parent.children).find(node =>
+            node.classList.contains('antv-s2-tooltip-container')
+          ) as HTMLElement | undefined
           if (child) {
             const left = child.offsetLeft + child.clientWidth
             if (left > parent.offsetWidth) {
@@ -1829,7 +1850,11 @@ export function copyContent(s2Instance: SpreadSheet, event, fieldMeta) {
     const brushSelection = s2Instance.interaction.interactions.get(
       InteractionName.BRUSH_SELECTION
     ) as DataCellBrushSelection
-    const selectedCells: TableDataCell[] = brushSelection.getScrollBrushRangeCells(cells)
+    const selectedCells: TableDataCell[] = (
+      brushSelection as unknown as {
+        getScrollBrushRangeCells: (cells: unknown[]) => TableDataCell[]
+      }
+    ).getScrollBrushRangeCells(cells)
     selectedCells.sort((a, b) => {
       const aMeta = a.getMeta()
       const bMeta = b.getMeta()
@@ -1914,7 +1939,7 @@ export function copyContent(s2Instance: SpreadSheet, event, fieldMeta) {
       p[n.field] = n.name
       return p
     }, {})
-    content = cellMeta.value
+    content = String(cellMeta.value ?? '')
     if (fieldMap?.[content]) {
       content = fieldMap[content]
     }
@@ -1971,16 +1996,12 @@ export async function exportGridPivot(instance: PivotSheet, chart: ChartObj) {
   }
   const workbook = new Exceljs.Workbook()
   const worksheet = workbook.addWorksheet(i18nt('chart.chart_data'))
-  const metaMap: Record<string, Meta> = meta?.reduce((p, n) => {
-    if (n.field) {
-      p[n.field] = n
-    }
-    return p
-  }, {})
+  const metaMap = buildMetaMap(meta)
   // 角头
   fields.columns?.forEach((column, index) => {
     const cell = worksheet.getCell(index + 1, 1)
-    cell.value = metaMap[column]?.name ?? column
+    const columnKey = toFieldKey(column)
+    cell.value = metaMap[columnKey]?.name ?? columnKey
     cell.alignment = { vertical: 'middle', horizontal: 'center' }
     if (rowLength >= 2) {
       worksheet.mergeCells(index + 1, 1, index + 1, rowLength)
@@ -2026,7 +2047,7 @@ export async function exportGridPivot(instance: PivotSheet, chart: ChartObj) {
     }
   })
 
-  const getNodeStartRowIndex = (node: Node) => {
+  const getNodeStartRowIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.rowIndex + 1
     } else {
@@ -2084,7 +2105,7 @@ export async function exportGridPivot(instance: PivotSheet, chart: ChartObj) {
       bottom: { style: 'thick', color: { argb: '00000000' } }
     }
   })
-  const getNodeStartColIndex = (node: Node) => {
+  const getNodeStartColIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.colIndex + 1
     } else {
@@ -2165,12 +2186,7 @@ export async function exportRowQuotaGridPivot(instance: PivotSheet, chart: Chart
   }
   const workbook = new Exceljs.Workbook()
   const worksheet = workbook.addWorksheet(i18nt('chart.chart_data'))
-  const metaMap: Record<string, Meta> = meta?.reduce((p, n) => {
-    if (n.field) {
-      p[n.field] = n
-    }
-    return p
-  }, {})
+  const metaMap = buildMetaMap(meta)
   // 角头
   if (colLength > 1) {
     fields.columns.forEach((column: string, index) => {
@@ -2192,7 +2208,7 @@ export async function exportRowQuotaGridPivot(instance: PivotSheet, chart: Chart
     cell.alignment = { vertical: 'middle', horizontal: 'center' }
     cell.border = { bottom: { style: 'thick', color: { argb: '00000000' } } }
   })
-  const quotaColLabel = chart.customAttr.basicStyle.quotaColLabel ?? t('dataset.value')
+  const quotaColLabel = chart.customAttr.basicStyle.quotaColLabel ?? i18nt('dataset.value')
   const quotaColHeadCell = worksheet.getCell(colLength === 0 ? 1 : colLength, rowLength + 1)
   quotaColHeadCell.value = quotaColLabel
   quotaColHeadCell.alignment = { vertical: 'middle', horizontal: 'center' }
@@ -2226,7 +2242,7 @@ export async function exportRowQuotaGridPivot(instance: PivotSheet, chart: Chart
     }
   })
 
-  const getNodeStartRowIndex = (node: Node) => {
+  const getNodeStartRowIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.rowIndex + 1
     } else {
@@ -2280,7 +2296,7 @@ export async function exportRowQuotaGridPivot(instance: PivotSheet, chart: Chart
       bottom: { style: 'thick', color: { argb: '00000000' } }
     }
   })
-  const getNodeStartColIndex = (node: Node) => {
+  const getNodeStartColIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.colIndex + 1
     } else {
@@ -2353,17 +2369,13 @@ export async function exportTreePivot(instance: PivotSheet, chart: ChartObj) {
   const colLength = fields?.columns?.length || 0
   const workbook = new Exceljs.Workbook()
   const worksheet = workbook.addWorksheet(i18nt('chart.chart_data'))
-  const metaMap: Record<string, Meta> = meta?.reduce((p, n) => {
-    if (n.field) {
-      p[n.field] = n
-    }
-    return p
-  }, {})
+  const metaMap = buildMetaMap(meta)
 
   // 角头
   fields.columns?.forEach((column, index) => {
     const cell = worksheet.getCell(index + 1, 1)
-    cell.value = metaMap[column]?.name ?? column
+    const columnKey = toFieldKey(column)
+    cell.value = metaMap[columnKey]?.name ?? columnKey
     cell.alignment = { vertical: 'middle', horizontal: 'center' }
     cell.border = {
       right: { style: 'thick', color: { argb: '00000000' } }
@@ -2416,7 +2428,7 @@ export async function exportTreePivot(instance: PivotSheet, chart: ChartObj) {
     }
   })
   const colNodes = layoutResult.colNodes
-  const getNodeStartIndex = (node: Node) => {
+  const getNodeStartIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.colIndex + 1
     } else {
@@ -2494,12 +2506,7 @@ export async function exportRowQuotaTreePivot(instance: PivotSheet, chart: Chart
   const colLength = fields?.columns?.length || 0
   const workbook = new Exceljs.Workbook()
   const worksheet = workbook.addWorksheet(i18nt('chart.chart_data'))
-  const metaMap: Record<string, Meta> = meta?.reduce((p, n) => {
-    if (n.field) {
-      p[n.field] = n
-    }
-    return p
-  }, {})
+  const metaMap = buildMetaMap(meta)
 
   // 角头
   fields.columns?.forEach((column, index) => {
@@ -2507,13 +2514,14 @@ export async function exportRowQuotaTreePivot(instance: PivotSheet, chart: Chart
       return
     }
     const cell = worksheet.getCell(index + 1, 1)
-    cell.value = metaMap[column]?.name ?? column
+    const columnKey = toFieldKey(column)
+    cell.value = metaMap[columnKey]?.name ?? columnKey
     cell.alignment = { vertical: 'middle', horizontal: 'center' }
     cell.border = {
       right: { style: 'thick', color: { argb: '00000000' } }
     }
   })
-  const quotaColLabel = chart.customAttr.basicStyle.quotaColLabel ?? t('dataset.value')
+  const quotaColLabel = chart.customAttr.basicStyle.quotaColLabel ?? i18nt('dataset.value')
   const maxColHeight = layoutResult.colsHierarchy.maxLevel + 1
   const rowName = fields?.rows
     ?.map(row => metaMap[row]?.name ?? row)
@@ -2564,7 +2572,7 @@ export async function exportRowQuotaTreePivot(instance: PivotSheet, chart: Chart
     }
   })
   const colNodes = layoutResult.colNodes
-  const getNodeStartIndex = (node: Node) => {
+  const getNodeStartIndex = (node: S2Node) => {
     if (!node.children?.length) {
       return node.colIndex + 1
     } else {
@@ -2889,14 +2897,14 @@ class CustomMergedCell extends MergedCell {
 
   protected getTextStyle() {
     const textStyle = super.getTextStyle()
-    const dataCellAlignConfig = this.theme.dataCellAlignConfig
+    const dataCellAlignConfig = (this.theme as DeS2Theme).dataCellAlignConfig
     if (dataCellAlignConfig) {
       const align = dataCellAlignConfig[this.meta.valueField]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     }
-    if (textStyle.textAlign === 'custom') {
+    if ((textStyle.textAlign as DeTextAlign) === 'custom') {
       textStyle.textAlign = 'left'
     }
     return textStyle
@@ -2939,14 +2947,14 @@ export class CustomDataCell extends TableDataCell {
 
   protected getTextStyle() {
     const textStyle = super.getTextStyle()
-    const dataCellAlignConfig = this.theme.dataCellAlignConfig
+    const dataCellAlignConfig = (this.theme as DeS2Theme).dataCellAlignConfig
     if (dataCellAlignConfig) {
       const align = dataCellAlignConfig[this.meta.valueField]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     }
-    if (textStyle.textAlign === 'custom') {
+    if ((textStyle.textAlign as DeTextAlign) === 'custom') {
       textStyle.textAlign = 'left'
     }
     return textStyle
@@ -2972,7 +2980,7 @@ export class CustomTableColCell extends TableColCell {
 
   protected getTextStyle() {
     const textStyle = super.getTextStyle()
-    const colCellAlignConfig = this.theme.colCellAlignConfig
+    const colCellAlignConfig = (this.theme as DeS2Theme).colCellAlignConfig
     if (colCellAlignConfig) {
       // 分组单元格居中
       if (this.meta.children?.length) {
@@ -2981,10 +2989,10 @@ export class CustomTableColCell extends TableColCell {
       }
       const align = colCellAlignConfig[this.meta.field]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     }
-    if (textStyle.textAlign === 'custom') {
+    if ((textStyle.textAlign as DeTextAlign) === 'custom') {
       textStyle.textAlign = 'left'
     }
     return textStyle
@@ -3323,11 +3331,11 @@ export function getSummaryRow(data, axis, sumCon = [], customSumResult = {}) {
 export class SummaryCell extends CustomDataCell {
   getTextStyle() {
     const textStyle = cloneDeep(this.theme.colCell.bolderText)
-    const dataCellAlignConfig = this.theme.dataCellAlignConfig
+    const dataCellAlignConfig = (this.theme as DeS2Theme).dataCellAlignConfig
     if (dataCellAlignConfig) {
       const align = dataCellAlignConfig[this.meta.valueField]
       if (align) {
-        textStyle.textAlign = align
+        textStyle.textAlign = toS2TextAlign(align)
       }
     } else {
       textStyle.textAlign = this.theme.dataCell.text.textAlign

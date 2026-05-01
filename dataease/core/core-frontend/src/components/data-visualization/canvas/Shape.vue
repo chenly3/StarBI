@@ -167,6 +167,14 @@ import {
   getComponentBackgroundStyle
 } from '@/utils/backgroundStyleUtils'
 const { t } = useI18n()
+type ShapeStyle = {
+  top: number
+  left: number
+  width: number
+  height: number
+  rotate: number
+  [key: string]: any
+}
 const dvMainStore = dvMainStoreWithOut()
 const snapshotStore = snapshotStoreWithOut()
 const contextmenuStore = contextmenuStoreWithOut()
@@ -567,7 +575,7 @@ const handleMouseDownOnShape = e => {
 
   cursors.value = getCursor() // 根据旋转角度获取光标位置
 
-  const pos = { ...defaultStyle.value }
+  const pos = { ...defaultStyle.value } as ShapeStyle
   const startY = e.clientY
   const startX = e.clientX
 
@@ -761,7 +769,7 @@ const handleMouseDownOnPoint = (point, e) => {
   e.stopPropagation()
   e.preventDefault()
 
-  const style = { ...defaultStyle.value }
+  const style = { ...defaultStyle.value } as ShapeStyle
 
   // 组件宽高比
   const proportion = style['width'] / style['height']
@@ -1004,7 +1012,10 @@ const settingAttribute = () => {
 }
 
 const tabMoveInCheck = async () => {
-  const curNode = document.querySelector('#' + domId.value)
+  const curNode = document.querySelector<HTMLElement>('#' + domId.value)
+  if (!curNode) {
+    return
+  }
   const width = curNode.offsetWidth
   const height = curNode.offsetHeight
   const left = curNode.offsetLeft
@@ -1016,7 +1027,7 @@ const tabMoveInCheck = async () => {
     isTabMoveCheck.value &&
     !state.ignoreTabMoveComponent.includes(element.value.component)
   ) {
-    const nodes = Array.from(parentNode.value.childNodes) // 获取当前父节点下所有子节点
+    const nodes = Array.from(parentNode.value.childNodes) as HTMLElement[] // 获取当前父节点下所有子节点
     for (const item of nodes) {
       if (
         item.className !== undefined &&

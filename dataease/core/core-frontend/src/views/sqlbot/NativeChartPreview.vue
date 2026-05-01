@@ -402,7 +402,7 @@ const buildCartesianOption = (): EChartsOption | null => {
           color: 'rgba(226, 232, 240, 0.9)'
         }
       }
-    },
+    } as any,
     yAxis: {
       type: chartType.value === 'bar' ? 'category' : 'value',
       data: chartType.value === 'bar' ? cartesianPayload.value.categories : undefined,
@@ -422,7 +422,7 @@ const buildCartesianOption = (): EChartsOption | null => {
           color: 'rgba(226, 232, 240, 0.9)'
         }
       }
-    }
+    } as any
   }
 
   if (chartType.value === 'line') {

@@ -29,6 +29,7 @@ import { isMobile } from '@/utils/utils'
 import { ElMessage } from 'element-plus-secondary'
 
 interface SelectConfig {
+  name?: string
   selectValue: any
   required: false
   defaultMapValue: any
@@ -61,8 +62,16 @@ interface SelectConfig {
     label: string
     value: string
   }[]
-  optionFilter: []
+  optionFilter: Array<string | number | Record<string, any>>
 }
+
+type SelectOption = {
+  label: string
+  value: string
+  checked?: boolean
+}
+
+type EnumValueRow = Record<string, any>
 
 const { t } = useI18n()
 const dvMainStore = dvMainStoreWithOut()
@@ -92,11 +101,11 @@ const props = defineProps({
   }
 })
 const { config } = toRefs(props)
-let enumValueArr = []
+let enumValueArr: EnumValueRow[] = []
 const selectValue = ref()
 const loading = ref(false)
 const multiple = ref(false)
-const options = shallowRef([])
+const options = shallowRef<SelectOption[]>([])
 const unMountSelect: Ref = inject('unmount-select')
 const placeholder: Ref = inject('placeholder')
 const releaseSelect = inject('release-unmount-select', Function, true)

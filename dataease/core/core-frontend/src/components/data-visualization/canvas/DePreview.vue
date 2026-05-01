@@ -180,7 +180,7 @@ const baseComponentData = computed(() =>
   )
 )
 const canvasStyle = computed(() => {
-  let style = {}
+  let style: Record<string, any> = {}
   if (isMainCanvas(canvasId.value) && !isDashboard()) {
     style['overflowY'] = 'hidden !important'
   }

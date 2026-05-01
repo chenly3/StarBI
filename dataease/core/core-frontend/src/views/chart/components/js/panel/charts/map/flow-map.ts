@@ -330,4 +330,8 @@ export class FlowMap extends L7ChartView<Scene, L7Config> {
     chart.customAttr.misc.flowMapConfig.lineConfig.mapLineAnimate = true
     return chart
   }
+
+  protected setupOptions(_chart: Chart, options: L7Config): L7Config {
+    return options
+  }
 }

@@ -50,6 +50,19 @@ import { formatterItem } from '@/views/chart/components/js/formatter'
 const { t } = useI18n()
 const appearanceStore = useAppearanceStoreWithOut()
 const { wsCache } = useCache()
+type AnyRecord = Record<string, any>
+type CanvasComponent = AnyRecord & {
+  id: string
+  component?: string
+  innerType?: string
+  style?: AnyRecord
+  propValue?: CanvasComponent[]
+}
+type CanvasAttachInfo = AnyRecord & {
+  source: string
+  taskId?: any
+  showWatermark?: any
+}
 export function chartTransStr2Object(targetIn, copy) {
   const target = copy === 'Y' ? cloneDeep(targetIn) : targetIn
   return target
@@ -202,7 +215,7 @@ function matrixAdaptor(componentItem) {
 export function historyItemAdaptor(
   componentItem,
   reportFilterInfo,
-  attachInfo,
+  attachInfo: CanvasAttachInfo,
   canvasVersion,
   canvasInfo
 ) {
@@ -389,13 +402,16 @@ export function refreshOtherComponent(dvId, busiFlag) {
   )
   if (refreshComponentList && refreshComponentList.length > 0) {
     const refreshIdList = refreshComponentList.map(ele => ele.id)
-    findById(dvId, busiFlag, {}).then(rsp => {
+    findById(dvId, busiFlag, { source: 'main', taskId: null }).then(rsp => {
       const canvasInfo = rsp.data
-      const canvasDataResult = JSON.parse(canvasInfo.componentData)
-      const canvasDataResultMap = canvasDataResult.reduce((acc, comp) => {
-        acc[comp.id] = comp
-        return acc
-      }, {})
+      const canvasDataResult = JSON.parse(canvasInfo.componentData) as CanvasComponent[]
+      const canvasDataResultMap = canvasDataResult.reduce<Record<string, CanvasComponent>>(
+        (acc, comp) => {
+          acc[comp.id] = comp
+          return acc
+        },
+        {}
+      )
       // 遍历数组并替换
       for (let i = 0; i < componentData.value.length; i++) {
         const component = componentData.value[i]
@@ -428,20 +444,21 @@ export function initCanvasDataPrepare(dvId, params, callBack) {
   const copyFlag = busiFlag != null && busiFlag.includes('-copy')
   const busiFlagCustom = copyFlag ? busiFlag.split('-')[0] : busiFlag
   const method = copyFlag ? findCopyResource : findById
-  let attachInfo = { source: params.source ? params.source : 'main' }
-  if (dvMainStore.canvasAttachInfo && !!dvMainStore.canvasAttachInfo.taskId) {
-    attachInfo = { source: 'report', taskId: dvMainStore.canvasAttachInfo.taskId }
+  let attachInfo: CanvasAttachInfo = { source: params.source ? params.source : 'main' }
+  const canvasAttachInfo = dvMainStore.canvasAttachInfo as CanvasAttachInfo
+  if (canvasAttachInfo && !!canvasAttachInfo.taskId) {
+    attachInfo = { source: 'report', taskId: canvasAttachInfo.taskId }
     const showWatermarkExist =
-      dvMainStore.canvasAttachInfo.hasOwnProperty('showWatermark') &&
-      typeof dvMainStore.canvasAttachInfo.showWatermark !== 'undefined' &&
-      dvMainStore.canvasAttachInfo.showWatermark !== null
+      canvasAttachInfo.hasOwnProperty('showWatermark') &&
+      typeof canvasAttachInfo.showWatermark !== 'undefined' &&
+      canvasAttachInfo.showWatermark !== null
     if (showWatermarkExist) {
-      const enable = dvMainStore.canvasAttachInfo.showWatermark === 'true'
+      const enable = canvasAttachInfo.showWatermark === 'true'
       attachInfo['showWatermark'] = enable
     }
   }
   attachInfo['resourceTable'] = params.resourceTable ? params.resourceTable : 'core'
-  method(dvId, busiFlagCustom, attachInfo).then(res => {
+  method(dvId, busiFlagCustom, attachInfo as { source: string; taskId: any }).then(res => {
     const canvasInfo = res.data
     const watermarkInfo = {
       ...canvasInfo.watermarkInfo,
@@ -470,7 +487,7 @@ export function initCanvasDataPrepare(dvId, params, callBack) {
     const canvasVersion = canvasInfo.version
 
     const canvasDataResult = JSON.parse(canvasInfo.componentData)
-    const canvasStyleResult = JSON.parse(canvasInfo.canvasStyleData)
+    const canvasStyleResult = JSON.parse(canvasInfo.canvasStyleData) as AnyRecord
     const canvasViewInfoPreview = canvasInfo.canvasViewInfo
     try {
       historyAdaptor(canvasStyleResult, canvasDataResult, canvasInfo, attachInfo, canvasVersion)
@@ -689,7 +706,7 @@ export async function canvasSaveWithParams(params, callBack) {
     }
   })
   const newContentId = guid()
-  const canvasInfo = {
+  const canvasInfo: AnyRecord = {
     canvasStyleData: JSON.stringify(canvasStyleData.value),
     componentData: JSON.stringify(componentDataToSave),
     canvasViewInfo: canvasViewInfo.value,
@@ -993,9 +1010,11 @@ export async function decompressionPre(params, callBack) {
   await decompression(params)
     .then(response => {
       const deTemplateDataTemp = response.data
-      const sourceComponentData = JSON.parse(deTemplateDataTemp['componentData'])
+      const sourceComponentData = JSON.parse(
+        deTemplateDataTemp['componentData']
+      ) as CanvasComponent[]
       const appData = deTemplateDataTemp['appData']
-      const sourceCanvasStyle = JSON.parse(deTemplateDataTemp['canvasStyleData'])
+      const sourceCanvasStyle = JSON.parse(deTemplateDataTemp['canvasStyleData']) as AnyRecord
       sourceComponentData.forEach(componentItem => {
         // 2 为基础版本 此处需要增加仪表板矩阵密度
         if (

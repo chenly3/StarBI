@@ -65,10 +65,15 @@
 
 <script lang="tsx" setup>
 import { ref, watch, onMounted, computed } from 'vue'
+type DecorationStyle = {
+  width: number
+  height: number
+}
+
 interface Props {
   color?: string[]
   backgroundColor?: string
-  curStyle: object
+  curStyle: DecorationStyle
   scale: number
 }
 const props = withDefaults(defineProps<Props>(), {

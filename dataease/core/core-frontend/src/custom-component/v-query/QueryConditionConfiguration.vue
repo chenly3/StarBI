@@ -69,6 +69,33 @@ interface DatasetField {
   tableId: string
 }
 
+type QueryConditionField = {
+  id: string | number
+  datasetGroupId?: string
+  deType?: number
+  type?: Array<string | number> | string
+  name?: string
+  variableName?: string
+  params?: unknown[]
+}
+
+type DatasetDetailWithRuntime = Omit<DatasetDetail, 'fields'> & {
+  fields: QueryConditionFields
+  checkedFields?: string[]
+  checkedFieldsMap?: Record<string, string>
+  activelist?: string
+}
+
+type QueryConditionFields = {
+  dimensionList: QueryConditionField[]
+  quotaList: QueryConditionField[]
+  parameterList?: QueryConditionField[]
+}
+
+type SqlParamField = QueryConditionField & {
+  datasetGroupId: string
+}
+
 const props = defineProps({
   queryElement: {
     type: Object,
@@ -90,7 +117,7 @@ const activeConditionForRename = reactive({
   name: '',
   visible: false
 })
-const datasetMap = {}
+const datasetMap: Record<string, DatasetDetailWithRuntime> = {}
 const snapshotStore = snapshotStoreWithOut()
 const dfsComponentData = () => {
   let arr = componentData.value.filter(
@@ -188,7 +215,7 @@ const manual = ref()
 const activeCondition = ref('')
 const isIndeterminate = ref(false)
 const datasetTree = shallowRef([])
-const fields = ref<DatasetDetail[]>()
+const fields = ref<DatasetDetailWithRuntime[]>()
 
 const { queryElement } = toRefs(props)
 const getDetype = (id, arr) => {
@@ -514,13 +541,13 @@ const setTreeDefault = () => {
 const setTreeDefaultBatch = ele => {
   if (!!ele.checkedFields.length) {
     let tableId = ''
-    fields.value.forEach(ele => {
+    fields.value.forEach(field => {
       if (
-        ele.checkedFields.includes(ele.componentId) &&
-        ele.checkedFieldsMap[ele.componentId] &&
+        ele.checkedFields.includes(field.componentId) &&
+        ele.checkedFieldsMap[field.componentId] &&
         !tableId
       ) {
-        tableId = datasetFieldList.value.find(itx => itx.id === ele.componentId)?.tableId
+        tableId = datasetFieldList.value.find(itx => itx.id === field.componentId)?.tableId
       }
     })
     if (tableId && !ele.treeDatasetId) {
@@ -661,7 +688,7 @@ const timeClick = (componentId, timeVal) => {
   timeDialogShow.value = true
 }
 
-const duplicateRemoval = arr => {
+const duplicateRemoval = <T extends { id: string | number }>(arr: T[]) => {
   const objList = []
   let idList = arr.map(ele => ele.id)
   for (let index = 0; index < arr.length; index++) {
@@ -677,10 +704,13 @@ const duplicateRemoval = arr => {
 const setParameters = field => {
   const fieldArr = Object.values(curComponent.value.checkedFieldsMap).filter(ele => !!ele)
   curComponent.value.parameters = duplicateRemoval(
-    Object.values(field?.fields || {})
-      .flat()
+    (Object.values(field?.fields || {}).flat() as QueryConditionField[])
       .filter(ele => fieldArr.includes(ele.id) && !!ele.variableName)
-      .concat(curComponent.value.parameters.filter(ele => fieldArr.includes(ele.id)))
+      .concat(
+        curComponent.value.parameters.filter(ele =>
+          fieldArr.includes(ele.id)
+        ) as QueryConditionField[]
+      )
   )
   fields.value.forEach(ele => {
     if (
@@ -1714,9 +1744,11 @@ const init = (queryId: string) => {
   if (!params.length) return
   Promise.all([getDsDetailsWithPerm(params), getSqlParams(params)])
     .then(([dq, p]) => {
-      dq.filter(ele => !!ele).forEach(ele => {
+      const datasetDetails = dq.filter(ele => !!ele) as unknown as DatasetDetailWithRuntime[]
+      const sqlParams = p as unknown as SqlParamField[]
+      datasetDetails.forEach(ele => {
         ele.activelist = 'dimensionList'
-        ele.fields.parameterList = p.filter(
+        ele.fields.parameterList = sqlParams.filter(
           itx => itx.datasetGroupId === ele.id && !itx.params?.length
         )
         ele.hasParameter = !!ele.fields.parameterList.length
@@ -1729,7 +1761,7 @@ const init = (queryId: string) => {
       fields.value = datasetFieldList.value
         .map(ele => {
           if (!datasetMap[ele.tableId]) return null
-          const activeCom = datasetMap[ele.tableId].fields || {}
+          const activeCom = (datasetMap[ele.tableId].fields || {}) as QueryConditionFields
           const activelist = setActiveSelectTab(
             [activeCom.dimensionList, activeCom.quotaList, activeCom.parameterList],
             curComponent.value.checkedFieldsMap[ele.id]

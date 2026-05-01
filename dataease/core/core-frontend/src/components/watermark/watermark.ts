@@ -107,9 +107,9 @@ export function watermark(settings, domId) {
       mask_div.appendChild(document.createTextNode(defaultSettings.watermark_txt))
       // 设置水印div倾斜显示
       mask_div.style.webkitTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
-      mask_div.style.MozTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
-      mask_div.style.msTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
-      mask_div.style.OTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
+      ;(mask_div.style as any).MozTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
+      ;(mask_div.style as any).msTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
+      ;(mask_div.style as any).OTransform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
       mask_div.style.transform = 'rotate(-' + defaultSettings.watermark_angle + 'deg)'
       mask_div.style.visibility = ''
       mask_div.style.position = 'absolute'
@@ -119,7 +119,7 @@ export function watermark(settings, domId) {
       mask_div.style.zIndex = '10'
       // 让水印不遮挡页面的点击事件
       mask_div.style.pointerEvents = 'none'
-      mask_div.style.opacity = defaultSettings.watermark_alpha
+      mask_div.style.opacity = String(defaultSettings.watermark_alpha)
       mask_div.style.fontSize = defaultSettings.watermark_fontsize
       mask_div.style.fontFamily = defaultSettings.watermark_font
       mask_div.style.color = defaultSettings.watermark_color
@@ -157,7 +157,7 @@ export function activeWatermarkCheckUser(domId, canvasId, scale = 1) {
   if (dvInfo.value.watermarkInfo) {
     if (userInfo.value && userInfo.value.model !== 'lose') {
       activeWatermark(
-        dvInfo.value.watermarkInfo.settingContent,
+        (dvInfo.value.watermarkInfo as any).settingContent,
         userInfo.value,
         domId,
         canvasId,
@@ -169,7 +169,7 @@ export function activeWatermarkCheckUser(domId, canvasId, scale = 1) {
         userInfo.value = res.data
         if (userInfo.value && userInfo.value.model !== 'lose') {
           activeWatermark(
-            dvInfo.value.watermarkInfo.settingContent,
+            (dvInfo.value.watermarkInfo as any).settingContent,
             userInfo.value,
             domId,
             canvasId,

@@ -44,6 +44,10 @@ dataease:
 starbi:
   sqlbot:
     api-base: ${SQLBOT_API_BASE:http://starbi-sqlbot:8000/api/v1}
+    domain: ${STARBI_SQLBOT_DOMAIN:http://starbi-sqlbot:8000}
+    assistant-id: ${STARBI_SQLBOT_ASSISTANT_ID:1}
+    assistant-secret: ${STARBI_SQLBOT_ASSISTANT_SECRET:starbi-inner-assistant-secret}
+    enabled: ${STARBI_SQLBOT_ENABLED:true}
 
 task:
   executor:

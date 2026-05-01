@@ -9,6 +9,7 @@ import {
   sanitizeRelationRowDraft,
   type DatasetCombinationConfirmPayload,
   type DatasetCombinationDialogDatasetOption,
+  type DatasetCombinationRelationRowDraft,
   type DatasetCombinationSecondaryRelationDraft
 } from '../datasetCombinationAdapter'
 
@@ -155,9 +156,10 @@ const initializeState = () => {
     initialPrimaryId,
     initialSecondaryIds,
     initialSecondaryIds.map(datasetId => {
-      const rows = (draft?.relations || [])
+      const rows: DatasetCombinationRelationRowDraft[] = (draft?.relations || [])
         .filter(item => item.rightDatasetId === datasetId)
-        .map(item => ({
+        .map((item, index) => ({
+          id: `dataset-combination-row-${datasetId}-${index}`,
           leftField: item.leftField,
           rightField: item.rightField
         }))

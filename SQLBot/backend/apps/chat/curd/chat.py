@@ -887,7 +887,7 @@ def create_chat(session: SessionDep, current_user: CurrentUser, create_chat_obj:
         chat_info.datasource_name = ds.name
         chat_info.ds_type = ds.type
 
-    if require_datasource and ds:
+    if require_datasource and ds and not create_chat_obj.skip_first_chat_record:
         # generate first empty record
         record = ChatRecord()
         record.chat_id = chat.id

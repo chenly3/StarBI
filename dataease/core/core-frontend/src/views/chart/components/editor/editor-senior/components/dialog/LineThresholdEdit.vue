@@ -10,6 +10,13 @@ import { iconFieldMap } from '@/components/icon-group/field-list'
 
 const { t } = useI18n()
 
+type LineThreshold = {
+  fieldId: string
+  field: Record<string, any>
+  conditions: Array<Record<string, any>>
+  [key: string]: any
+}
+
 const props = defineProps({
   chart: {
     type: Object as PropType<ChartObj>,

@@ -413,11 +413,19 @@ import { ElMessage } from 'element-plus-secondary'
 import BoardItem from '@/components/visualization/component-background/BoardItem.vue'
 import ImgViewDialog from '@/custom-component/ImgViewDialog.vue'
 import BorderOptionPrefix from '@/components/visualization/component-background/BorderOptionPrefix.vue'
+import type { UploadFile } from 'element-plus-secondary'
 const snapshotStore = snapshotStoreWithOut()
 const { t } = useI18n()
 const emits = defineEmits(['onBackgroundChange'])
 const files = ref(null)
 const maxImageSize = 15000000
+
+const buildUploadFile = (url: string): UploadFile => ({
+  name: url,
+  status: 'success',
+  uid: Date.now(),
+  url
+})
 
 const props = withDefaults(
   defineProps<{
@@ -544,7 +552,7 @@ const reUpload = e => {
   }
   uploadFileResult(file, fileUrl => {
     state.commonBackground.outerImage = fileUrl
-    state.fileList = [{ url: imgUrlTrans(state.commonBackground.outerImage) }]
+    state.fileList = [buildUploadFile(imgUrlTrans(state.commonBackground.outerImage))]
     onBackgroundChange()
   })
 }
@@ -567,7 +575,7 @@ const init = () => {
   updateInnerPadding()
   updateBorderRadius()
   if (state.commonBackground.outerImage) {
-    state.fileList = [{ url: imgUrlTrans(state.commonBackground.outerImage) }]
+    state.fileList = [buildUploadFile(imgUrlTrans(state.commonBackground.outerImage))]
   } else {
     state.fileList = []
   }

@@ -51,6 +51,45 @@ import ChartCarouselTooltip, {
 
 const { t: tI18n } = useI18n()
 
+type RuntimeMap = {
+  deMapProvider?: string
+  deMapAutoFit?: boolean
+  deMapAutoZoom?: number
+  deMapAutoLng?: number
+  deMapAutoLat?: number
+  deMapZoom?: number
+  deMapCenter?: [number, number]
+  getCenter?: () => any
+  getZoom?: () => number
+  on?: (eventName: string, handler: (...args: any[]) => void) => void
+  checkResize?: () => void
+  removeStyle?: () => void
+  showLabel?: boolean
+  setBaseMap?: (options: Record<string, any>) => void
+  setDraggable?: (enable: boolean) => void
+  setScrollable?: (enable: boolean) => void
+  setDoubleClickZoom?: (enable: boolean) => void
+  setTouchZoomable?: (enable: boolean) => void
+  setPitchable?: (enable: boolean) => void
+  setRotatable?: (enable: boolean) => void
+  setStatus?: (options: Record<string, any>) => void
+  [key: string]: any
+}
+
+type CustomZoomDefaultOption = ReturnType<Zoom['getDefault']> & {
+  resetText: string
+}
+
+type ThresholdAnnotationPoint = [string, string | number]
+
+type RuntimePlot<O extends PickOptions = PickOptions> = Plot<O> & {
+  options: Record<string, any>
+  chart: any
+}
+
+const getRuntimeMap = (scene?: Scene): RuntimeMap | undefined =>
+  scene?.map as RuntimeMap | undefined
+
 export function getPadding(chart: Chart): number[] {
   if (chart.drill) {
     return [0, 10, 22, 10]
@@ -109,7 +148,7 @@ export function getTheme(chart: Chart) {
     }
   }
 
-  const theme = {
+  const theme: Record<string, any> = {
     styleSheet: {
       brandColor: colors[0],
       paletteQualitative10: colors,
@@ -946,7 +985,7 @@ export function transAxisPosition(position: string): string {
 export function configL7Label(chart: Chart): false | LabelOptions {
   const customAttr = parseJson(chart.customAttr)
   const label = customAttr.label
-  const style = {
+  const style: Record<string, any> = {
     fill: label.color,
     fontSize: label.fontSize,
     textAllowOverlap: true,
@@ -1170,7 +1209,33 @@ const RESET_BTN =
 const ZOOM_OUT_BTN =
   '<svg t="1717486240292" fill="${fill}" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="13641" width="14px" height="14px"><path d="M935 423.3H89C40.2 423.3 0.3 463.2 0.3 512c0 48.8 39.9 88.7 88.7 88.7h846c48.8 0 88.7-39.9 88.7-88.7 0-48.8-39.9-88.7-88.7-88.7z" p-id="13642"></path></svg>'
 export class CustomZoom extends Zoom {
-  resetButtonGroup(container) {
+  public getDefault(option: Partial<IZoomControlOption>): CustomZoomDefaultOption {
+    const { buttonColor } = option as any
+    let zoomInText = ZOOM_IN_BTN
+    let zoomOutText = ZOOM_OUT_BTN
+    let resetText = RESET_BTN
+    if (buttonColor) {
+      zoomInText = zoomInText.replace('${fill}', buttonColor)
+      zoomOutText = zoomOutText.replace('${fill}', buttonColor)
+      resetText = resetText.replace('${fill}', buttonColor)
+    }
+    return {
+      ...option,
+      position: PositionType.BOTTOMRIGHT,
+      name: 'zoom',
+      zoomInText,
+      zoomInTitle: 'Zoom in',
+      zoomOutText,
+      zoomOutTitle: 'Zoom out',
+      resetText,
+      showZoom: false
+    } as unknown as CustomZoomDefaultOption
+  }
+}
+
+;(CustomZoom as unknown as { prototype: Record<string, any> }).prototype.resetButtonGroup =
+  function (this: CustomZoom & Record<string, any>, container) {
+    const control = this as Record<string, any>
     DOM.clearChildren(container)
     this['zoomInButton'] = this['createButton'](
       this.controlOption.zoomInText,
@@ -1181,23 +1246,24 @@ export class CustomZoom extends Zoom {
     )
     // 抽出重置事件，方便其他事件（移动端触摸）触发
     const zoomReset = () => {
-      if (this.mapsService.map?.deMapProvider == 'qq') {
-        if (this.mapsService.map.deMapAutoFit) {
-          this.mapsService.setZoomAndCenter(this.mapsService.map.deMapAutoZoom, [
-            this.mapsService.map.deMapAutoLng,
-            this.mapsService.map.deMapAutoLat
+      const map = control.mapsService.map as RuntimeMap
+      if (map?.deMapProvider == 'qq') {
+        if (map.deMapAutoFit) {
+          control.mapsService.setZoomAndCenter(map.deMapAutoZoom, [
+            map.deMapAutoLng,
+            map.deMapAutoLat
           ])
         } else {
-          this.mapsService.setZoomAndCenter(
+          control.mapsService.setZoomAndCenter(
             this.controlOption['initZoom'],
             this.controlOption['center']
           )
         }
       } else {
         if (this.controlOption['bounds']) {
-          this.mapsService.fitBounds(this.controlOption['bounds'], { animate: true })
+          control.mapsService.fitBounds(this.controlOption['bounds'], { animate: true })
         } else {
-          this.mapsService.setZoomAndCenter(
+          control.mapsService.setZoomAndCenter(
             this.controlOption['initZoom'],
             this.controlOption['center']
           )
@@ -1234,36 +1300,13 @@ export class CustomZoom extends Zoom {
     setStyle(elements, 'border-bottom', 'none')
     this['updateDisabled']()
     // 腾讯地图需要监听移动端的触摸事件
-    if (this.mapsService.map?.deMapProvider === 'qq') {
+    if ((control.mapsService.map as RuntimeMap)?.deMapProvider === 'qq') {
       const handlers = [zoomReset, () => this.zoomIn(), () => this.zoomOut()]
       elements.forEach((el, i) => {
         el.addEventListener('touchend', handlers[i])
       })
     }
   }
-  public getDefault(option: Partial<IZoomControlOption>) {
-    const { buttonColor } = option as any
-    let zoomInText = ZOOM_IN_BTN
-    let zoomOutText = ZOOM_OUT_BTN
-    let resetText = RESET_BTN
-    if (buttonColor) {
-      zoomInText = zoomInText.replace('${fill}', buttonColor)
-      zoomOutText = zoomOutText.replace('${fill}', buttonColor)
-      resetText = resetText.replace('${fill}', buttonColor)
-    }
-    return {
-      ...option,
-      position: PositionType.BOTTOMRIGHT,
-      name: 'zoom',
-      zoomInText,
-      zoomInTitle: 'Zoom in',
-      zoomOutText,
-      zoomOutTitle: 'Zoom out',
-      resetText,
-      showZoom: false
-    } as IZoomControlOption
-  }
-}
 export function configL7Zoom(
   chart: Chart,
   scene: Scene,
@@ -1290,7 +1333,10 @@ export function configL7Zoom(
               const center =
                 basicStyle.autoFit === false
                   ? [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
-                  : [scene.map.getCenter().getLng(), scene.map.getCenter().getLat()]
+                  : [
+                      getRuntimeMap(scene)?.getCenter?.().getLng(),
+                      getRuntimeMap(scene)?.getCenter?.().getLat()
+                    ]
               const newZoomOptions = {
                 initZoom: initZoom,
                 center: center,
@@ -1306,7 +1352,10 @@ export function configL7Zoom(
               const center =
                 basicStyle.autoFit === false
                   ? [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
-                  : [scene.map.getCenter().lng, scene.map.getCenter().lat]
+                  : [
+                      getRuntimeMap(scene)?.getCenter?.().lng,
+                      getRuntimeMap(scene)?.getCenter?.().lat
+                    ]
               const newZoomOptions = {
                 initZoom: initZoom,
                 center: center,
@@ -1317,12 +1366,15 @@ export function configL7Zoom(
             }
             break
           default:
-            scene.map.on('complete', () => {
+            getRuntimeMap(scene)?.on?.('complete', () => {
               const initZoom = basicStyle.autoFit === false ? basicStyle.zoomLevel : scene.getZoom()
               const center =
                 basicStyle.autoFit === false
                   ? [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
-                  : [scene.map.getCenter().lng, scene.map.getCenter().lat]
+                  : [
+                      getRuntimeMap(scene)?.getCenter?.().lng,
+                      getRuntimeMap(scene)?.getCenter?.().lat
+                    ]
               const newZoomOptions = {
                 initZoom: initZoom,
                 center: center,
@@ -1342,7 +1394,7 @@ export function configL7Zoom(
         newZoomOptions.initZoom = basicStyle.zoomLevel
         newZoomOptions.center = [basicStyle.mapCenter.longitude, basicStyle.mapCenter.latitude]
       } else {
-        const coordinates: [][] = []
+        const coordinates: number[][] = []
         if (chart.type === 'flow-map') {
           const startAxis = chart.xAxis
           const endAxis = chart.xAxisExt
@@ -1375,15 +1427,12 @@ export function configL7Zoom(
  * @param coordinates 经纬度数组 [[lng, lat], [lng, lat], ...]
  * @returns {[[number, number], [number, number]]} 返回东北角和西南角的坐标
  */
-export function calculateBounds(coordinates: number[][]): {
-  northEast: [number, number]
-  southWest: [number, number]
-} {
+export function calculateBounds(coordinates: number[][]): number[][] {
   if (!coordinates || coordinates.length === 0) {
-    return {
-      northEast: [180, 90],
-      southWest: [-180, -90]
-    }
+    return [
+      [180, 90],
+      [-180, -90]
+    ]
   }
 
   let maxLng = -180
@@ -1460,12 +1509,14 @@ export function mapRendering(dom: HTMLElement | string) {
 }
 
 export function qqMapRendered(scene?: Scene) {
-  if (scene?.map && scene.map.deMapProvider === 'qq') {
+  const map = getRuntimeMap(scene)
+  if (map && map.deMapProvider === 'qq') {
     setTimeout(() => {
-      if (scene.map) {
-        scene.map.deMapAutoZoom = scene.map.getZoom()
-        scene.map.deMapAutoLng = scene.map.getCenter().getLng()
-        scene.map.deMapAutoLat = scene.map.getCenter().getLat()
+      const map = getRuntimeMap(scene)
+      if (map) {
+        map.deMapAutoZoom = map.getZoom()
+        map.deMapAutoLng = map.getCenter().getLng()
+        map.deMapAutoLat = map.getCenter().getLat()
       }
     }, 1000)
   }
@@ -1544,7 +1595,7 @@ export async function getMapScene(
     })
   } else {
     if (mapKey.mapType === 'tianditu') {
-      scene.map?.checkResize()
+      getRuntimeMap(scene)?.checkResize?.()
     }
     if (scene.getLayers()?.length) {
       await scene.removeAllLayer()
@@ -1553,7 +1604,7 @@ export async function getMapScene(
       } catch (e) {}
       if (mapKey.mapType === 'tianditu') {
         if (mapStyle === 'normal') {
-          scene.map?.removeStyle()
+          getRuntimeMap(scene)?.removeStyle?.()
         } else {
           scene.setMapStyle(mapStyle)
         }
@@ -1561,9 +1612,12 @@ export async function getMapScene(
         scene.setMapStyle(mapStyle)
       }
 
-      scene.map.showLabel = !(basicStyle.showLabel === false)
+      const map = getRuntimeMap(scene)
+      if (map) {
+        map.showLabel = !(basicStyle.showLabel === false)
+      }
       if (mapKey.mapType === 'qq') {
-        scene.map.setBaseMap({
+        map?.setBaseMap?.({
           //底图设置（参数为：VectorBaseMap对象）
           type: 'vector', //类型：失量底图
           features: basicStyle.showLabel === false ? ['base', 'building2d'] : undefined
@@ -1574,9 +1628,12 @@ export async function getMapScene(
     if (basicStyle.autoFit === false) {
       scene.setZoomAndCenter(basicStyle.zoomLevel, center)
       if (mapKey.mapType === 'qq') {
-        scene.map.deMapAutoFit = false
-        scene.map.deMapZoom = basicStyle.zoomLevel
-        scene.map.deMapCenter = center
+        const map = getRuntimeMap(scene)
+        if (map) {
+          map.deMapAutoFit = false
+          map.deMapZoom = basicStyle.zoomLevel
+          map.deMapCenter = center
+        }
       }
     }
   }
@@ -1584,7 +1641,8 @@ export async function getMapScene(
   scene.once('loaded', () => {
     mapRendered(container)
     if (mapKey.mapType === 'qq') {
-      scene.map.setBaseMap({
+      const map = getRuntimeMap(scene)
+      map?.setBaseMap?.({
         //底图设置（参数为：VectorBaseMap对象）
         type: 'vector', //类型：失量底图
         features: basicStyle.showLabel === false ? ['base', 'building2d'] : undefined
@@ -1592,8 +1650,10 @@ export async function getMapScene(
       })
       scene.setMapStyle(mapStyle)
 
-      scene.map.deMapProvider = 'qq'
-      scene.map.deMapAutoFit = !!basicStyle.autoFit
+      if (map) {
+        map.deMapProvider = 'qq'
+        map.deMapAutoFit = !!basicStyle.autoFit
+      }
       // scene.map.deMapAutoZoom = scene.map.getZoom()
       // scene.map.deMapAutoLng = scene.map.getCenter().getLng()
       // scene.map.deMapAutoLat = scene.map.getCenter().getLat()
@@ -1601,7 +1661,7 @@ export async function getMapScene(
     // 去除天地图自己的缩放按钮
     if (mapKey.mapType === 'tianditu') {
       if (mapStyle === 'normal') {
-        scene.map?.removeStyle()
+        getRuntimeMap(scene)?.removeStyle?.()
       } else {
         scene.setMapStyle(mapStyle)
       }
@@ -1610,28 +1670,28 @@ export async function getMapScene(
         `#component${chart.id} .tdt-control-zoom.tdt-bar.tdt-control`
       )
       if (tdtControl) {
-        tdtControl.style.display = 'none'
+        ;(tdtControl as HTMLElement).style.display = 'none'
       }
       const tdtControlOuter = document.querySelectorAll(
         `#wrapper-outer-id-${chart.id} .tdt-control-zoom.tdt-bar.tdt-control`
       )
       if (tdtControlOuter && tdtControlOuter.length > 0) {
         for (let i = 0; i < tdtControlOuter.length; i++) {
-          tdtControlOuter[i].style.display = 'none'
+          ;(tdtControlOuter[i] as HTMLElement).style.display = 'none'
         }
       }
       const tdtCopyrightControl = document.querySelector(
         `#component${chart.id} .tdt-control-copyright.tdt-control`
       )
       if (tdtCopyrightControl) {
-        tdtCopyrightControl.style.display = 'none'
+        ;(tdtCopyrightControl as HTMLElement).style.display = 'none'
       }
       const tdtCopyrightControlOuter = document.querySelectorAll(
         `#wrapper-outer-id-${chart.id} .tdt-control-copyright.tdt-control`
       )
       if (tdtCopyrightControlOuter && tdtCopyrightControlOuter.length > 0) {
         for (let i = 0; i < tdtCopyrightControlOuter.length; i++) {
-          tdtCopyrightControlOuter[i].style.display = 'none'
+          ;(tdtCopyrightControlOuter[i] as HTMLElement).style.display = 'none'
         }
       }
     }
@@ -1813,6 +1873,7 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
   chart: Chart,
   plot: P
 ) {
+  const runtimePlot = plot as P & RuntimePlot<O>
   const { tooltip } = parseJson(chart.customAttr)
   if (!tooltip.show) {
     ChartCarouselTooltip.destroyByContainer(chart.container)
@@ -1827,39 +1888,41 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
   const carousel_zIndex = enlargeElement ? '9999' : '1002'
   configCarouselTooltip(plot, chart)
   // 鼠标可移入, 移入之后保持显示, 移出之后隐藏
-  plot.options.tooltip.container.addEventListener('mouseenter', e => {
-    e.target.style.visibility = 'visible'
-    e.target.style.display = 'block'
+  runtimePlot.options.tooltip.container.addEventListener('mouseenter', e => {
+    const target = e.target as HTMLElement
+    target.style.visibility = 'visible'
+    target.style.display = 'block'
   })
-  plot.options.tooltip.container.addEventListener('mouseleave', e => {
-    e.target.style.visibility = 'hidden'
-    e.target.style.display = 'none'
+  runtimePlot.options.tooltip.container.addEventListener('mouseleave', e => {
+    const target = e.target as HTMLElement
+    target.style.visibility = 'hidden'
+    target.style.display = 'none'
   })
   // 手动处理 tooltip 的显示和隐藏事件，需配合源码理解
   // https://github.com/antvis/G2/blob/master/src/chart/controller/tooltip.ts#showTooltip
   plot.on('tooltip:show', () => {
-    const tooltipCtl = plot.chart.getController('tooltip')
+    const tooltipCtl = runtimePlot.chart.getController('tooltip')
     if (!tooltipCtl) {
       return
     }
     const tooltipInstance = ChartCarouselTooltip.getInstanceByContainer(chart.container)
-    if (tooltipInstance && tooltipInstance.hasParentWithSwitchHidden(plot.chart.ele)) {
+    if (tooltipInstance && tooltipInstance.hasParentWithSwitchHidden(runtimePlot.chart.ele)) {
       return
     }
     // 处理 tooltip 与下拉菜单的显示冲突问题
     const viewTrackBarElement = document.getElementById('view-track-bar-' + chart.id)
-    const event = plot.chart.interactions.tooltip?.context?.event
+    const event = runtimePlot.chart.interactions.tooltip?.context?.event
     // 是否时轮播模式
     const isCarousel =
-      chart.customAttr?.tooltip?.carousel &&
+      parseJson(chart.customAttr)?.tooltip?.carousel &&
       (!event || // 事件触发时，使用event的client坐标
         ['plot:leave', 'plot:mouseleave'].includes(event?.type) || //鼠标离开时，使用tooltipCtl.point
         ['pie', 'pie-rose', 'pie-donut'].includes(chart.type)) // 饼图时，使用tooltipCtl.point
-    plot.options.tooltip.showMarkers = isCarousel ? true : false
+    runtimePlot.options.tooltip.showMarkers = isCarousel ? true : false
     const wrapperDom = document.getElementById(G2_TOOLTIP_WRAPPER)
     wrapperDom.style.zIndex = isCarousel && wrapperDom ? carousel_zIndex : '9999'
     // 处理视图放大后再关闭 tooltip 的 dom 被清除
-    const container = plot.chart.getOptions().tooltip?.container
+    const container = runtimePlot.chart.getOptions().tooltip?.container as HTMLElement | undefined
     if (container) {
       // 当下拉菜单不显示时，移除tooltip的hidden-tooltip样式
       if (viewTrackBarElement?.getAttribute('aria-expanded') === 'false') {
@@ -1891,22 +1954,22 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
         }
       }
     }
-    plot.chart.getOptions().tooltip.follow = false
-    tooltipCtl.title = Math.random().toString()
+    runtimePlot.chart.getOptions().tooltip.follow = false
+    ;(tooltipCtl as any).title = Math.random().toString()
     // 当显示提示为事件触发时，使用event的client坐标，否则使用tooltipCtl.point 数据点的位置，在图表中，需要加上图表在绘制区的位置
     chartElement = getChartElements(chart)
     const { x, y } = calculateTooltipPosition(chart, isCarousel, tooltipCtl, chartElement, event)
-    plot.chart.getTheme().components.tooltip.x = x
-    plot.chart.getTheme().components.tooltip.y = y
+    runtimePlot.chart.getTheme().components.tooltip.x = x
+    runtimePlot.chart.getTheme().components.tooltip.y = y
   })
   // https://github.com/antvis/G2/blob/master/src/chart/controller/tooltip.ts#hideTooltip
   plot.on('plot:leave', () => {
-    const tooltipCtl = plot.chart.getController('tooltip')
+    const tooltipCtl = runtimePlot.chart.getController('tooltip')
     if (!tooltipCtl) {
       return
     }
-    plot.chart.getOptions().tooltip.follow = true
-    const container = tooltipCtl.tooltip?.cfg?.container
+    runtimePlot.chart.getOptions().tooltip.follow = true
+    const container = (tooltipCtl as any).tooltip?.cfg?.container
     if (container) {
       container.style.display = 'none'
     }
@@ -1916,24 +1979,24 @@ export function configPlotTooltipEvent<O extends PickOptions, P extends Plot<O>>
   plot.on('plot:touchstart', () => {
     const wrapperDom = document.getElementById(G2_TOOLTIP_WRAPPER)
     if (wrapperDom) {
-      const tooltipCtl = plot.chart.getController('tooltip')
+      const tooltipCtl = runtimePlot.chart.getController('tooltip')
       if (!tooltipCtl) {
         return
       }
-      const container = plot.chart.getOptions().tooltip?.container
+      const container = runtimePlot.chart.getOptions().tooltip?.container as HTMLElement | undefined
       for (const ele of wrapperDom.children) {
         if (!container || container.id !== ele.id) {
-          ele.style.display = 'none'
+          ;(ele as HTMLElement).style.display = 'none'
         }
       }
     }
   })
   plot.on('tooltip:hidden', () => {
-    const tooltipCtl = plot.chart.getController('tooltip')
+    const tooltipCtl = runtimePlot.chart.getController('tooltip')
     if (!tooltipCtl) {
       return
     }
-    const container = tooltipCtl.tooltip?.cfg.container
+    const container = (tooltipCtl as any).tooltip?.cfg.container
     container && (container.style.display = 'none')
   })
 }
@@ -1957,14 +2020,27 @@ export function getConditions(chart: Chart) {
       continue
     }
     for (const t of field.conditions) {
-      const annotation = {
+      const annotation: {
+        type: string
+        start: ThresholdAnnotationPoint
+        end: ThresholdAnnotationPoint
+        color: string
+      } = {
         type: 'regionFilter',
         start: ['start', 'median'],
         end: ['end', 'min'],
         color: t.color
       }
       // 加中线
-      const annotationLine = {
+      const annotationLine: {
+        type: string
+        start: ThresholdAnnotationPoint
+        end: ThresholdAnnotationPoint
+        style: {
+          stroke: string
+          lineDash: number[]
+        }
+      } = {
         type: 'line',
         start: ['start', t.value],
         end: ['end', t.value],
@@ -1974,13 +2050,13 @@ export function getConditions(chart: Chart) {
         }
       }
       if (t.term === 'between') {
-        annotation.start = ['start', parseFloat(t.min)]
-        annotation.end = ['end', parseFloat(t.max)]
-        annotationLine.start = ['start', parseFloat(t.min)]
-        annotationLine.end = ['end', parseFloat(t.min)]
+        annotation.start = ['start', Number(t.min)]
+        annotation.end = ['end', Number(t.max)]
+        annotationLine.start = ['start', Number(t.min)]
+        annotationLine.end = ['end', Number(t.min)]
         annotations.push(JSON.parse(JSON.stringify(annotationLine)))
-        annotationLine.start = ['start', parseFloat(t.max)]
-        annotationLine.end = ['end', parseFloat(t.max)]
+        annotationLine.start = ['start', Number(t.max)]
+        annotationLine.end = ['end', Number(t.max)]
         annotations.push(annotationLine)
       } else if (['lt', 'le'].includes(t.term)) {
         annotation.start = ['start', t.value]
@@ -1996,7 +2072,7 @@ export function getConditions(chart: Chart) {
   }
   return annotations
 }
-const AXIS_LABEL_TOOLTIP_STYLE = {
+const AXIS_LABEL_TOOLTIP_STYLE: Record<string, string> = {
   transition:
     'left 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s, top 0.4s cubic-bezier(0.23, 1, 0.32, 1) 0s',
   backgroundColor: 'rgb(255, 255, 255)',
@@ -2304,7 +2380,7 @@ export const addConditionsStyleColorToData = (chart: Chart, options) => {
  * @param quotaList 指标列表
  * @param values 值
  */
-const getColorByConditions = (quotaList: [], values: number | number[], chart) => {
+const getColorByConditions = (quotaList: string[], values: number | number[], chart) => {
   const { threshold } = parseJson(chart.senior)
   const { basicStyle } = parseJson(chart.customAttr)
   const currentValue = Array.isArray(values) ? values[1] - values[0] : values
@@ -2629,23 +2705,24 @@ function setMapStatusOption(chart: Chart, mapType: string, scene: Scene, enable 
   switch (mapType) {
     case 'tianditu': {
       const method = enable ? 'enable' : 'disable'
-      scene.map?.[`${method}Drag`]()
-      scene.map?.[`${method}ScrollWheelZoom`]()
-      scene.map?.[`${method}DoubleClickZoom`]()
-      scene.map?.[`${method}Keyboard`]()
-      scene.map?.[`${method}PinchToZoom`]()
+      const map = getRuntimeMap(scene)
+      map?.[`${method}Drag`]?.()
+      map?.[`${method}ScrollWheelZoom`]?.()
+      map?.[`${method}DoubleClickZoom`]?.()
+      map?.[`${method}Keyboard`]?.()
+      map?.[`${method}PinchToZoom`]?.()
       break
     }
     case 'qq':
-      scene.map?.setDraggable(enable)
-      scene.map?.setScrollable(enable)
-      scene.map?.setDoubleClickZoom(enable)
-      scene.map?.setTouchZoomable(enable)
-      scene.map?.setPitchable(enable)
-      scene.map?.setRotatable(enable)
+      getRuntimeMap(scene)?.setDraggable?.(enable)
+      getRuntimeMap(scene)?.setScrollable?.(enable)
+      getRuntimeMap(scene)?.setDoubleClickZoom?.(enable)
+      getRuntimeMap(scene)?.setTouchZoomable?.(enable)
+      getRuntimeMap(scene)?.setPitchable?.(enable)
+      getRuntimeMap(scene)?.setRotatable?.(enable)
       break
     default:
-      scene.map?.setStatus({
+      getRuntimeMap(scene)?.setStatus?.({
         dragEnable: enable,
         keyboardEnable: enable,
         doubleClickZoom: enable,

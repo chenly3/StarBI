@@ -5,6 +5,25 @@ import { valueFormatter } from '@/views/chart/components/js/formatter'
 import { parseJson } from '@/views/chart/components/js/util'
 import { Scene } from '@antv/l7-scene'
 import { deepCopy } from '@/utils/utils'
+import type { L7PlotDrawOptions } from '@/views/chart/components/js/panel/types/impl/l7plot'
+
+type RuntimeChart = Chart & {
+  customAttr: ChartAttr
+}
+
+type RuntimePlot = Plot<any> & Record<string, any>
+
+type RuntimeLayer = Record<string, any>
+
+type RuntimeTooltip = {
+  options: {
+    domStyles: Record<string, Record<string, string>>
+  }
+}
+
+type RuntimeCustomGeoSubArea = CustomGeoSubArea & {
+  centroid?: number[]
+}
 
 export const configCarouselTooltip = (chart, view, data, scene, customSubArea?, drawOption?) => {
   if (['bubble-map', 'map'].includes(chart.type)) {
@@ -67,12 +86,12 @@ export class CarouselManager {
    * @private
    */
   private scene: Scene
-  private chart: Chart
+  private chart: RuntimeChart
   /**
    * 轮播弹窗的位置数据
    * @private
    */
-  private view: Plot
+  private view: RuntimePlot
   private data: any[]
   /**
    * 停留时长
@@ -94,13 +113,13 @@ export class CarouselManager {
    * 自定义区域列表
    * @private
    */
-  private customSubArea: CustomGeoSubArea[]
+  private customSubArea: RuntimeCustomGeoSubArea[]
 
   /**
    * 渲染参数
    * @private
    */
-  private drawOption: L7PlotDrawOptions
+  private drawOption: L7PlotDrawOptions<RuntimePlot>
 
   // 保存事件监听函数的引用
   private onMouseEnterHandler: () => void
@@ -151,7 +170,7 @@ export class CarouselManager {
       this.chart.customAttr?.tooltip?.carousel?.enable &&
       this.data.length > 0
     ) {
-      this.popup = new Popup({ closeButton: false, maxWidth: 600 })
+      this.popup = new Popup({ closeButton: false, maxWidth: 600 } as any)
       const carousel = this.chart.customAttr?.tooltip?.carousel
       this.stayTime = carousel.stayTime * 1000
       this.intervalTime = carousel.intervalTime * 1000
@@ -317,7 +336,7 @@ export class CarouselManager {
    * @private
    */
   private createPopup(index: number): void {
-    const tooltipStyle = this.view.tooltip.options.domStyles
+    const tooltipStyle = (this.view.tooltip as unknown as RuntimeTooltip).options.domStyles
     const tooltipBackgroundColor = tooltipStyle['l7plot-tooltip']['background-color']
     const tooltipFontSize = tooltipStyle['l7plot-tooltip']['font-size']
     const style = document.createElement('style')
@@ -365,8 +384,7 @@ export class CarouselManager {
 
       this.popup.setLngLat({ lng: popupData.centroid[0], lat: popupData.centroid[1] })
       this.popup.setHTML(html)
-      this.popup.closeButton = false
-      this.view.addLayer(this.popup)
+      this.view.addLayer(this.popup as any)
       // 地图层高亮
       this.view.scene
         .getLayers()
@@ -374,7 +392,9 @@ export class CarouselManager {
         ?.setData(this.getActiveData(index))
       if (this.chart.type === 'bubble-map') {
         // 气泡地图高亮
-        const bubbleLayer = this.view.scene.getLayers()?.find(i => i.name === 'bubbleLayer')
+        const bubbleLayer = this.view.scene.getLayers()?.find(i => i.name === 'bubbleLayer') as
+          | RuntimeLayer
+          | undefined
         const targetData = bubbleLayer?.layerSource?.data?.dataArray?.find(
           i => i.name === this.data[index].name
         )
@@ -461,7 +481,9 @@ export class CarouselManager {
       ?.find(i => i.name === 'highlightLayer')
       ?.setData({ type: 'FeatureCollection', features: [] })
     if (this.chart.type === 'bubble-map') {
-      const bubbleLayer = this.view.scene?.getLayers()?.find(i => i.name === 'bubbleLayer')
+      const bubbleLayer = this.view.scene?.getLayers()?.find(i => i.name === 'bubbleLayer') as
+        | RuntimeLayer
+        | undefined
       const targetData = bubbleLayer?.layerSource?.data?.dataArray?.find(
         i => i.name === this.data[index]?.name
       )
@@ -470,14 +492,17 @@ export class CarouselManager {
           .getLayers()
           ?.find(i => i.name === 'bubbleLayer' && i.coordCenter)
           ?.setActive(targetData._id, {
-            color: bubbleLayer?.styleAttributeService?.getLayerStyleAttribute('color')?.scale?.field
+            color: bubbleLayer?.styleAttributeService?.getLayerStyleAttribute('color')?.scale
+              ?.field as string
           })
       }
     }
     if (this.chart.type === 'symbolic-map') {
       const lngField = this.chart.xAxis[0].dataeaseName
       const latField = this.chart.xAxis[1].dataeaseName
-      const pointLayer = this.scene?.getLayers()?.find(i => i.type === 'PointLayer')
+      const pointLayer = this.scene?.getLayers()?.find(i => i.type === 'PointLayer') as
+        | RuntimeLayer
+        | undefined
       const targetData = pointLayer?.layerSource?.data?.dataArray?.find(i => {
         const targetLng = this.data[index]?.[lngField]
         const targetLat = this.data[index]?.[latField]
@@ -488,7 +513,8 @@ export class CarouselManager {
           .getLayers()
           ?.find(i => i.type === 'PointLayer' && i.coordCenter)
           ?.setActive(targetData._id, {
-            color: pointLayer?.styleAttributeService?.getLayerStyleAttribute('color')?.scale?.field
+            color: pointLayer?.styleAttributeService?.getLayerStyleAttribute('color')?.scale
+              ?.field as string
           })
       }
     }
@@ -511,7 +537,7 @@ export class CarouselManager {
    */
   private getTooltipItems(data) {
     const result = []
-    const customAttr = parseJson(this.chart.customAttr)
+    const customAttr = parseJson(this.chart.customAttr) as ChartAttr
     const tooltip = customAttr.tooltip
     const formatterMap = tooltip.seriesTooltipFormatter
       ?.filter(i => i.show)
@@ -548,7 +574,9 @@ export class CarouselManager {
    */
   private createSymbolicMapPopup(index): void {
     const buildTooltip = () => {
-      const customAttr = this.chart.customAttr ? parseJson(this.chart.customAttr) : null
+      const customAttr = this.chart.customAttr
+        ? (parseJson(this.chart.customAttr) as ChartAttr)
+        : null
       if (customAttr?.tooltip?.show) {
         if (!this.popup) {
           return undefined
@@ -591,10 +619,11 @@ export class CarouselManager {
             lat: data[latField]
           })
           this.popup.setHTML(html)
-          this.popup.closeButton = false
           this.scene.addPopup(this.popup)
-          this.popup.addTo(this.scene)
-          const pointLayer = this.scene?.getLayers()?.find(i => i.type === 'PointLayer')
+          this.popup.addTo(this.scene as any)
+          const pointLayer = this.scene?.getLayers()?.find(i => i.type === 'PointLayer') as
+            | RuntimeLayer
+            | undefined
           const targetData = pointLayer?.layerSource?.data?.dataArray?.find(i => {
             const targetLng = this.data[index]?.[lngField]
             const targetLat = this.data[index]?.[latField]

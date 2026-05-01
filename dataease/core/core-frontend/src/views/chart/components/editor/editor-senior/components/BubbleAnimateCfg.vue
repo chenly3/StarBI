@@ -1,9 +1,10 @@
 <script lang="tsx" setup>
 import { PropType, reactive, watch } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { BubbleCfg } from '@/models/chart/chart-senior'
 
 const { t } = useI18n()
+
+type BubbleCfg = ChartSenior['bubbleCfg']
 
 const props = defineProps({
   chart: {

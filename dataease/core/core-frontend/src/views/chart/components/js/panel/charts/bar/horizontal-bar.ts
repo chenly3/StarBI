@@ -41,6 +41,9 @@ import { getItemsOfView } from '@antv/g2/lib/interaction/action/active-region'
 const { t } = useI18n()
 const DEFAULT_DATA = []
 
+type RuntimeLabel = Record<string, any>
+type RuntimeBarOptions = BarOptions & Record<string, any>
+
 /**
  * 条形图
  */
@@ -151,7 +154,7 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
         }
       })
     }
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     configAxisLabelLengthLimit(chart, newChart)
     return newChart
   }
@@ -225,7 +228,10 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
       barWidthRatio = 1
     }
     if (barWidthRatio) {
-      options.barWidthRatio = barWidthRatio
+      options = {
+        ...options,
+        barWidthRatio
+      }
     }
 
     return options
@@ -255,10 +261,11 @@ export class HorizontalBar extends G2PlotChartView<BarOptions, Bar> {
       return pre
     }, {})
     // 默认灰色
-    tmpOptions.label.style.fill = DEFAULT_LABEL.color
+    const runtimeLabel = tmpOptions.label as RuntimeLabel
+    runtimeLabel.style.fill = DEFAULT_LABEL.color
     const label = {
       fields: [],
-      ...tmpOptions.label,
+      ...runtimeLabel,
       formatter: (data: Datum) => {
         if (!labelAttr.seriesLabelFormatter?.length) {
           return data.value
@@ -367,9 +374,10 @@ export class HorizontalStackBar extends HorizontalBar {
     options = { ...options, label }
     const { label: labelAttr } = parseJson(chart.customAttr)
     if (labelAttr.showStackQuota || labelAttr.showStackQuota === undefined) {
-      options.label.style.fill = labelAttr.color
+      const runtimeLabel = options.label as RuntimeLabel
+      runtimeLabel.style.fill = labelAttr.color
       label = {
-        ...options.label,
+        ...runtimeLabel,
         formatter: function (data: Datum) {
           const value = valueFormatter(data.value, labelAttr.labelFormatter)
           const group = new Group({})
@@ -399,7 +407,10 @@ export class HorizontalStackBar extends HorizontalBar {
         const total = values.reduce((a, b) => a + b.value, 0)
         const value = valueFormatter(total, formatterCfg)
         if (!options.annotations) {
-          options.annotations = []
+          options = {
+            ...options,
+            annotations: []
+          }
         }
         options.annotations.push({
           type: 'text',
@@ -455,14 +466,14 @@ export class HorizontalStackBar extends HorizontalBar {
         // 用值域限定排序，有可能出现新数据但是未出现在图表上，所以这边要遍历一下子维度，加到后面，让新数据显示出来
         const data = options.data
         const cats =
-          data?.reduce((p, n) => {
+          data?.reduce<string[]>((p, n) => {
             const cat = n['category']
             if (cat && !p.includes(cat)) {
               p.push(cat)
             }
             return p
           }, []) || []
-        const values = sort.reduce((p, n) => {
+        const values = sort.reduce<string[]>((p, n) => {
           if (cats.includes(n)) {
             const index = cats.indexOf(n)
             if (index !== -1) {
@@ -473,11 +484,14 @@ export class HorizontalStackBar extends HorizontalBar {
           return p
         }, [])
         cats.length > 0 && values.push(...cats)
-        options.meta = {
-          ...options.meta,
-          category: {
-            type: 'cat',
-            values
+        options = {
+          ...options,
+          meta: {
+            ...options.meta,
+            category: {
+              type: 'cat',
+              values
+            }
           }
         }
       }
@@ -531,7 +545,7 @@ export class HorizontalStackBar extends HorizontalBar {
       size = DEFAULT_LEGEND_STYLE.size
     }
 
-    optionTmp.legend.marker.style = style => {
+    ;(optionTmp.legend as any).marker.style = style => {
       return {
         r: size,
         fill: style.fill
@@ -547,25 +561,29 @@ export class HorizontalStackBar extends HorizontalBar {
           return p
         }, {}) || {}
       const dupCheck = new Set()
-      const colors = optionTmp.color ?? optionTmp.theme.styleSheet.paletteQualitative10
-      const items = optionTmp.data?.reduce((arr, item) => {
-        if (!dupCheck.has(item.category)) {
-          const fill = seriesMap[item.category]?.color ?? colors[dupCheck.size % colors.length]
-          dupCheck.add(item.category)
-          arr.push({
-            name: item.category,
-            value: item.category,
-            marker: {
-              symbol: icon,
-              style: {
-                r: size,
-                fill: isAlphaColor(fill) ? fill : convertToAlphaColor(fill, basicStyle.alpha)
+      const runtimeOptions = optionTmp as RuntimeBarOptions
+      const colors =
+        runtimeOptions.color ??
+        (runtimeOptions.theme as Record<string, any>)?.styleSheet?.paletteQualitative10
+      const items =
+        optionTmp.data?.reduce<any[]>((arr, item) => {
+          if (!dupCheck.has(item.category)) {
+            const fill = seriesMap[item.category]?.color ?? colors[dupCheck.size % colors.length]
+            dupCheck.add(item.category)
+            arr.push({
+              name: item.category,
+              value: item.category,
+              marker: {
+                symbol: icon,
+                style: {
+                  r: size,
+                  fill: isAlphaColor(fill) ? fill : convertToAlphaColor(fill, basicStyle.alpha)
+                }
               }
-            }
-          })
-        }
-        return arr
-      }, [])
+            })
+          }
+          return arr
+        }, []) ?? []
       if (sort !== 'custom') {
         items.sort((a, b) => {
           return sort !== 'desc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
@@ -581,7 +599,7 @@ export class HorizontalStackBar extends HorizontalBar {
         })
         items.unshift(...tmp)
       }
-      optionTmp.legend.items = items
+      ;(optionTmp.legend as any).items = items
       if (extStack?.customSort?.length > 0) {
         delete optionTmp.meta?.category.values
       }

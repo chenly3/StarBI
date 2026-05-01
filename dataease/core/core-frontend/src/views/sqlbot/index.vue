@@ -1829,12 +1829,12 @@ const currentSelectionMeta = computed(() => {
 
 const selectionChips = computed<SelectionChip[]>(() => {
   if (state.queryMode === 'file') {
-    const fileChips = currentFileDatasource.value
+    const fileChips: SelectionChip[] = currentFileDatasource.value
       ? [
           {
             id: currentFileDatasource.value.id,
             label: currentFileDatasource.value.name,
-            type: 'file'
+            type: 'file' as QueryMode
           }
         ]
       : []
@@ -1842,10 +1842,10 @@ const selectionChips = computed<SelectionChip[]>(() => {
     return fileChips.length ? fileChips : fallbackChips
   }
 
-  const datasetChips = selectedDatasets.value.map(item => ({
+  const datasetChips: SelectionChip[] = selectedDatasets.value.map(item => ({
     id: item.id,
     label: item.name,
-    type: 'dataset'
+    type: 'dataset' as QueryMode
   }))
   const fallbackChips = restoredSelectionChip.value ? [restoredSelectionChip.value] : []
   return datasetChips.length ? datasetChips : fallbackChips
@@ -2941,8 +2941,12 @@ const loadPageData = async () => {
     state.id = String(embedConfig?.id || '')
     state.enabled = embedConfig?.enabled !== false
     state.valid = embedConfig?.valid !== false
-    datasetTree.value = normalizeDatasetTree((rawDatasetTree as any[]) || [])
-    datasourceTree.value = normalizeTree((rawDatasourceTree as any[]) || [])
+    datasetTree.value = normalizeDatasetTree(
+      Array.isArray(rawDatasetTree) ? rawDatasetTree : rawDatasetTree?.data || []
+    )
+    datasourceTree.value = normalizeTree(
+      Array.isArray(rawDatasourceTree) ? rawDatasourceTree : rawDatasourceTree?.data || []
+    )
     await loadRuntimeModels()
     await loadHistoryEntries()
     await restoreSelectionState()

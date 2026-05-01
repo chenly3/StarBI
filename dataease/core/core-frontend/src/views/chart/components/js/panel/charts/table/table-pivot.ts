@@ -14,7 +14,8 @@ import {
   Aggregation,
   S2DataConfig,
   MergedCell,
-  LayoutResult
+  LayoutResult,
+  SortParam
 } from '@antv/s2'
 import { formatterItem, valueFormatter } from '../../../formatter'
 import { hexColorToRGBA, isAlphaColor, parseJson } from '../../../util'
@@ -32,6 +33,11 @@ import Decimal from 'decimal.js'
 import { DEFAULT_TABLE_HEADER } from '@/views/chart/components/editor/util/chart'
 
 type DataItem = Record<string, any>
+type RuntimeSortParam = Omit<SortParam, 'sortBy' | 'sortMethod'> & {
+  sortBy?: any[]
+  sortMethod?: any
+  [key: string]: any
+}
 
 const { t } = useI18n()
 
@@ -734,7 +740,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
     }
     return theme
   }
-  private configSortParams(chart: Chart, newData: []) {
+  private configSortParams(chart: Chart, newData: DataItem[]) {
     // 行列分开处理，先行后列，样式设置中汇总总计排序的优先级最高，剩下的按照字段的排序优先级设置进行排序
     const { xAxis: rowFields, xAxisExt: columnFields, yAxis: valueFields } = chart
     const [r, c, v] = [rowFields, columnFields, valueFields].map(arr =>
@@ -742,7 +748,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
     )
     const { tableTotal } = parseJson(chart.customAttr)
     // 解析合计、小计排序
-    const sortParams = []
+    const sortParams: RuntimeSortParam[] = []
     let rowTotalSort = false
     if (
       tableTotal.row.totalSort &&
@@ -839,7 +845,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
         })
         const tmpFields = [...sortFieldsBeforeValueFields, ...sortFieldsNotInPriority]
         tmpFields.forEach(f => {
-          const sort = {
+          const sort: RuntimeSortParam = {
             sortFieldId: sortRowFieldsMap[f].dataeaseName
           }
           const sortMethod = sortRowFieldsMap[f]?.sort?.toUpperCase()
@@ -878,7 +884,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
         if (sortFieldsAfterValueFields.length && minSortValueFieldId) {
           const sortValueField = valueFields.find(f => f.id === minSortValueFieldId)
           sortFieldsAfterValueFields.forEach(f => {
-            const sort = {
+            const sort: RuntimeSortParam = {
               sortFieldId: sortRowFieldsMap[f].dataeaseName,
               sortMethod: sortValueField.sort.toUpperCase(),
               sortByMeasure: TOTAL_VALUE,
@@ -893,7 +899,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
       } else {
         rowFields.forEach(f => {
           if (sortRowFieldsMap[f.id]) {
-            const sort = {
+            const sort: RuntimeSortParam = {
               sortFieldId: f.dataeaseName
             }
             const sortMethod = f.sort.toUpperCase()
@@ -931,7 +937,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
           } else {
             if (sortValueFields.length) {
               const sortValueField = valueFields.find(f => f.id === sortValueFields[0])
-              const sort = {
+              const sort: RuntimeSortParam = {
                 sortFieldId: f.dataeaseName,
                 sortMethod: sortValueField.sort.toUpperCase(),
                 sortByMeasure: TOTAL_VALUE,
@@ -951,7 +957,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
         if (valueFieldMap[f]?.sort === 'none') {
           return
         }
-        const sort = {
+        const sort: RuntimeSortParam = {
           sortFieldId: f
         }
         const sortMethod = valueFieldMap[f]?.sort?.toUpperCase()
@@ -995,7 +1001,7 @@ export class TablePivot extends S2ChartView<PivotSheet> {
         if (valueFieldMap[f]?.sort === 'none') {
           return
         }
-        const sort = {
+        const sort: RuntimeSortParam = {
           sortFieldId: f
         }
         const sortMethod = valueFieldMap[f]?.sort?.toUpperCase()

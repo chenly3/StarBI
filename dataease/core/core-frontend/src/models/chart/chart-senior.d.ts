@@ -1,5 +1,3 @@
-import { SymbolicMap } from '@/views/chart/components/js/panel/charts/map/symbolic-map'
-
 /**
  * 高级设置
  */
@@ -227,6 +225,8 @@ declare interface Threshold {
    * 动态值最大值字段 仅当term为between时使用
    */
   dynamicMaxField: ThresholdDynamicField
+  target?: 'current' | 'total_row' | 'custom'
+  targetFieldId?: string
 }
 
 declare interface ThresholdDynamicField {

@@ -418,11 +418,9 @@ const openMessageLoading = cb => {
       ),
       t('data_fill.progress_to_download')
     ]),
-    iconClass,
-    icon: h(RefreshLeft),
     showClose: true,
     customClass
-  })
+  } as any)
 }
 // 地图
 const mapChartTypes = ['bubble-map', 'flow-map', 'heat-map', 'map', 'symbolic-map']

@@ -2,6 +2,7 @@
  * 图表设置
  */
 declare interface ChartAttr {
+  [key: string]: any
   /**
    * 基础样式设置
    */
@@ -51,6 +52,7 @@ declare interface ChartAttr {
  * 基础样式设置
  */
 declare interface ChartBasicStyle {
+  [key: string]: any
   /**
    * 透明度
    */

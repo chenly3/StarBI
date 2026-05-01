@@ -212,7 +212,7 @@ const editTemplate = () => {
 const getRefreshPInfo = () => {
   const refreshPid = state.templateInfo.categories[0]
   let refreshPName = ''
-  props.templateCategories.forEach(category => {
+  ;(props.templateCategories as Array<Record<string, any>>).forEach(category => {
     if (category.id === refreshPid) {
       refreshPName = category.name
     }

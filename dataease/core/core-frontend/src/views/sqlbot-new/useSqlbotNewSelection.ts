@@ -224,7 +224,7 @@ const extractDatasetDetailDatasourceId = (allFields: Record<string, any>[] = [])
   return ''
 }
 
-const readUploadedFileItems = (wsCache: ReturnType<typeof useCache>['wsCache']) => {
+const readUploadedFileItems = (wsCache: ReturnType<typeof useCache>['wsCache']): FileCardItem[] => {
   const raw = wsCache.get(UPLOADED_FILE_STORAGE_KEY)
   if (!Array.isArray(raw)) {
     return []
@@ -260,7 +260,7 @@ const readUploadedFileItems = (wsCache: ReturnType<typeof useCache>['wsCache']) 
         fieldMetas.length ? fieldMetas.map(field => field.name) : fields
       )
 
-      return {
+      const fileItem: FileCardItem = {
         id: normalizeOptionalId(item?.id),
         title: String(item?.title || ''),
         uploadedAt: String(item?.uploadedAt || ''),
@@ -282,8 +282,9 @@ const readUploadedFileItems = (wsCache: ReturnType<typeof useCache>['wsCache']) 
         fieldsLoaded:
           typeof item?.fieldsLoaded === 'boolean' ? item.fieldsLoaded : fieldMetas.length > 0
       }
+      return fileItem
     })
-    .filter(item => item.id && item.title && item.datasourceId)
+    .filter((item): item is FileCardItem => Boolean(item.id && item.title && item.datasourceId))
 }
 
 const resolveFileLookupKey = (file?: Partial<FileCardItem> | null) => {
@@ -605,7 +606,7 @@ export const useSqlbotNewSelection = () => {
     })
   })
 
-  const fileItems = computed<FileCardItem[]>(() => {
+  const fileItems = computed(() => {
     const keyword = normalizeKeyword(dialogState.fileKeyword)
     if (!keyword) {
       return baseFileItems.value
@@ -1422,8 +1423,12 @@ export const useSqlbotNewSelection = () => {
         getDsTree({})
       ])
 
-      datasetTree.value = normalizeDatasetTree((rawDatasetTree as any[]) || [])
-      datasourceTree.value = normalizeTree((rawDatasourceTree as any[]) || [])
+      datasetTree.value = normalizeDatasetTree(
+        Array.isArray(rawDatasetTree) ? rawDatasetTree : rawDatasetTree?.data || []
+      )
+      datasourceTree.value = normalizeTree(
+        Array.isArray(rawDatasourceTree) ? rawDatasourceTree : rawDatasourceTree?.data || []
+      )
 
       await loadRuntimeModels()
       await loadRuntimeThemes()

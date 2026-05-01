@@ -375,7 +375,7 @@ const afterTreeInit = (notOpen = false) => {
     resourceListTree.value.filter(filterText.value)
     if (notOpen) return
     nextTick(() => {
-      document.querySelector('.is-current')?.firstChild?.click()
+      ;(document.querySelector('.is-current')?.firstChild as HTMLElement)?.click()
     })
   })
 }
@@ -425,7 +425,9 @@ const operation = (cmd: string, data: BusiTreeNode, nodeType: string) => {
       name: data.name + '-copy',
       type: curCanvasType.value,
       id: data.id,
-      pid: targetPid || '0'
+      pid: targetPid || '0',
+      mobileLayout: false,
+      status: true
     }
 
     copyLoading.value = true

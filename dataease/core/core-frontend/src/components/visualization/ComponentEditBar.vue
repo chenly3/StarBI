@@ -455,11 +455,9 @@ const openMessageLoading = cb => {
       ),
       '查看进度，进行下载'
     ]),
-    iconClass,
-    icon: h(RefreshLeft),
     showClose: true,
     customClass
-  })
+  } as any)
 }
 
 const callbackExport = () => {

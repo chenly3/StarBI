@@ -143,14 +143,16 @@ const init = () => {
       tableHeader.tableHeaderColBgColor = tableHeader.tableHeaderBgColor
       tableHeader.tableHeaderColFontColor = tableHeader.tableHeaderFontColor
       tableHeader.tableTitleColFontSize = tableHeader.tableTitleFontSize
-      tableHeader.tableHeaderColAlign = tableHeader.tableHeaderAlign
+      tableHeader.tableHeaderColAlign =
+        tableHeader.tableHeaderAlign === 'custom' ? 'center' : tableHeader.tableHeaderAlign
       tableHeader.isColBolder = tableHeader.isBolder
       tableHeader.isColItalic = tableHeader.isItalic
 
       tableHeader.tableHeaderCornerBgColor = tableHeader.tableHeaderBgColor
       tableHeader.tableHeaderCornerFontColor = tableHeader.tableHeaderFontColor
       tableHeader.tableTitleCornerFontSize = tableHeader.tableTitleFontSize
-      tableHeader.tableHeaderCornerAlign = tableHeader.tableHeaderAlign
+      tableHeader.tableHeaderCornerAlign =
+        tableHeader.tableHeaderAlign === 'custom' ? 'center' : tableHeader.tableHeaderAlign
       tableHeader.isCornerBolder = tableHeader.isBolder
       tableHeader.isCornerItalic = tableHeader.isItalic
     }

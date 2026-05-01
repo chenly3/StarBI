@@ -256,6 +256,7 @@ export type SQLBotNewPersistedContextEventType =
   | 'context_switch'
   | 'assistant_reply'
   | 'selection_update'
+  | 'manual_fix_submit'
 
 export interface SQLBotNewPersistedSnapshot {
   chatId?: number

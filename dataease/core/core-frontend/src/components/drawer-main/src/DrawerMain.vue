@@ -15,7 +15,7 @@ const props = defineProps({
       field: propTypes.string,
       option: propTypes.array,
       title: propTypes.string,
-      property: propTypes.shape({})
+      property: propTypes.object
     })
   ),
   title: propTypes.string

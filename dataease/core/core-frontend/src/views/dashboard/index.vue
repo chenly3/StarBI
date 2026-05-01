@@ -41,6 +41,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import DashboardHiddenComponent from '@/components/dashboard/DashboardHiddenComponent.vue'
 import { recoverToPublished } from '@/api/visualization/dataVisualization'
 import { contextmenuStoreWithOut } from '@/store/modules/data-visualization/contextmenu'
+import { ElMessage } from 'element-plus-secondary'
 const contextmenuStore = contextmenuStoreWithOut()
 const embeddedStore = useEmbedded()
 const { wsCache } = useCache()
@@ -226,7 +227,7 @@ const doUseCache = flag => {
   }
 }
 
-const initLocalCanvasData = callBack => {
+const initLocalCanvasData = (callBack?: () => void) => {
   const { resourceId, opt, sourcePid } = state
   const busiFlag = opt === 'copy' ? 'dashboard-copy' : 'dashboard'
   initCanvasData(

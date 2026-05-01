@@ -23,6 +23,7 @@ import {
   copyContent,
   CustomDataCell,
   CustomTableColCell,
+  DeS2Theme,
   drawImage,
   getColumns,
   getLeafNodes,
@@ -32,7 +33,8 @@ import {
   isNumeric,
   SortTooltip,
   SummaryCell,
-  summaryRowStyle
+  summaryRowStyle,
+  toS2TextAlign
 } from '@/views/chart/components/js/panel/common/common_table'
 
 const { t } = useI18n()
@@ -418,6 +420,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
       }
       const { tableBorderColor } = basicStyle
       const { tableItemAlign, tableItemFontSize } = tableCell
+      const tableItemTextAlign = toS2TextAlign(tableItemAlign)
       const fontStyle = tableCell.isItalic ? 'italic' : 'normal'
       const fontWeight = tableCell.isBolder === false ? 'normal' : 'bold'
       const mergeCellTheme: S2Theme = {
@@ -437,28 +440,28 @@ export class TableInfo extends S2ChartView<TableSheet> {
           },
           bolderText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight
           },
           text: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight
           },
           measureText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight
           },
           seriesText: {
             fill: tableFontColor,
-            textAlign: tableItemAlign,
+            textAlign: tableItemTextAlign,
             fontSize: tableItemFontSize,
             fontStyle,
             fontWeight
@@ -473,7 +476,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
         p[n.id] = n.align
         return p
       }, {})
-      merge(theme, {
+      merge(theme as DeS2Theme, {
         dataCellAlignConfig: alignMap
       })
     }
@@ -483,7 +486,7 @@ export class TableInfo extends S2ChartView<TableSheet> {
         p[n.id] = n.align
         return p
       }, {})
-      merge(theme, {
+      merge(theme as DeS2Theme, {
         colCellAlignConfig: alignMap
       })
     }

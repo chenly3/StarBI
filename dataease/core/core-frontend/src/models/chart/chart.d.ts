@@ -2,6 +2,7 @@
  * 图表对象
  */
 declare interface Chart {
+  [key: string]: any
   id: string
   render: string
   name: string
@@ -43,7 +44,7 @@ declare interface Chart {
   extBubble?: Axis[]
   extLabel?: Axis[]
   extTooltip?: Axis[]
-  customFilter: {}
+  customFilter: Record<string, any>
   senior: CustomSenior
   customAttr: CustomAttr
   customAttrMobile: CustomAttr
@@ -159,6 +160,7 @@ declare interface SeriesFormatter extends Axis {
 }
 
 declare interface Axis extends ChartViewField {
+  [key: string]: any
   /**
    * 格式化设置
    */
@@ -185,6 +187,7 @@ declare interface Axis extends ChartViewField {
   hide: boolean
 }
 declare interface ChartViewField {
+  [key: string]: any
   /**
    * 字段名称
    */

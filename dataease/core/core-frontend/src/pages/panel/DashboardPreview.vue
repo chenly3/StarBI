@@ -16,13 +16,21 @@ import request from '@/config/axios'
 import 'vant/es/nav-bar/style'
 import 'vant/es/sticky/style'
 import EmptyBackground from '../../components/empty-background/src/EmptyBackground.vue'
+type AnyRecord = Record<string, any>
+type EmbeddedParams = AnyRecord & {
+  dvId?: string
+  busiFlag?: string
+  outerParams?: string
+}
 const { wsCache } = useCache()
 const interactiveStore = interactiveStoreWithOut()
 const embeddedStore = useEmbedded()
 const dashboardPreview = ref(null)
-const embeddedParamsDiv = inject('embeddedParams') as object
+const embeddedParamsDiv = inject<EmbeddedParams>('embeddedParams', {} as EmbeddedParams)
 
-const embeddedParams = embeddedParamsDiv?.dvId ? embeddedParamsDiv : embeddedStore
+const embeddedParams: EmbeddedParams = embeddedParamsDiv?.dvId
+  ? embeddedParamsDiv
+  : (embeddedStore as unknown as EmbeddedParams)
 const { t } = useI18n()
 const state = reactive({
   canvasDataPreview: null,
@@ -70,7 +78,7 @@ onBeforeMount(async () => {
   // div嵌入
   if (embeddedParams.outerParams) {
     try {
-      const outerPramsParse = JSON.parse(embeddedParams.outerParams)
+      const outerPramsParse = JSON.parse(embeddedParams.outerParams) as AnyRecord
       attachParams = outerPramsParse.attachParams
       dvMainStore.setEmbeddedCallBack(outerPramsParse.callBackFlag || 'no')
     } catch (e) {

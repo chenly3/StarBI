@@ -43,6 +43,8 @@ import { TextLayer } from '@antv/l7plot/dist/esm'
 
 const { t } = useI18n()
 
+type RuntimeColorAttr = NonNullable<ChoroplethOptions['color']> & Record<string, any>
+
 /**
  * 地图
  */
@@ -349,15 +351,13 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
         item.properties['_DE_LABEL_'] = content.join('\n\n')
       }
     })
+    const runtimeColor = options.color as RuntimeColorAttr
     if (colorScale.length) {
-      options.color['value'] = colorScale.map(item =>
+      runtimeColor.value = colorScale.map(item =>
         item.color && item.value ? new ColorWrapper(item.color, item.value) : new ColorWrapper(item)
-      )
+      ) as any
       if (colorScale[0].value && !misc.mapAutoLegend) {
-        options.color['scale']['domain'] = [
-          minValue ?? filterEmptyMinValue(sourceData, 'value'),
-          maxValue
-        ]
+        runtimeColor.scale.domain = [minValue ?? filterEmptyMinValue(sourceData, 'value'), maxValue]
       }
     }
     return options
@@ -518,11 +518,12 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
         }
         return ''
       }
-      options.color['value'] = ({ value }) => {
+      const runtimeColor = options.color as RuntimeColorAttr
+      runtimeColor.value = ({ value }) => {
         const item = items.find(item => value >= item.value[0] && value <= item.value[1])
         return item ? item.color : basicStyle.areaBaseColor
       }
-      options.color.scale.domain = [ranges[0][0], ranges[ranges.length - 1][1]]
+      runtimeColor.scale.domain = [ranges[0][0], ranges[ranges.length - 1][1]]
     } else {
       customLegend['customContent'] = (_: string, items: CategoryLegendListItem[]) => {
         // 去重逻辑
@@ -541,7 +542,7 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
         const showItems = uniqueItems.length > 30 ? uniqueItems.slice(0, 30) : uniqueItems
         if (showItems?.length) {
           if (showItems.length === 1) {
-            const domain = options.color.scale.domain
+            const domain = (options.color as RuntimeColorAttr).scale.domain
             if (domain) {
               showItems[0].value = domain?.slice(0, 2)
             } else {
@@ -568,7 +569,7 @@ export class Map extends L7PlotChartView<ChoroplethOptions, Choropleth> {
     // 下钻时按照数据值计算图例
     if (chart.drill) {
       getMaxAndMinValueByData(options.source.data, 'value', 0, 0, (max, min) => {
-        options.color.scale.domain = [min, max]
+        ;(options.color as RuntimeColorAttr).scale.domain = [min, max]
       })
     }
     defaultsDeep(options, { legend: customLegend })

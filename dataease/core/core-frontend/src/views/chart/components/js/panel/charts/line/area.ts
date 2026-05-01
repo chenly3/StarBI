@@ -129,7 +129,7 @@ export class Area extends G2PlotChartView<AreaOptions, G2Area> {
 
     newChart.on('point:click', action)
     extremumEvt(newChart, chart, options, container)
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     listenYAxisNiceMinEvents(chart, newChart)
     return newChart
   }
@@ -336,7 +336,7 @@ export class StackArea extends Area {
     const layout = []
     if (!labelAttr.fullDisplay) {
       const tmpOptions = super.configLabel(chart, options)
-      layout.push(...tmpOptions.label.layout)
+      layout.push(...((tmpOptions.label as Record<string, any>).layout ?? []))
     } else {
       layout.push({ type: 'limit-in-plot' })
     }

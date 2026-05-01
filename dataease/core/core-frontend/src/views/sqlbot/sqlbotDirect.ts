@@ -10,6 +10,7 @@ import {
 import type {
   SQLBotNewContextSwitchCreatePayload,
   SQLBotNewPersistedContextEvent,
+  SQLBotNewPersistedContextEventType,
   SQLBotNewPersistedContextPayload,
   SQLBotNewPersistedHistoryEntry,
   SQLBotNewPersistedSnapshot,
@@ -129,6 +130,23 @@ const normalizeSourceKind = (...values: unknown[]): 'dataset' | 'file' | 'datase
   return 'dataset'
 }
 
+const normalizePersistedContextEventType = (
+  ...values: unknown[]
+): SQLBotNewPersistedContextEventType => {
+  for (const value of values) {
+    if (
+      value === 'session_init' ||
+      value === 'context_switch' ||
+      value === 'assistant_reply' ||
+      value === 'selection_update' ||
+      value === 'manual_fix_submit'
+    ) {
+      return value
+    }
+  }
+  return 'context_switch'
+}
+
 const normalizeSQLBotNewPersistedHistoryEntry = (
   payload: Record<string, any>
 ): SQLBotNewPersistedHistoryEntry => ({
@@ -215,7 +233,7 @@ const normalizeSQLBotNewPersistedContextEvent = (
   payload: Record<string, any>
 ): SQLBotNewPersistedContextEvent => ({
   id: normalizeOptionalNumber(payload.id) || 0,
-  eventType: normalizeOptionalString(payload.eventType, payload.event_type),
+  eventType: normalizePersistedContextEventType(payload.eventType, payload.event_type),
   recordId: normalizeOptionalNumber(payload.recordId, payload.record_id),
   sourceKind: normalizeOptionalString(payload.sourceKind, payload.source_kind)
     ? normalizeSourceKind(payload.sourceKind, payload.source_kind)

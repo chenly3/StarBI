@@ -39,6 +39,8 @@ import { Group } from '@antv/g-canvas'
 const { t } = useI18n()
 const DEFAULT_DATA = []
 
+type RuntimeLineOptions = LineOptions & Record<string, any>
+
 /**
  * 折线图
  */
@@ -133,7 +135,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
 
     newChart.on('point:click', action)
     extremumEvt(newChart, chart, options, container)
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     listenYAxisNiceMinEvents(chart, newChart)
     return newChart
   }
@@ -326,7 +328,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
   }
 
   protected configLegend(chart: Chart, options: LineOptions): LineOptions {
-    const optionTmp = super.configLegend(chart, options)
+    let optionTmp = super.configLegend(chart, options)
     if (!optionTmp.legend) {
       return optionTmp
     }
@@ -338,14 +340,14 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
         // 用值域限定排序，有可能出现新数据但是未出现在图表上，所以这边要遍历一下子维度，加到后面，让新数据显示出来
         const data = optionTmp.data
         const cats =
-          data?.reduce((p, n) => {
+          data?.reduce<string[]>((p, n) => {
             const cat = n['category']
             if (cat && !p.includes(cat)) {
               p.push(cat)
             }
             return p
           }, []) || []
-        const values = sort.reduce((p, n) => {
+        const values = sort.reduce<string[]>((p, n) => {
           if (cats.includes(n)) {
             const index = cats.indexOf(n)
             if (index !== -1) {
@@ -356,11 +358,14 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
           return p
         }, [])
         cats.length > 0 && values.push(...cats)
-        optionTmp.meta = {
-          ...optionTmp.meta,
-          category: {
-            type: 'cat',
-            values
+        optionTmp = {
+          ...optionTmp,
+          meta: {
+            ...optionTmp.meta,
+            category: {
+              type: 'cat',
+              values
+            }
           }
         }
       }
@@ -374,7 +379,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
       size = DEFAULT_LEGEND_STYLE.size
     }
 
-    optionTmp.legend.marker.style = style => {
+    ;(optionTmp.legend as any).marker.style = style => {
       return {
         r: size,
         fill: style.stroke
@@ -390,11 +395,13 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
           return p
         }, {}) || {}
       const dupCheck = new Set()
+      const runtimeOptions = optionTmp as RuntimeLineOptions
+      const colors =
+        runtimeOptions.color ??
+        (runtimeOptions.theme as Record<string, any>)?.styleSheet?.paletteQualitative10
       const items = optionTmp.data?.reduce((arr, item) => {
         if (!dupCheck.has(item.category)) {
-          const fill =
-            seriesMap[item.category]?.color ??
-            optionTmp.color[dupCheck.size % optionTmp.color.length]
+          const fill = seriesMap[item.category]?.color ?? colors[dupCheck.size % colors.length]
           dupCheck.add(item.category)
           arr.push({
             name: item.category,
@@ -425,7 +432,7 @@ export class Line extends G2PlotChartView<LineOptions, G2Line> {
         })
         items.unshift(...tmp)
       }
-      optionTmp.legend.items = items
+      ;(optionTmp.legend as any).items = items
       if (xAxisExt?.customSort?.length > 0) {
         delete optionTmp.meta?.category.values
       }

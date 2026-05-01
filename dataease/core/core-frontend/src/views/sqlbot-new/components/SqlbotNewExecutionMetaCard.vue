@@ -105,10 +105,6 @@ const failureStageValue = computed(() => {
   return stageLabelMap[value] || value
 })
 
-const nextActionValue = computed(() => {
-  return normalizeText(props.executionSummary?.nextAction)
-})
-
 const answerParagraphs = computed(() => {
   return splitParagraphs(props.record.chartAnswer || props.record.sqlAnswer)
 })

@@ -2,7 +2,7 @@
 import icon_searchOutline_outlined from '@/assets/svg/icon_search-outline_outlined.svg'
 import icon_close_outlined from '@/assets/svg/icon_close_outlined.svg'
 import icon_deleteTrash_outlined from '@/assets/svg/icon_delete-trash_outlined.svg'
-import { ref, inject, computed, watch, onBeforeMount, toRefs } from 'vue'
+import { ref, inject, computed, watch, onBeforeMount, toRefs, type Ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { multFieldValuesForPermissions } from '@/api/dataset'
 import {
@@ -14,6 +14,11 @@ import {
   fieldEnums
 } from '@/views/visualized/data/dataset/options.js'
 import { iconFieldMap } from '@/components/icon-group/field-list'
+
+type AuthTargetTypeProvider = {
+  authTargetType?: string
+}
+
 export interface Item {
   term: string
   fieldId: string
@@ -61,8 +66,8 @@ const textareaValue = ref('')
 
 const { item } = toRefs(props)
 
-const getAuthTargetType = inject('getAuthTargetType')
-const filedList = inject('filedList')
+const getAuthTargetType = inject<AuthTargetTypeProvider>('getAuthTargetType')
+const filedList = inject<Ref<Record<string, ChartViewField>>>('filedList')
 
 const checkListWithFilter = computed(() => {
   if (!filterFiled.value) return enumList.value

@@ -162,9 +162,12 @@ const menuSelect = (index: string, indexPath: string[]) => {
 
   const targetMenu = isSystemSettingRoute.value
     ? systemSettingMenuTargets.value.get(index)
-    : menuList.value.find(item => item.path === indexPath[0] || item.path === index)
+    : (menuList.value as MenuRouteRecord[]).find(
+        item => item.path === indexPath[0] || item.path === index
+      )
   const resolved =
-    targetMenu?.__resolvedPath || (targetMenu ? resolvePath(targetMenu) : indexPath.join('/'))
+    targetMenu?.__resolvedPath ||
+    (targetMenu ? resolvePath(targetMenu as any) : indexPath.join('/'))
 
   if (isExternal(resolved)) {
     const openType = wsCache.get('open-backend') === '1' ? '_self' : '_blank'

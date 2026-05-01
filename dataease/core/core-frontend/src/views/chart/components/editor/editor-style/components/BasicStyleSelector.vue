@@ -54,7 +54,9 @@ const showProperty = prop => {
   }
   return has
 }
-const tableExpandLevelOptions = reactive([{ name: t('chart.expand_all'), value: 'all' }])
+const tableExpandLevelOptions = reactive<Array<{ name: string; value: string | number }>>([
+  { name: t('chart.expand_all'), value: 'all' }
+])
 const predefineColors = COLOR_PANEL
 const state = reactive({
   basicStyleForm: JSON.parse(JSON.stringify(DEFAULT_BASIC_STYLE)) as ChartBasicStyle,
@@ -276,7 +278,7 @@ const changeFieldColumnWidth = () => {
   const { basicStyleForm, fieldColumnWidth } = state
   let { width } = fieldColumnWidth
   let validate = true
-  width = parseFloat(width)
+  width = parseFloat(String(width))
   if (isNaN(width) || !isNumber(width)) {
     validate = false
   }
@@ -323,7 +325,7 @@ const getMapKey = async () => {
     await queryMapKeyApi().then(res => mapStore.setKey(res.data))
   }
   if (mapStore.mapKey.securityCode) {
-    window._AMapSecurityConfig = {
+    window['_AMapSecurityConfig'] = {
       securityJsCode: mapStore.mapKey.securityCode
     }
   }

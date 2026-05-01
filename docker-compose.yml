@@ -143,6 +143,10 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-123456}
       STARBI_PUBLIC_URL: ${STARBI_PUBLIC_URL:-http://localhost:9080}
       SQLBOT_API_BASE: ${SQLBOT_API_BASE:-http://starbi-sqlbot:8000/api/v1}
+      STARBI_SQLBOT_DOMAIN: ${STARBI_SQLBOT_DOMAIN:-http://starbi-sqlbot:8000}
+      STARBI_SQLBOT_ASSISTANT_ID: ${STARBI_SQLBOT_ASSISTANT_ID:-1}
+      STARBI_SQLBOT_ASSISTANT_SECRET: ${STARBI_SQLBOT_ASSISTANT_SECRET:-starbi-inner-assistant-secret}
+      STARBI_SQLBOT_ENABLED: ${STARBI_SQLBOT_ENABLED:-true}
       JAVA_OPTIONS: >-
         -Dfile.encoding=utf-8
         -Dloader.path=/opt/apps
@@ -184,6 +188,9 @@ services:
       CACHE_TYPE: memory
       # 认证
       SECRET_KEY: ${SQLBOT_SECRET_KEY:-y5txe1mRmS_JpOrUzFzHEu-kIQn3lf7ll0AOv9DQh0s}
+      STARBI_PUBLIC_URL: ${STARBI_PUBLIC_URL:-http://localhost:9080}
+      STARBI_SQLBOT_ASSISTANT_ID: ${STARBI_SQLBOT_ASSISTANT_ID:-1}
+      STARBI_SQLBOT_ASSISTANT_SECRET: ${STARBI_SQLBOT_ASSISTANT_SECRET:-starbi-inner-assistant-secret}
       PROJECT_NAME: StarBI
       DEFAULT_PWD: ${SQLBOT_DEFAULT_PWD:-SQLBot@123456}
       # CORS

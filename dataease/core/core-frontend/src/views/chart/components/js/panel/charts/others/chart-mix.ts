@@ -47,6 +47,12 @@ import { extremumEvt } from '@/views/chart/components/js/extremumUitl'
 
 const { t } = useI18n()
 const DEFAULT_DATA = []
+type RuntimeGeometryOption = Record<string, any>
+type RuntimeDualAxesOptions = Omit<DualAxesOptions, 'geometryOptions' | 'legend' | 'yAxis'> & {
+  geometryOptions?: RuntimeGeometryOption[]
+  legend?: Record<string, any>
+  yAxis?: Record<string, any>
+}
 
 /**
  * 柱线混合图
@@ -63,7 +69,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
     ]
   }
   axis: AxisType[] = [...CHART_MIX_AXIS_TYPE, 'xAxisExtRight', 'yAxisExt']
-  axisConfig = {
+  axisConfig: AxisConfig = {
     xAxis: {
       name: `${t('chart.drag_block_type_axis')} / ${t('chart.dimension')}`,
       type: 'd'
@@ -179,13 +185,13 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
     newChart.on('point:click', action)
     newChart.on('interval:click', action)
     extremumEvt(newChart, chart, options, container)
-    configPlotTooltipEvent(chart, newChart)
+    configPlotTooltipEvent(chart, newChart as any)
     return newChart
   }
 
   protected configLabel(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempLabel = getLabel(chart)
-    const tmpOption = { ...options }
+    const tmpOption = { ...options } as RuntimeDualAxesOptions
     if (!tempLabel) {
       if (tmpOption.geometryOptions) {
         tmpOption.geometryOptions[0].label = false
@@ -289,7 +295,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
       smooth,
       point,
       lineStyle
-    }
+    } as RuntimeDualAxesOptions
     if (tempOption.geometryOptions) {
       tempOption.geometryOptions[0].smooth = leftSmooth
       tempOption.geometryOptions[0].point = leftPoint
@@ -338,7 +344,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
   protected configCustomColors(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempOption = {
       ...options
-    }
+    } as RuntimeDualAxesOptions
     const basicStyle = parseJson(chart.customAttr).basicStyle as MixChartBasicStyle
 
     const { seriesColor } = basicStyle
@@ -376,7 +382,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
   protected configSubCustomColors(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempOption = {
       ...options
-    }
+    } as RuntimeDualAxesOptions
     const basicStyle = defaultsDeep(
       parseJson(chart.customAttr).basicStyle as MixChartBasicStyle,
       cloneDeep(CHART_MIX_DEFAULT_BASIC_STYLE)
@@ -615,7 +621,7 @@ export class ColumnLineMix extends G2PlotChartView<DualAxesOptions, DualAxes> {
         size = DEFAULT_LEGEND_STYLE.size
       }
 
-      o.legend.marker.style = style => {
+      ;(o.legend.marker as Record<string, any>).style = style => {
         const fill = style.fill ?? style.stroke
         return {
           r: size,
@@ -671,7 +677,7 @@ export class GroupColumnLineMix extends ColumnLineMix {
       'carousel'
     ]
   }
-  axisConfig = {
+  axisConfig: AxisConfig = {
     ...this['axisConfig'],
     xAxisExt: {
       name: `${t('chart.chart_group')} / ${t('chart.dimension')}`,
@@ -684,7 +690,7 @@ export class GroupColumnLineMix extends ColumnLineMix {
   protected configCustomColors(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempOption = {
       ...options
-    }
+    } as RuntimeDualAxesOptions
     const basicStyle = parseJson(chart.customAttr).basicStyle as MixChartBasicStyle
 
     const { seriesColor } = basicStyle
@@ -784,7 +790,7 @@ export class StackColumnLineMix extends ColumnLineMix {
       'carousel'
     ]
   }
-  axisConfig = {
+  axisConfig: AxisConfig = {
     ...this['axisConfig'],
     extStack: {
       name: `${t('chart.stack_item')} / ${t('chart.dimension')}`,
@@ -797,7 +803,7 @@ export class StackColumnLineMix extends ColumnLineMix {
   protected configCustomColors(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempOption = {
       ...options
-    }
+    } as RuntimeDualAxesOptions
     const basicStyle = parseJson(chart.customAttr).basicStyle as MixChartBasicStyle
 
     const { seriesColor } = basicStyle
@@ -898,7 +904,7 @@ export class DualLineMix extends ColumnLineMix {
       'carousel'
     ]
   }
-  axisConfig = {
+  axisConfig: AxisConfig = {
     ...this['axisConfig'],
     xAxisExt: {
       name: `${t('chart.drag_block_type_axis_left')} / ${t('chart.dimension')}`,
@@ -915,7 +921,7 @@ export class DualLineMix extends ColumnLineMix {
   protected configCustomColors(chart: Chart, options: DualAxesOptions): DualAxesOptions {
     const tempOption = {
       ...options
-    }
+    } as RuntimeDualAxesOptions
     const basicStyle = parseJson(chart.customAttr).basicStyle as MixChartBasicStyle
 
     const { seriesColor } = basicStyle

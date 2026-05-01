@@ -12,10 +12,23 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { XpackComponent } from '@/components/plugin'
 import EmptyBackground from '../../components/empty-background/src/EmptyBackground.vue'
 import exeRequest from '@/config/axios'
+type AnyRecord = Record<string, any>
+type EmbeddedParams = AnyRecord & {
+  chartId?: string
+  dvId?: string
+  busiFlag?: string
+  suffixId?: string
+  outerParams?: string
+}
+type CanvasComponent = AnyRecord & {
+  id: string
+  component?: string
+  propValue?: Array<CanvasComponent & { componentData?: CanvasComponent[] }>
+}
 const { wsCache } = useCache()
 const interactiveStore = interactiveStoreWithOut()
 const embeddedStore = useEmbedded()
-const embeddedParamsDiv = inject('embeddedParams') as object
+const embeddedParamsDiv = inject<EmbeddedParams>('embeddedParams', {} as EmbeddedParams)
 const config = ref()
 const viewInfo = ref()
 const userViewEnlargeRef = ref()
@@ -33,7 +46,9 @@ const state = reactive({
   scale: 100
 })
 
-const embeddedParams = embeddedParamsDiv?.chartId ? embeddedParamsDiv : embeddedStore
+const embeddedParams: EmbeddedParams = embeddedParamsDiv?.chartId
+  ? embeddedParamsDiv
+  : (embeddedStore as unknown as EmbeddedParams)
 
 // 目标校验： 需要校验targetSourceId 是否是当前可视化资源ID
 const winMsgHandle = event => {
@@ -87,7 +102,7 @@ onBeforeMount(async () => {
   // div嵌入
   if (embeddedParams.outerParams) {
     try {
-      const outerPramsParse = JSON.parse(embeddedParams.outerParams)
+      const outerPramsParse = JSON.parse(embeddedParams.outerParams) as AnyRecord
       attachParams = outerPramsParse.attachParams
       dvMainStore.setEmbeddedCallBack(outerPramsParse.callBackFlag || 'no')
     } catch (e) {
@@ -114,13 +129,7 @@ onBeforeMount(async () => {
       state.initState = true
 
       viewInfo.value = canvasViewInfoPreview[chartId]
-      ;(
-        (canvasDataResult as unknown as Array<{
-          id: string
-          component: string
-          propValue: Array<{ id: string }>
-        }>) || []
-      ).some(ele => {
+      ;((canvasDataResult as unknown as CanvasComponent[]) || []).some(ele => {
         if (ele.id === chartId) {
           config.value = ele
           return true
