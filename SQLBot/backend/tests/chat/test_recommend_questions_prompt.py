@@ -287,6 +287,34 @@ def test_recommend_prompt_uses_current_result_instead_of_old_question_pool(monke
     assert "old_questions" not in combined_prompt
 
 
+def test_recommend_prompt_requires_executable_schema_fields(monkeypatch):
+    llm = load_llm_module(monkeypatch)
+    service = object.__new__(llm.LLMService)
+    service.chat_question = types.SimpleNamespace(
+        question="茶饮订单明细中按品线统计销售金额，哪个品线销售金额最高？",
+        lang="简体中文",
+        sql="",
+        db_schema="字段: 品线, 菜品名称, 销售日期, 销售金额, 销售数量, 客单价"
+    )
+    service.record = types.SimpleNamespace(
+        question="茶饮订单明细中按品线统计销售金额，哪个品线销售金额最高？",
+        sql="select 品线, sum(销售金额) from 茶饮订单明细 group by 品线",
+        sql_answer='{"content":"浓郁椰奶销售金额最高"}',
+        data='[{"品线":"浓郁椰奶","销售金额":36424},{"品线":"超大果茶","销售金额":34083}]',
+        chart_answer="品线销售金额统计",
+        analysis="浓郁椰奶位居第一，超大果茶紧随其后",
+        predict="",
+    )
+
+    messages = service._build_recommend_questions_messages()
+    combined_prompt = "\n".join(message.content for message in messages)
+
+    assert "可用字段" in combined_prompt
+    assert "菜品名称" in combined_prompt
+    assert "不要使用产品、商品等未在字段列表中出现的泛化词" in combined_prompt
+    assert "每个问题必须能直接生成 SQL" in combined_prompt
+
+
 def test_normalize_recommend_questions_content_converts_line_output_to_json(monkeypatch):
     llm = load_llm_module(monkeypatch)
 

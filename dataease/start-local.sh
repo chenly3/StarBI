@@ -9,11 +9,12 @@ BACKEND_DIR="$PROJECT_DIR/core/core-backend"
 FRONTEND_DIR="$PROJECT_DIR/core/core-frontend"
 LOCAL_DIR="$ROOT_DIR/tmp/dataease-local"
 LOG_DIR="$LOCAL_DIR/run-logs"
+APP_LOG_DIR="$LOCAL_DIR/logs/dataease"
 
 BACKEND_LOG="$LOG_DIR/backend.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$APP_LOG_DIR"
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
@@ -95,7 +96,7 @@ start_backend() {
       PATH="$java_home/bin:$PATH" \
       mvn \
       -Dspring-boot.run.profiles=standalone \
-      "-Dspring-boot.run.jvmArguments=-Duser.home=$LOCAL_DIR/home -Dspring.config.additional-location=file:$LOCAL_DIR/spring/" \
+      "-Dspring-boot.run.jvmArguments=-Duser.home=$LOCAL_DIR/home -Dspring.config.additional-location=file:$LOCAL_DIR/spring/ -Dlogging.file.path=$APP_LOG_DIR" \
       spring-boot:run \
       >"$BACKEND_LOG" 2>&1 &
   )

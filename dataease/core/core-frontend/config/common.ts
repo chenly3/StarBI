@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import { resolve } from 'path'
 import Vue from '@vitejs/plugin-vue'
@@ -15,13 +16,34 @@ import Components from 'unplugin-vue-components-secondary/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components-secondary/resolvers'
 const root = process.cwd()
 const enableBuildLint = process.env.STARBI_VITE_LINT !== 'false'
+const elementPlusSecondaryTypesPath = 'element-plus-secondary/es/utils/types.mjs'
+const elementPlusSecondaryTypesFilter = /element-plus-secondary\/es\/utils\/types\.mjs$/
 
 export function pathResolve(dir: string) {
   return resolve(root, '.', dir)
 }
+
+const patchElementPlusSecondaryTypesCode = (code: string) =>
+  code
+    .replace("import { inject } from 'vue';\n", '')
+    .replace('const customStyle = inject("$custom-style-filter", {});', 'const customStyle = {};')
+
+const elementPlusSecondaryTypesPatch = () => ({
+  name: 'patch-element-plus-secondary-types-inject',
+  enforce: 'pre' as const,
+  transform(code: string, id: string) {
+    if (!id.includes(elementPlusSecondaryTypesPath)) {
+      return null
+    }
+
+    return patchElementPlusSecondaryTypesCode(code)
+  }
+})
+
 export default {
   base: './',
   plugins: [
+    elementPlusSecondaryTypesPatch(),
     Vue(),
     svgLoader({
       svgo: false,
@@ -97,6 +119,21 @@ export default {
     ]
   },
   optimizeDeps: {
+    esbuildOptions: {
+      plugins: [
+        {
+          name: 'patch-element-plus-secondary-types-inject',
+          setup(build) {
+            build.onLoad({ filter: elementPlusSecondaryTypesFilter }, args => {
+              return {
+                contents: patchElementPlusSecondaryTypesCode(fs.readFileSync(args.path, 'utf8')),
+                loader: 'js'
+              }
+            })
+          }
+        }
+      ]
+    },
     include: [
       'vue',
       'vue-router',

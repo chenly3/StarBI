@@ -11,6 +11,8 @@ import {
 import { queryTreeApi } from '@/api/visualization/dataVisualization'
 import router from '@/router'
 import SqlbotNewConversationRecord from '@/views/sqlbot-new/components/SqlbotNewConversationRecord.vue'
+import SqlbotDerivedAnswerMessage from '@/views/sqlbot-new/components/SqlbotDerivedAnswerMessage.vue'
+import SqlbotDerivedQuestionMessage from '@/views/sqlbot-new/components/SqlbotDerivedQuestionMessage.vue'
 import SqlbotInsertTargetDialog from '@/views/sqlbot-new/components/SqlbotInsertTargetDialog.vue'
 import SqlbotNewContextSwitchCard from '@/views/sqlbot-new/components/SqlbotNewContextSwitchCard.vue'
 import SqlbotNewDatasetCombinationDialog from '@/views/sqlbot-new/components/SqlbotNewDatasetCombinationDialog.vue'
@@ -60,12 +62,15 @@ const {
   recommendedQuestions,
   pageTitle,
   pageSubtitle,
-  requestRecordAnalysis,
-  requestRecordPredict,
+  requestDerivedRecordAnalysis,
+  requestDerivedRecordPredict,
   resetConversation,
   restoredHistoryContext,
   restoreHistorySession,
-  submitQuestion
+  submitQuestion,
+  isDerivedAnswerRecord,
+  isDerivedQuestionRecord,
+  isFactAnswerRecord
 } = useSqlbotNewConversation()
 
 const {
@@ -1335,11 +1340,11 @@ const handleChooseInsertTarget = async (target: {
 }
 
 const handleInterpretRecord = (record: SqlbotNewConversationRecordItem) => {
-  void requestRecordAnalysis(record, effectiveExecutionContext.value)
+  void requestDerivedRecordAnalysis(record, effectiveExecutionContext.value)
 }
 
 const handlePredictRecord = (record: SqlbotNewConversationRecordItem) => {
-  void requestRecordPredict(record, effectiveExecutionContext.value)
+  void requestDerivedRecordPredict(record, effectiveExecutionContext.value)
 }
 
 const handleFollowUpRecord = (record: SqlbotNewConversationRecordItem) => {
@@ -1815,7 +1820,7 @@ const hasRenderableQuestion = (record: SqlbotNewConversationRecordItem) => {
 const conversationAnswerTurnMap = computed(() => {
   let turn = 0
   return conversationRecords.value.reduce((result, record) => {
-    if (!isContextSwitchRecord(record)) {
+    if (isFactAnswerRecord(record)) {
       turn += 1
       result[record.localId] = turn
     }
@@ -2139,7 +2144,17 @@ const conversationAnswerTurnMap = computed(() => {
                       :record="record"
                     />
 
-                    <article v-else class="conversation-turn">
+                    <SqlbotDerivedQuestionMessage
+                      v-else-if="isDerivedQuestionRecord(record)"
+                      :record="record"
+                    />
+
+                    <SqlbotDerivedAnswerMessage
+                      v-else-if="isDerivedAnswerRecord(record)"
+                      :record="record"
+                    />
+
+                    <article v-else-if="isFactAnswerRecord(record)" class="conversation-turn">
                       <div class="conversation-turn-label">
                         第 {{ conversationAnswerTurnMap[record.localId] || 1 }} 轮问答
                       </div>

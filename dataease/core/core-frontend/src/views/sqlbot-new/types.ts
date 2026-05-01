@@ -146,7 +146,12 @@ export type SqlbotNewSelectionChange =
   | SqlbotNewConfirmedSelectionChange
   | SqlbotNewAbortedSelectionChange
 
-export type SqlbotNewConversationRecordKind = 'answer' | 'context-switch'
+export type SqlbotNewConversationRecordKind =
+  | 'answer'
+  | 'fact-answer'
+  | 'derived-question'
+  | 'derived-answer'
+  | 'context-switch'
 
 export interface SqlbotNewContextSwitchMeta {
   sourceKind: SourceKind
@@ -255,6 +260,8 @@ export type SQLBotNewPersistedContextEventType =
   | 'session_init'
   | 'context_switch'
   | 'assistant_reply'
+  | 'derived_question'
+  | 'derived_answer'
   | 'selection_update'
   | 'manual_fix_submit'
 

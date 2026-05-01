@@ -127,9 +127,7 @@ const normalizeTheme = (theme: any): AIQueryTheme => {
 }
 
 const normalizeThemeSaveRequest = (data: AIQueryThemeSaveRequest): AIQueryThemeSaveRequest => {
-  const datasetIds = [
-    ...new Set((data.datasetIds || []).map(item => String(item)).filter(Boolean))
-  ]
+  const datasetIds = [...new Set((data.datasetIds || []).map(item => String(item)).filter(Boolean))]
 
   if (!datasetIds.length) {
     throw new Error('分析主题至少需要绑定一个数据集')

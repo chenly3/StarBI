@@ -107,12 +107,14 @@ const props = withDefaults(
     reasoningExpanded?: boolean
     showExecutionDetails?: boolean
     showPredictAction?: boolean
+    disableInlineInsights?: boolean
   }>(),
   {
     sourceInsights: undefined,
     reasoningExpanded: false,
     showExecutionDetails: false,
-    showPredictAction: false
+    showPredictAction: false,
+    disableInlineInsights: false
   }
 )
 
@@ -234,8 +236,27 @@ watch(
   () => props.record.localId,
   () => {
     analysisExpanded.value = false
+    predictExpanded.value = false
   },
   { immediate: true }
+)
+
+watch(
+  () => props.record.predict,
+  value => {
+    if (String(value || '').trim()) {
+      predictExpanded.value = true
+    }
+  }
+)
+
+watch(
+  () => props.record.predictError,
+  value => {
+    if (String(value || '').trim()) {
+      predictExpanded.value = true
+    }
+  }
 )
 
 const previewChartConfig = computed(() => {
@@ -369,7 +390,10 @@ const readReasoningValue = (source: Record<string, any>, ...keys: string[]) => {
   return undefined
 }
 
-const normalizeReasoningEntry = (value: unknown, fallbackField: string): ReasoningFieldValue | undefined => {
+const normalizeReasoningEntry = (
+  value: unknown,
+  fallbackField: string
+): ReasoningFieldValue | undefined => {
   if (value === null || value === undefined || value === '') {
     return undefined
   }
@@ -405,11 +429,20 @@ const normalizeReasoningData = (value?: Record<string, any>): ReasoningData | un
   }
 
   const normalized: ReasoningData = {
-    time_range: normalizeReasoningEntry(readReasoningValue(value, 'time_range', 'timeRange'), '时间范围'),
+    time_range: normalizeReasoningEntry(
+      readReasoningValue(value, 'time_range', 'timeRange'),
+      '时间范围'
+    ),
     metrics: normalizeReasoningList(readReasoningValue(value, 'metrics', 'metric'), '指标'),
-    dimensions: normalizeReasoningList(readReasoningValue(value, 'dimensions', 'dimension'), '维度'),
+    dimensions: normalizeReasoningList(
+      readReasoningValue(value, 'dimensions', 'dimension'),
+      '维度'
+    ),
     filters: normalizeReasoningList(readReasoningValue(value, 'filters', 'filter'), '筛选条件'),
-    datasource: normalizeReasoningEntry(readReasoningValue(value, 'datasource', 'dataSource'), '数据源')
+    datasource: normalizeReasoningEntry(
+      readReasoningValue(value, 'datasource', 'dataSource'),
+      '数据源'
+    )
   }
 
   if (
@@ -640,14 +673,16 @@ const showSourceInsights = computed(() => {
 
 const showAnalysisPanel = computed(() => {
   return Boolean(
-    analysisExpanded.value &&
+    !props.disableInlineInsights &&
+      analysisExpanded.value &&
       (analysisLoading.value || analysisAvailable.value || props.record.analysisError)
   )
 })
 
 const showPredictPanel = computed(() => {
   return Boolean(
-    predictExpanded.value &&
+    !props.disableInlineInsights &&
+      predictExpanded.value &&
       (predictLoading.value || predictAvailable.value || props.record.predictError)
   )
 })

@@ -138,6 +138,8 @@ const normalizePersistedContextEventType = (
       value === 'session_init' ||
       value === 'context_switch' ||
       value === 'assistant_reply' ||
+      value === 'derived_question' ||
+      value === 'derived_answer' ||
       value === 'selection_update' ||
       value === 'manual_fix_submit'
     ) {

@@ -802,10 +802,15 @@ class LLMService:
 2. 问题应支持连续分析，例如下钻、对比、归因、预测。
 3. 不要推荐与当前结果无关的问题。
 4. 不要复述当前问题本身。
-5. 推荐格式：直接返回问题文本，每行一个，不要编号，不要输出其他说明。"""
+5. 每个问题必须能直接生成 SQL，优先使用可用字段、当前 SQL 和查询结果里已经出现的字段名。
+6. 不要使用产品、商品等未在字段列表中出现的泛化词；如果要下钻到具体菜品，应使用"菜品名称"这类真实字段名。
+7. 推荐格式：直接返回问题文本，每行一个，不要编号，不要输出其他说明。"""
 
         user_prompt = f"""当前问题:
 {self.chat_question.question or self.record.question or ''}
+
+可用字段:
+{getattr(self.chat_question, 'db_schema', '') or '未提供字段结构，请仅使用当前 SQL 和结果摘要中出现的字段'}
 
 SQL:
 {self.record.sql or getattr(self.chat_question, 'sql', '') or ''}

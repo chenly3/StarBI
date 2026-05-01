@@ -75,6 +75,7 @@ defineEmits<{
 </script>
 
 <style scoped>
+/* stylelint-disable selector-class-pattern */
 .scope-bar {
   display: flex;
   min-height: 40px;

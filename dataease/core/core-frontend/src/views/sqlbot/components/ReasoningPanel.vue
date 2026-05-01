@@ -121,41 +121,71 @@ const storageKey = computed(() =>
   props.recordId ? `reasoning-details-${props.recordId}` : 'reasoning-details-default'
 )
 
+const hasContent = computed(() => {
+  const reasoning = props.reasoning
+  return Boolean(
+    reasoning?.time_range ||
+      reasoning?.metrics?.length ||
+      reasoning?.dimensions?.length ||
+      reasoning?.filters?.length ||
+      reasoning?.datasource ||
+      props.rowCount !== undefined ||
+      props.duration ||
+      props.tokenCount !== undefined ||
+      props.executionSql ||
+      props.executionSteps?.length ||
+      props.modelName
+  )
+})
+
 const detailsExpanded = ref(false)
+const understandingExpanded = ref(true)
+const summaryExpanded = ref(true)
 
 onMounted(() => {
   try {
-    const saved = localStorage.getItem(storageKey.value)
+    const saved = localStorage.getItem(`reasoning-details-${props.recordId || 'default'}`)
     detailsExpanded.value = saved === 'true'
+    understandingExpanded.value =
+      localStorage.getItem(`reasoning-understanding-${props.recordId || 'default'}`) !== 'false'
+    summaryExpanded.value =
+      localStorage.getItem(`reasoning-summary-${props.recordId || 'default'}`) !== 'false'
   } catch {
     detailsExpanded.value = false
   }
 })
 
-const understandingExpanded = ref(true)
-const summaryExpanded = ref(true)
-
-const hasContent = computed(() => !!props.reasoning || !!props.executionSql)
-
 const toggleUnderstanding = () => {
   understandingExpanded.value = !understandingExpanded.value
+  try {
+    localStorage.setItem(
+      `reasoning-understanding-${props.recordId || 'default'}`,
+      String(understandingExpanded.value)
+    )
+  } catch {}
 }
 const toggleSummary = () => {
   summaryExpanded.value = !summaryExpanded.value
+  try {
+    localStorage.setItem(
+      `reasoning-summary-${props.recordId || 'default'}`,
+      String(summaryExpanded.value)
+    )
+  } catch {}
 }
 const toggleDetails = () => {
   detailsExpanded.value = !detailsExpanded.value
   try {
-    localStorage.setItem(storageKey.value, String(detailsExpanded.value))
-  } catch {
-    /* 存储不可用则忽略 */
-  }
+    localStorage.setItem(
+      `reasoning-details-${props.recordId || 'default'}`,
+      String(detailsExpanded.value)
+    )
+  } catch {}
 }
 </script>
 
 <style scoped>
-
-
+/* stylelint-disable selector-class-pattern */
 @keyframes reasoning-expand {
   from {
     max-height: 0;

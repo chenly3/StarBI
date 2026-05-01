@@ -70,6 +70,7 @@ watch(
       :reasoning-expanded="reasoningExpanded"
       :show-execution-details="true"
       :show-predict-action="true"
+      :disable-inline-insights="true"
       @toggle-reasoning="reasoningExpanded = !reasoningExpanded"
       @interpret="emit('interpret', record)"
       @predict="emit('predict', record)"

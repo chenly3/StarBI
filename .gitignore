@@ -13,12 +13,21 @@
 
 # Local agent state
 .omx/
+.agents/
 .claude/
 .superpowers/
 .codex/
 .github/instructions/
+skills/
 state_5.sqlite*
 skills-lock.json
+
+# Local browser / AI IDE verification artifacts
+.playwright-cli/
+.qoder/
+.trae/
+**/.playwright-cli/
+**/.stylelintcache
 
 # Dependencies and build outputs
 **/node_modules/

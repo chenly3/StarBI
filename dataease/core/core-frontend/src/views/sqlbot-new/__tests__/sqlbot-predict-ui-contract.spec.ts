@@ -40,6 +40,7 @@ const conversationRecordSource = readSource(
 const conversationSource = readSource('src/views/sqlbot-new/useSqlbotNewConversation.ts')
 const indexSource = readSource('src/views/sqlbot-new/index.vue')
 const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
+const reasoningPanelSource = readSource('src/views/sqlbot/components/ReasoningPanel.vue')
 
 const contractCases: ContractCase[] = [
   {
@@ -69,7 +70,11 @@ const contractCases: ContractCase[] = [
         'conversation record predict emit type'
       )
       assertMatch(indexSource, /@predict="handlePredictRecord"/, 'index predict listener')
-      assertMatch(indexSource, /requestRecordPredict\(record, effectiveExecutionContext\.value\)/, 'index predict handler')
+      assertMatch(
+        indexSource,
+        /requestDerivedRecordPredict\(record, effectiveExecutionContext\.value\)/,
+        'index predict handler'
+      )
     }
   },
   {
@@ -77,11 +82,36 @@ const contractCases: ContractCase[] = [
     run() {
       assertMatch(sqlbotDirectSource, /streamSQLBotRecordPredict/, 'direct predict stream helper')
       assertMatch(sqlbotDirectSource, /\/chat\/record\/\$\{recordId\}\/predict/, 'predict endpoint')
-      assertMatch(conversationSource, /streamSQLBotRecordPredict/, 'composable imports predict stream')
+      assertMatch(
+        conversationSource,
+        /streamSQLBotRecordPredict/,
+        'composable imports predict stream'
+      )
       assertMatch(conversationSource, /case 'predict-result':/, 'predict result event')
       assertMatch(conversationSource, /case 'predict-success':/, 'predict success event')
       assertMatch(conversationSource, /case 'predict-failed':/, 'predict failed event')
       assertMatch(conversationSource, /case 'predict_finish':/, 'predict finish event')
+      assertMatch(
+        starbiResultCardSource,
+        /watch\(\s*\(\) => props\.record\.predict/,
+        'result card watches streamed predict content'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /predictExpanded\.value = true/,
+        'result card expands predict panel when content arrives'
+      )
+    }
+  },
+  {
+    name: 'reasoning panel defines template visibility guard',
+    run() {
+      assertMatch(
+        reasoningPanelSource,
+        /const hasContent = computed\(/,
+        'hasContent computed guard'
+      )
+      assertMatch(reasoningPanelSource, /v-if="hasContent"/, 'hasContent template guard')
     }
   }
 ]

@@ -56,6 +56,7 @@ defineEmits<{
 </script>
 
 <style scoped>
+/* stylelint-disable selector-class-pattern */
 .recommend-questions {
   margin-top: 16px;
 }

@@ -46,6 +46,8 @@ import type {
   TabKey
 } from './types'
 
+type SqlbotNewDerivedAction = 'analysis' | 'predict'
+
 interface SqlbotNewEmbedState {
   domain: string
   id: string
@@ -75,6 +77,10 @@ export interface SqlbotNewConversationRecord {
   chatId?: number
   datasource?: number
   executionContext?: SqlbotNewExecutionContext
+  sourceRecordId?: number
+  sourceLocalId?: string
+  derivedAction?: 'analysis' | 'predict'
+  derivedQuestion?: string
   question: string
   sqlAnswer: string
   chartAnswer: string
@@ -371,7 +377,7 @@ const sanitizeSnapshotRecordError = (record: Record<string, any>) => {
 
 const createLocalRecord = (question: string) =>
   reactive({
-    kind: 'answer' as const,
+    kind: 'fact-answer' as const,
     localId: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     question,
     sqlAnswer: '',
@@ -394,6 +400,31 @@ const createLocalRecord = (question: string) =>
     recommendQuestions: [],
     pendingChartHydration: false
   }) as SqlbotNewConversationRecord
+
+const isFactAnswerRecord = (record: SqlbotNewConversationRecord) =>
+  !record.kind || record.kind === 'answer' || record.kind === 'fact-answer'
+
+const isDerivedQuestionRecord = (record: SqlbotNewConversationRecord) =>
+  record.kind === 'derived-question'
+
+const isDerivedAnswerRecord = (record: SqlbotNewConversationRecord) =>
+  record.kind === 'derived-answer'
+
+const stripInlineInsightsFromFactRecord = (record: SqlbotNewConversationRecord) => {
+  if (!isFactAnswerRecord(record)) {
+    return record
+  }
+
+  record.analysis = ''
+  record.analysisThinking = ''
+  record.analysisLoading = false
+  record.analysisError = ''
+  record.predict = ''
+  record.predictThinking = ''
+  record.predictLoading = false
+  record.predictError = ''
+  return record
+}
 
 const createAssistantReplyRecord = ({
   question,
@@ -532,6 +563,7 @@ export const useSqlbotNewConversation = () => {
   const sqlbotAbortController = ref<AbortController | null>(null)
   const sqlbotAnalysisControllerMap = new Map<string, AbortController>()
   const sqlbotPredictControllerMap = new Map<string, AbortController>()
+  const pendingDerivedActionKeys = new Set<string>()
   const runtimeModelIds = ref<string[]>([])
   const runtimeDefaultModelId = ref('')
   const datasourceDatasetIdCache = ref<Record<string, string>>(readDatasourceDatasetCache())
@@ -864,6 +896,177 @@ export const useSqlbotNewConversation = () => {
     return []
   }
 
+  const buildDerivedQuestionText = (
+    action: SqlbotNewDerivedAction,
+    sourceRecord: SqlbotNewConversationRecord
+  ) => {
+    const question = String(sourceRecord.question || '').trim()
+    const target = question ? `“${question}”` : '上面的结果'
+    return action === 'analysis' ? `对${target}做数据解读` : `对${target}做趋势预测`
+  }
+
+  const getDerivedActionKey = (
+    sourceRecord: SqlbotNewConversationRecord,
+    action: SqlbotNewDerivedAction
+  ) => `${sourceRecord.id || sourceRecord.localId}:${action}`
+
+  const isDerivedActionPending = (
+    sourceRecord: SqlbotNewConversationRecord,
+    action: SqlbotNewDerivedAction
+  ) => pendingDerivedActionKeys.has(getDerivedActionKey(sourceRecord, action))
+
+  const createDerivedQuestionMessage = ({
+    action,
+    sourceRecord,
+    question,
+    createTime,
+    localId,
+    assistantEventPersisted
+  }: {
+    action: SqlbotNewDerivedAction
+    sourceRecord: SqlbotNewConversationRecord
+    question: string
+    createTime?: string | number
+    localId?: string
+    assistantEventPersisted?: boolean
+  }): SqlbotNewConversationRecord =>
+    reactive({
+      kind: 'derived-question',
+      localId:
+        localId ||
+        `derived-question-${sourceRecord.localId}-${action}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+      sourceRecordId: sourceRecord.id,
+      sourceLocalId: sourceRecord.localId,
+      derivedAction: action,
+      derivedQuestion: question,
+      executionContext: sourceRecord.executionContext
+        ? {
+            ...sourceRecord.executionContext
+          }
+        : undefined,
+      question,
+      sqlAnswer: '',
+      chartAnswer: '',
+      error: '',
+      createTime: normalizeRecordTimestamp(createTime),
+      finish: true,
+      recommendQuestions: [],
+      pendingChartHydration: false,
+      assistantEventPersisted
+    }) as SqlbotNewConversationRecord
+
+  const createDerivedAnswerMessage = ({
+    action,
+    sourceRecord,
+    question,
+    createTime,
+    localId,
+    assistantEventPersisted
+  }: {
+    action: SqlbotNewDerivedAction
+    sourceRecord: SqlbotNewConversationRecord
+    question: string
+    createTime?: string | number
+    localId?: string
+    assistantEventPersisted?: boolean
+  }): SqlbotNewConversationRecord =>
+    reactive({
+      kind: 'derived-answer',
+      localId:
+        localId ||
+        `derived-answer-${sourceRecord.localId}-${action}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+      sourceRecordId: sourceRecord.id,
+      sourceLocalId: sourceRecord.localId,
+      derivedAction: action,
+      derivedQuestion: question,
+      executionContext: sourceRecord.executionContext
+        ? {
+            ...sourceRecord.executionContext
+          }
+        : undefined,
+      question,
+      sqlAnswer: '',
+      chartAnswer: '',
+      analysis: '',
+      analysisThinking: '',
+      analysisLoading: action === 'analysis',
+      analysisError: '',
+      predict: '',
+      predictThinking: '',
+      predictLoading: action === 'predict',
+      predictError: '',
+      error: '',
+      createTime: normalizeRecordTimestamp(createTime),
+      finish: false,
+      recommendQuestions: [],
+      pendingChartHydration: false,
+      assistantEventPersisted
+    }) as SqlbotNewConversationRecord
+
+  const createLegacyInsightDerivedMessages = (
+    sourceRecord: SqlbotNewConversationRecord,
+    coveredActions = new Set<string>()
+  ): SqlbotNewConversationRecord[] => {
+    const records: SqlbotNewConversationRecord[] = []
+    const legacyAnalysis = String(sourceRecord.analysis || '').trim()
+    const legacyPredict = String(sourceRecord.predict || '').trim()
+
+    if (legacyAnalysis && !coveredActions.has(getDerivedActionKey(sourceRecord, 'analysis'))) {
+      const question = buildDerivedQuestionText('analysis', sourceRecord)
+      records.push(
+        createDerivedQuestionMessage({
+          action: 'analysis',
+          sourceRecord,
+          question,
+          assistantEventPersisted: true
+        })
+      )
+      const answer = createDerivedAnswerMessage({
+        action: 'analysis',
+        sourceRecord,
+        question,
+        assistantEventPersisted: true
+      })
+      answer.analysis = legacyAnalysis
+      answer.analysisThinking = sourceRecord.analysisThinking || ''
+      answer.analysisLoading = false
+      answer.analysisRecordId = sourceRecord.analysisRecordId
+      answer.finish = true
+      records.push(answer)
+    }
+
+    if (legacyPredict && !coveredActions.has(getDerivedActionKey(sourceRecord, 'predict'))) {
+      const question = buildDerivedQuestionText('predict', sourceRecord)
+      records.push(
+        createDerivedQuestionMessage({
+          action: 'predict',
+          sourceRecord,
+          question,
+          assistantEventPersisted: true
+        })
+      )
+      const answer = createDerivedAnswerMessage({
+        action: 'predict',
+        sourceRecord,
+        question,
+        assistantEventPersisted: true
+      })
+      answer.predict = legacyPredict
+      answer.predictThinking = sourceRecord.predictThinking || ''
+      answer.predictLoading = false
+      answer.predictRecordId = sourceRecord.predictRecordId
+      answer.finish = true
+      records.push(answer)
+    }
+
+    stripInlineInsightsFromFactRecord(sourceRecord)
+    return records
+  }
+
   const normalizeConversationRecord = (
     record: Record<string, any>,
     executionContext?: SqlbotNewExecutionContext
@@ -935,15 +1138,34 @@ export const useSqlbotNewConversation = () => {
         : executionContext
         ? { ...executionContext }
         : undefined
+    const rawKind = String(record?.kind || '').trim()
+    const normalizedKind: SqlbotNewConversationRecordKind =
+      record?.kind === 'context-switch' || normalizedContextSwitch
+        ? 'context-switch'
+        : rawKind === 'derived-question' ||
+          rawKind === 'derived-answer' ||
+          rawKind === 'fact-answer' ||
+          rawKind === 'answer'
+        ? rawKind
+        : 'fact-answer'
+    const derivedAction =
+      record?.derivedAction === 'analysis' || record?.derivedAction === 'predict'
+        ? record.derivedAction
+        : record?.derived_action === 'analysis' || record?.derived_action === 'predict'
+        ? record.derived_action
+        : undefined
     return {
-      kind:
-        record?.kind === 'context-switch' || normalizedContextSwitch ? 'context-switch' : 'answer',
+      kind: normalizedKind,
       contextSwitch: normalizedContextSwitch,
       localId: String(record?.localId || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
       id: normalizeNumericValue(record?.id),
       chatId: normalizeNumericValue(record?.chatId, record?.chat_id),
       datasource: normalizeNumericValue(record?.datasource),
       executionContext: storedExecutionContext,
+      sourceRecordId: normalizeNumericValue(record?.sourceRecordId, record?.source_record_id),
+      sourceLocalId: String(record?.sourceLocalId || record?.source_local_id || ''),
+      derivedAction,
+      derivedQuestion: String(record?.derivedQuestion || record?.derived_question || ''),
       question: String(record?.question || ''),
       sqlAnswer: String(record?.sqlAnswer || record?.sql_answer || ''),
       chartAnswer: String(record?.chartAnswer || record?.chart_answer || ''),
@@ -1106,7 +1328,12 @@ export const useSqlbotNewConversation = () => {
   }
 
   const isMeaningfulConversationRecord = (record: SqlbotNewConversationRecord) => {
-    if (record.kind === 'context-switch' || record.contextSwitch) {
+    if (
+      record.kind === 'context-switch' ||
+      record.contextSwitch ||
+      isDerivedQuestionRecord(record) ||
+      isDerivedAnswerRecord(record)
+    ) {
       return true
     }
 
@@ -1130,15 +1357,11 @@ export const useSqlbotNewConversation = () => {
     )
   }
 
-  const findLatestQuestionInRecords = (records: Array<Record<string, any>> = []) => {
-    for (let index = records.length - 1; index >= 0; index -= 1) {
-      const question = String(records[index]?.question || '').trim()
-      if (question) {
-        return question
-      }
-    }
-    return ''
-  }
+  const findLatestOriginalQuestionInRecords = (records: SqlbotNewConversationRecord[]) =>
+    [...records]
+      .reverse()
+      .find(record => isFactAnswerRecord(record) && String(record.question || '').trim())
+      ?.question || ''
 
   const normalizeRecordTimestamp = (value?: string | number | null) => {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -1300,7 +1523,7 @@ export const useSqlbotNewConversation = () => {
 
     const latestRecord =
       conversationSession.value.records[conversationSession.value.records.length - 1]
-    const lastQuestion = findLatestQuestionInRecords(conversationSession.value.records)
+    const lastQuestion = findLatestOriginalQuestionInRecords(conversationSession.value.records)
     if (!lastQuestion) {
       return null
     }
@@ -1407,7 +1630,14 @@ export const useSqlbotNewConversation = () => {
         return timestampDiff
       }
       if ((left.kind || 'answer') !== (right.kind || 'answer')) {
-        return left.kind === 'context-switch' ? -1 : 1
+        const order: Record<string, number> = {
+          'context-switch': 0,
+          answer: 1,
+          'fact-answer': 1,
+          'derived-question': 2,
+          'derived-answer': 3
+        }
+        return (order[left.kind || 'answer'] ?? 9) - (order[right.kind || 'answer'] ?? 9)
       }
       if (left.id && right.id && left.id !== right.id) {
         return left.id - right.id
@@ -1572,6 +1802,201 @@ export const useSqlbotNewConversation = () => {
       createTime: event.createTime,
       localId: `assistant-reply-${event.id}`,
       assistantEventPersisted: true
+    })
+  }
+
+  const findSourceRecordForDerivedEvent = (
+    records: SqlbotNewConversationRecord[],
+    event: SQLBotNewPersistedContextEvent,
+    payload: Record<string, any>
+  ) => {
+    const sourceRecordId = normalizeNumericValue(
+      payload.sourceRecordId,
+      payload.source_record_id,
+      event.recordId
+    )
+    const sourceLocalId = String(payload.sourceLocalId || payload.source_local_id || '').trim()
+    return (
+      records.find(record => sourceRecordId && record.id === sourceRecordId) ||
+      records.find(record => sourceLocalId && record.localId === sourceLocalId) ||
+      records.find(record => isFactAnswerRecord(record)) ||
+      null
+    )
+  }
+
+  const createPersistedDerivedMessageRecord = (
+    event: SQLBotNewPersistedContextEvent,
+    fallbackExecutionContext: SqlbotNewExecutionContext,
+    sourceRecords: SqlbotNewConversationRecord[]
+  ) => {
+    const eventPayload =
+      event.eventPayload && typeof event.eventPayload === 'object' ? event.eventPayload : {}
+    const action =
+      eventPayload.derivedAction === 'analysis' || eventPayload.derived_action === 'analysis'
+        ? 'analysis'
+        : eventPayload.derivedAction === 'predict' || eventPayload.derived_action === 'predict'
+        ? 'predict'
+        : undefined
+    if (!action) {
+      return null
+    }
+
+    const sourceRecord = findSourceRecordForDerivedEvent(sourceRecords, event, eventPayload)
+    if (!sourceRecord) {
+      return null
+    }
+
+    const question = pickFirstNonEmptyString(
+      eventPayload.derivedQuestion,
+      eventPayload.derived_question,
+      eventPayload.question,
+      buildDerivedQuestionText(action, sourceRecord)
+    )
+    const localId = pickFirstNonEmptyString(
+      eventPayload.localId,
+      eventPayload.local_id,
+      `${event.eventType}-${event.id}`
+    )
+    const executionContext = repairRestoredExecutionContext({
+      ...fallbackExecutionContext,
+      ...extractPersistedExecutionMetadata(eventPayload),
+      themeId: normalizeOptionalId(event.themeId || fallbackExecutionContext.themeId),
+      themeName: pickFirstNonEmptyString(event.themeName, fallbackExecutionContext.themeName),
+      queryMode: event.sourceKind || fallbackExecutionContext.queryMode,
+      sourceId: normalizeOptionalId(
+        event.sourceId ||
+          (event.sourceKind === 'file' ? event.datasourceId : fallbackExecutionContext.sourceId)
+      ),
+      datasourceId: normalizeOptionalId(
+        event.datasourceId || fallbackExecutionContext.datasourceId
+      ),
+      modelId: normalizeOptionalId(event.modelId || fallbackExecutionContext.modelId),
+      datasourcePending: event.datasourcePending ?? fallbackExecutionContext.datasourcePending
+    })
+
+    const record =
+      event.eventType === 'derived_question'
+        ? createDerivedQuestionMessage({
+            action,
+            sourceRecord,
+            question,
+            createTime: event.createTime,
+            localId,
+            assistantEventPersisted: true
+          })
+        : createDerivedAnswerMessage({
+            action,
+            sourceRecord,
+            question,
+            createTime: event.createTime,
+            localId,
+            assistantEventPersisted: true
+          })
+    record.executionContext = executionContext
+    record.sourceRecordId = normalizeNumericValue(
+      eventPayload.sourceRecordId,
+      eventPayload.source_record_id,
+      event.recordId,
+      sourceRecord.id
+    )
+    record.sourceLocalId = pickFirstNonEmptyString(
+      eventPayload.sourceLocalId,
+      eventPayload.source_local_id,
+      sourceRecord.localId
+    )
+
+    if (event.eventType === 'derived_answer') {
+      record.analysis = String(eventPayload.analysis || '')
+      record.analysisThinking = String(
+        eventPayload.analysisThinking || eventPayload.analysis_thinking || ''
+      )
+      record.analysisLoading = Boolean(
+        eventPayload.analysisLoading ?? eventPayload.analysis_loading ?? false
+      )
+      record.analysisError = String(eventPayload.analysisError || eventPayload.analysis_error || '')
+      record.analysisRecordId = normalizeNumericValue(
+        eventPayload.analysisRecordId,
+        eventPayload.analysis_record_id
+      )
+      record.analysisDuration = normalizeNumericValue(
+        eventPayload.analysisDuration,
+        eventPayload.analysis_duration
+      )
+      record.analysisTotalTokens = normalizeNumericValue(
+        eventPayload.analysisTotalTokens,
+        eventPayload.analysis_total_tokens
+      )
+      record.predict = String(eventPayload.predict || '')
+      record.predictThinking = String(
+        eventPayload.predictThinking || eventPayload.predict_thinking || ''
+      )
+      record.predictLoading = Boolean(
+        eventPayload.predictLoading ?? eventPayload.predict_loading ?? false
+      )
+      record.predictError = String(eventPayload.predictError || eventPayload.predict_error || '')
+      record.predictRecordId = normalizeNumericValue(
+        eventPayload.predictRecordId,
+        eventPayload.predict_record_id
+      )
+      record.predictDuration = normalizeNumericValue(
+        eventPayload.predictDuration,
+        eventPayload.predict_duration
+      )
+      record.predictTotalTokens = normalizeNumericValue(
+        eventPayload.predictTotalTokens,
+        eventPayload.predict_total_tokens
+      )
+      record.finish =
+        eventPayload.finish !== false && !record.analysisLoading && !record.predictLoading
+    }
+
+    return record
+  }
+
+  const getExistingDerivedActionKeys = (records: SqlbotNewConversationRecord[]) => {
+    const keys = new Set<string>()
+    records.forEach(record => {
+      if (!isDerivedAnswerRecord(record) || !record.derivedAction) {
+        return
+      }
+      const sourceRecord =
+        records.find(item => record.sourceRecordId && item.id === record.sourceRecordId) ||
+        records.find(item => record.sourceLocalId && item.localId === record.sourceLocalId)
+      if (sourceRecord) {
+        keys.add(getDerivedActionKey(sourceRecord, record.derivedAction))
+      }
+    })
+    return keys
+  }
+
+  const hasUnfinishedDerivedAnswer = (
+    sourceRecord: SqlbotNewConversationRecord,
+    action: SqlbotNewDerivedAction
+  ) => {
+    return conversationRecords.value.some(record => {
+      return (
+        isDerivedAnswerRecord(record) &&
+        record.derivedAction === action &&
+        (record.sourceRecordId === sourceRecord.id ||
+          record.sourceLocalId === sourceRecord.localId) &&
+        (!record.finish || record.analysisLoading || record.predictLoading)
+      )
+    })
+  }
+
+  const createLegacyInsightDerivedMessagesForRestore = (records: SqlbotNewConversationRecord[]) => {
+    const coveredActions = getExistingDerivedActionKeys(records)
+    return records.flatMap(record => {
+      if (!isFactAnswerRecord(record)) {
+        return [record]
+      }
+      const derivedMessages = createLegacyInsightDerivedMessages(record, coveredActions)
+      derivedMessages.forEach(derivedRecord => {
+        if (isDerivedAnswerRecord(derivedRecord) && derivedRecord.derivedAction) {
+          coveredActions.add(getDerivedActionKey(record, derivedRecord.derivedAction))
+        }
+      })
+      return [record, ...derivedMessages]
     })
   }
 
@@ -1854,6 +2279,89 @@ export const useSqlbotNewConversation = () => {
     } catch (error) {
       console.error('persist sqlbot-new assistant reply failed', error)
     }
+  }
+
+  const buildDerivedEventPayload = (record: SqlbotNewConversationRecord) => ({
+    ...(record.executionContext
+      ? buildPersistedExecutionEventPayload(record.executionContext) || {}
+      : {}),
+    local_id: record.localId,
+    source_record_id: record.sourceRecordId,
+    source_local_id: record.sourceLocalId,
+    derived_action: record.derivedAction,
+    derived_question: record.derivedQuestion || record.question,
+    question: record.question,
+    analysis: record.analysis,
+    analysis_thinking: record.analysisThinking,
+    analysis_loading: record.analysisLoading,
+    analysis_error: record.analysisError,
+    analysis_record_id: record.analysisRecordId,
+    analysis_duration: record.analysisDuration,
+    analysis_total_tokens: record.analysisTotalTokens,
+    predict: record.predict,
+    predict_thinking: record.predictThinking,
+    predict_loading: record.predictLoading,
+    predict_error: record.predictError,
+    predict_record_id: record.predictRecordId,
+    predict_duration: record.predictDuration,
+    predict_total_tokens: record.predictTotalTokens,
+    finish: record.finish,
+    create_time: record.createTime
+  })
+
+  const persistBackendDerivedMessage = async (
+    record: SqlbotNewConversationRecord,
+    eventType: 'derived_question' | 'derived_answer',
+    executionContext: SqlbotNewExecutionContext,
+    overrides: Partial<Pick<SqlbotNewRestoredContext, 'selectionTitle' | 'selectionMeta'>> = {}
+  ) => {
+    const chatId = conversationSession.value?.id
+    if (!chatId) {
+      return
+    }
+
+    try {
+      const requestContext = await buildHistoryWriteRequestContext(executionContext)
+      const { selectionTitle, selectionMeta } = resolvePersistedSelectionState(overrides)
+      await createSQLBotNewContextSwitch(requestContext, chatId, {
+        eventType,
+        recordId: record.sourceRecordId,
+        sourceKind: executionContext.queryMode,
+        sourceId: executionContext.sourceId,
+        sourceIds: normalizeOptionalIdList(executionContext.sourceIds),
+        combinationId: normalizeOptionalId(executionContext.combinationId),
+        combinationName: String(executionContext.combinationName || ''),
+        datasourceId: executionContext.datasourceId,
+        modelId: executionContext.modelId,
+        themeId: executionContext.themeId || '',
+        themeName: executionContext.themeName || '',
+        selectionTitle,
+        selectionMeta,
+        datasourcePending: executionContext.datasourcePending,
+        eventPayload: buildDerivedEventPayload(record)
+      })
+      record.assistantEventPersisted = true
+    } catch (error) {
+      console.error(`persist sqlbot-new ${eventType} failed`, error)
+    }
+  }
+
+  const persistBackendDerivedQuestionMessage = async (
+    record: SqlbotNewConversationRecord,
+    executionContext: SqlbotNewExecutionContext
+  ) => {
+    const eventType = 'derived_question'
+    await persistBackendDerivedMessage(record, eventType, executionContext)
+    return { eventType: 'derived_question' as const }
+  }
+
+  const persistBackendDerivedAnswerMessage = async (
+    record: SqlbotNewConversationRecord,
+    executionContext: SqlbotNewExecutionContext
+  ) => {
+    const eventType = 'derived_answer'
+    await persistBackendDerivedMessage(record, eventType, executionContext)
+    return { eventType: 'derived_answer' as const }
   }
 
   const persistAssistantReplyWithSession = async (
@@ -2354,9 +2862,11 @@ export const useSqlbotNewConversation = () => {
       case 'error':
         record.analysisError = String(event.content || '数据解读失败')
         record.analysisLoading = false
+        record.finish = true
         break
       case 'analysis_finish':
         record.analysisLoading = false
+        record.finish = true
         await hydrateSQLBotAnalysisUsage(record, executionContext)
         break
       default:
@@ -2385,13 +2895,16 @@ export const useSqlbotNewConversation = () => {
       case 'predict-failed':
         record.predictError = record.predict || '趋势预测失败'
         record.predictLoading = false
+        record.finish = true
         break
       case 'error':
         record.predictError = String(event.content || '趋势预测失败')
         record.predictLoading = false
+        record.finish = true
         break
       case 'predict_finish':
         record.predictLoading = false
+        record.finish = true
         await hydrateSQLBotPredictUsage(record, executionContext)
         break
       default:
@@ -2626,7 +3139,7 @@ export const useSqlbotNewConversation = () => {
         fallbackDatasourceId: normalizeOptionalId(detail?.datasource || entry.datasourceId)
       })
       const normalizedDetailSession = normalizeConversationSession(detail, resolvedExecutionContext)
-      const eventRecords = [...(contextPayload.events || [])]
+      const baseEventRecords = [...(contextPayload.events || [])]
         .filter(
           event => event.eventType === 'context_switch' || event.eventType === 'assistant_reply'
         )
@@ -2674,6 +3187,66 @@ export const useSqlbotNewConversation = () => {
           )
         })
         .filter((record): record is SqlbotNewConversationRecord => Boolean(record))
+      const baseRecords = mergeConversationRecordsWithSnapshot(
+        normalizedDetailSession.records,
+        baseEventRecords,
+        resolvedExecutionContext
+      )
+      const latestDerivedEventMap = new Map<string, SQLBotNewPersistedContextEvent>()
+      ;[...(contextPayload.events || [])].forEach(event => {
+        if (event.eventType === 'derived_question' || event.eventType === 'derived_answer') {
+          const payload =
+            event.eventPayload && typeof event.eventPayload === 'object' ? event.eventPayload : {}
+          const localId = pickFirstNonEmptyString(
+            payload.localId,
+            payload.local_id,
+            `${event.eventType}-${event.id}`
+          )
+          const previous = latestDerivedEventMap.get(localId)
+          if (
+            !previous ||
+            normalizeRecordTimestamp(previous.createTime) <
+              normalizeRecordTimestamp(event.createTime) ||
+            previous.id < event.id
+          ) {
+            latestDerivedEventMap.set(localId, event)
+          }
+        }
+      })
+      const derivedEventRecords = [...latestDerivedEventMap.values()]
+        .filter(
+          event => event.eventType === 'derived_question' || event.eventType === 'derived_answer'
+        )
+        .sort((left, right) => {
+          const timestampDiff =
+            normalizeRecordTimestamp(left.createTime) - normalizeRecordTimestamp(right.createTime)
+          if (timestampDiff !== 0) {
+            return timestampDiff
+          }
+          return left.id - right.id
+        })
+        .map(event =>
+          createPersistedDerivedMessageRecord(event, resolvedExecutionContext, baseRecords)
+        )
+        .filter((record): record is SqlbotNewConversationRecord => Boolean(record))
+      const restoredRecords = createLegacyInsightDerivedMessagesForRestore([
+        ...baseRecords,
+        ...derivedEventRecords
+      ]).sort((left, right) => {
+        const timestampDiff = left.createTime - right.createTime
+        if (timestampDiff !== 0) {
+          return timestampDiff
+        }
+        const order: Record<string, number> = {
+          'context-switch': 0,
+          answer: 1,
+          'fact-answer': 1,
+          'derived-question': 2,
+          'derived-answer': 3
+        }
+        return (order[left.kind || 'answer'] ?? 9) - (order[right.kind || 'answer'] ?? 9)
+      })
+      restoredRecords.forEach(stripInlineInsightsFromFactRecord)
       const { selectionTitle, selectionMeta } = resolveHistoryRestoreSelection({
         entry,
         snapshot: contextPayload.snapshot,
@@ -2688,11 +3261,7 @@ export const useSqlbotNewConversation = () => {
       }
       conversationSession.value = {
         ...normalizedDetailSession,
-        records: mergeConversationRecordsWithSnapshot(
-          normalizedDetailSession.records,
-          eventRecords,
-          resolvedExecutionContext
-        )
+        records: restoredRecords
       }
       restoredHistoryContext.value = createHistoryContext(
         resolvedExecutionContext,
@@ -2706,7 +3275,7 @@ export const useSqlbotNewConversation = () => {
         question:
           pickFirstNonEmptyString(
             contextPayload.snapshot?.latestQuestion,
-            findLatestQuestionInRecords(normalizedDetailSession.records),
+            findLatestOriginalQuestionInRecords(restoredRecords),
             entry.lastQuestion,
             entry.title
           ) || entry.title,
@@ -2947,19 +3516,29 @@ export const useSqlbotNewConversation = () => {
     record: SqlbotNewConversationRecord,
     executionContext?: SqlbotNewExecutionContext
   ) => {
-    const effectiveExecutionContext = record.executionContext || executionContext
+    return requestDerivedRecordAnalysis(record, executionContext)
+  }
+
+  const requestDerivedRecordAnalysis = async (
+    sourceRecord: SqlbotNewConversationRecord,
+    executionContext?: SqlbotNewExecutionContext
+  ) => {
+    const effectiveExecutionContext = sourceRecord.executionContext || executionContext
 
     if (activeTab.value !== 'query') {
       ElMessage.info('当前版本暂时只支持问数解读')
       return
     }
 
-    if (!record.id) {
+    if (!sourceRecord.id) {
       ElMessage.warning('当前结果尚未完成，暂时不能解读')
       return
     }
 
-    if (record.analysisLoading) {
+    if (
+      isDerivedActionPending(sourceRecord, 'analysis') ||
+      hasUnfinishedDerivedAnswer(sourceRecord, 'analysis')
+    ) {
       return
     }
 
@@ -2976,33 +3555,54 @@ export const useSqlbotNewConversation = () => {
       return
     }
 
-    record.analysis = ''
-    record.analysisThinking = ''
-    record.analysisError = ''
-    record.analysisLoading = true
-    record.analysisRecordId = undefined
-    record.analysisDuration = undefined
-    record.analysisTotalTokens = undefined
+    const session = ensureConversationContainer(effectiveExecutionContext)
+    const question = buildDerivedQuestionText('analysis', sourceRecord)
+    const questionRecord = createDerivedQuestionMessage({
+      action: 'analysis',
+      sourceRecord,
+      question
+    })
+    const answerRecord = createDerivedAnswerMessage({
+      action: 'analysis',
+      sourceRecord,
+      question
+    })
+    session.records.push(questionRecord, answerRecord)
+    const actionKey = getDerivedActionKey(sourceRecord, 'analysis')
+    pendingDerivedActionKeys.add(actionKey)
+    persistConversationSnapshot(effectiveExecutionContext)
+    await persistBackendDerivedQuestionMessage(questionRecord, effectiveExecutionContext)
+    await persistBackendDerivedAnswerMessage(answerRecord, effectiveExecutionContext)
 
     const controller = new AbortController()
-    sqlbotAnalysisControllerMap.set(record.localId, controller)
+    sqlbotAnalysisControllerMap.set(answerRecord.localId, controller)
+    let shouldPersistFinalAnswer = false
 
     try {
-      await streamSQLBotRecordAnalysis(requestContext, record.id, {
+      await streamSQLBotRecordAnalysis(requestContext, sourceRecord.id, {
         signal: controller.signal,
         onEvent: event => {
-          void applySQLBotAnalysisEvent(record, event, effectiveExecutionContext)
+          void applySQLBotAnalysisEvent(answerRecord, event, effectiveExecutionContext)
         }
       })
+      shouldPersistFinalAnswer = true
     } catch (error) {
       if (controller.signal.aborted) {
         return
       }
       console.error('stream sqlbot-new analysis failed', error)
-      record.analysisError = error instanceof Error ? error.message : '数据解读执行失败'
+      answerRecord.analysisError = error instanceof Error ? error.message : '数据解读执行失败'
+      answerRecord.analysisLoading = false
+      answerRecord.finish = true
+      shouldPersistFinalAnswer = true
     } finally {
-      record.analysisLoading = false
-      sqlbotAnalysisControllerMap.delete(record.localId)
+      answerRecord.analysisLoading = false
+      answerRecord.finish = true
+      pendingDerivedActionKeys.delete(actionKey)
+      sqlbotAnalysisControllerMap.delete(answerRecord.localId)
+      if (shouldPersistFinalAnswer) {
+        await persistBackendDerivedAnswerMessage(answerRecord, effectiveExecutionContext)
+      }
     }
   }
 
@@ -3010,19 +3610,29 @@ export const useSqlbotNewConversation = () => {
     record: SqlbotNewConversationRecord,
     executionContext?: SqlbotNewExecutionContext
   ) => {
-    const effectiveExecutionContext = record.executionContext || executionContext
+    return requestDerivedRecordPredict(record, executionContext)
+  }
+
+  const requestDerivedRecordPredict = async (
+    sourceRecord: SqlbotNewConversationRecord,
+    executionContext?: SqlbotNewExecutionContext
+  ) => {
+    const effectiveExecutionContext = sourceRecord.executionContext || executionContext
 
     if (activeTab.value !== 'query') {
       ElMessage.info('当前版本暂时只支持问数预测')
       return
     }
 
-    if (!record.id) {
+    if (!sourceRecord.id) {
       ElMessage.warning('当前结果尚未完成，暂时不能预测')
       return
     }
 
-    if (record.predictLoading) {
+    if (
+      isDerivedActionPending(sourceRecord, 'predict') ||
+      hasUnfinishedDerivedAnswer(sourceRecord, 'predict')
+    ) {
       return
     }
 
@@ -3039,33 +3649,54 @@ export const useSqlbotNewConversation = () => {
       return
     }
 
-    record.predict = ''
-    record.predictThinking = ''
-    record.predictError = ''
-    record.predictLoading = true
-    record.predictRecordId = undefined
-    record.predictDuration = undefined
-    record.predictTotalTokens = undefined
+    const session = ensureConversationContainer(effectiveExecutionContext)
+    const question = buildDerivedQuestionText('predict', sourceRecord)
+    const questionRecord = createDerivedQuestionMessage({
+      action: 'predict',
+      sourceRecord,
+      question
+    })
+    const answerRecord = createDerivedAnswerMessage({
+      action: 'predict',
+      sourceRecord,
+      question
+    })
+    session.records.push(questionRecord, answerRecord)
+    const actionKey = getDerivedActionKey(sourceRecord, 'predict')
+    pendingDerivedActionKeys.add(actionKey)
+    persistConversationSnapshot(effectiveExecutionContext)
+    await persistBackendDerivedQuestionMessage(questionRecord, effectiveExecutionContext)
+    await persistBackendDerivedAnswerMessage(answerRecord, effectiveExecutionContext)
 
     const controller = new AbortController()
-    sqlbotPredictControllerMap.set(record.localId, controller)
+    sqlbotPredictControllerMap.set(answerRecord.localId, controller)
+    let shouldPersistFinalAnswer = false
 
     try {
-      await streamSQLBotRecordPredict(requestContext, record.id, {
+      await streamSQLBotRecordPredict(requestContext, sourceRecord.id, {
         signal: controller.signal,
         onEvent: event => {
-          void applySQLBotPredictEvent(record, event, effectiveExecutionContext)
+          void applySQLBotPredictEvent(answerRecord, event, effectiveExecutionContext)
         }
       })
+      shouldPersistFinalAnswer = true
     } catch (error) {
       if (controller.signal.aborted) {
         return
       }
       console.error('stream sqlbot-new predict failed', error)
-      record.predictError = error instanceof Error ? error.message : '趋势预测执行失败'
+      answerRecord.predictError = error instanceof Error ? error.message : '趋势预测执行失败'
+      answerRecord.predictLoading = false
+      answerRecord.finish = true
+      shouldPersistFinalAnswer = true
     } finally {
-      record.predictLoading = false
-      sqlbotPredictControllerMap.delete(record.localId)
+      answerRecord.predictLoading = false
+      answerRecord.finish = true
+      pendingDerivedActionKeys.delete(actionKey)
+      sqlbotPredictControllerMap.delete(answerRecord.localId)
+      if (shouldPersistFinalAnswer) {
+        await persistBackendDerivedAnswerMessage(answerRecord, effectiveExecutionContext)
+      }
     }
   }
 
@@ -3215,8 +3846,13 @@ export const useSqlbotNewConversation = () => {
     primeFollowUpQuestion,
     recommendedQuestions,
     clearRestoredHistoryContext,
+    isDerivedAnswerRecord,
+    isDerivedQuestionRecord,
+    isFactAnswerRecord,
     requestRecordAnalysis,
     requestRecordPredict,
+    requestDerivedRecordAnalysis,
+    requestDerivedRecordPredict,
     resetConversation,
     restoredHistoryContext,
     restoreHistorySession,

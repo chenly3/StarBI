@@ -3,7 +3,7 @@ import toolboxData_fill from '@/assets/svg/toolbox-data_fill.svg'
 import toolboxIcon_template from '@/assets/svg/toolbox-icon_template.svg'
 import toolboxLog from '@/assets/svg/toolbox-log.svg'
 import sysTools from '@/assets/svg/sys-tools.svg'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, markRaw } from 'vue'
 import { useRouter } from 'vue-router_2'
 import TopDocCard from '@/layout/components/TopDocCard.vue'
 import { useAppearanceStoreWithOut } from '@/store/modules/appearance'
@@ -36,7 +36,7 @@ const loadInfoList = () => {
       name: item.meta.title,
       rName: item.name,
       path: item.path,
-      icon: iconMap['toolbox-' + item.meta.icon]
+      icon: markRaw(iconMap['toolbox-' + item.meta.icon])
     }
     cardInfoList.value.push(temp)
   })
