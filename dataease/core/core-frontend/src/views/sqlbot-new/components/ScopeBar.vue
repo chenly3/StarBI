@@ -1,7 +1,7 @@
 <template>
   <div class="scope-bar">
-    <div class="scope-bar-info">
-      <div class="scope-bar-theme-icon">
+    <div class="scope-bar__info">
+      <div class="scope-bar__theme-icon">
         <svg
           width="16"
           height="16"
@@ -16,15 +16,15 @@
           <polyline points="9 22 9 12 15 12 15 22" />
         </svg>
       </div>
-      <div class="scope-bar-text">
-        <span class="scope-bar-theme-name">{{ themeName || '未选择主题' }}</span>
-        <span class="scope-bar-separator">·</span>
-        <span class="scope-bar-dataset">{{ datasetName || '--' }}</span>
+      <div class="scope-bar__text">
+        <span class="scope-bar__theme-name">{{ themeName || '未选择主题' }}</span>
+        <span class="scope-bar__separator">·</span>
+        <span class="scope-bar__dataset">{{ datasetName || '--' }}</span>
         <template v-if="timeRange">
-          <span class="scope-bar-separator">·</span>
-          <span class="scope-bar-timerange">{{ timeRange }}</span>
+          <span class="scope-bar__separator">·</span>
+          <span class="scope-bar__timerange">{{ timeRange }}</span>
         </template>
-        <span v-if="dashboardName" class="scope-bar-badge">
+        <span v-if="dashboardName" class="scope-bar__badge">
           <svg
             width="12"
             height="12"
@@ -42,7 +42,7 @@
         </span>
       </div>
     </div>
-    <button class="scope-bar-switch" @click="$emit('switch')">
+    <button class="scope-bar__switch" @click="$emit('switch')">
       <svg
         width="14"
         height="14"
@@ -85,21 +85,21 @@ defineEmits<{
   justify-content: space-between;
 }
 
-.scope-bar-info {
+.scope-bar__info {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
 
-.scope-bar-theme-icon {
+.scope-bar__theme-icon {
   display: flex;
   align-items: center;
   color: #1e40af;
   flex-shrink: 0;
 }
 
-.scope-bar-text {
+.scope-bar__text {
   display: flex;
   min-width: 0;
   font-size: 13px;
@@ -109,27 +109,27 @@ defineEmits<{
   flex-wrap: wrap;
 }
 
-.scope-bar-theme-name {
+.scope-bar__theme-name {
   font-weight: 600;
   color: #1e3a8a;
   white-space: nowrap;
 }
 
-.scope-bar-dataset {
+.scope-bar__dataset {
   white-space: nowrap;
 }
 
-.scope-bar-separator {
+.scope-bar__separator {
   color: #cbd5e1;
   user-select: none;
 }
 
-.scope-bar-timerange {
+.scope-bar__timerange {
   color: #64748b;
   white-space: nowrap;
 }
 
-.scope-bar-badge {
+.scope-bar__badge {
   display: inline-flex;
   padding: 2px 8px;
   font-size: 11px;
@@ -141,7 +141,7 @@ defineEmits<{
   gap: 4px;
 }
 
-.scope-bar-switch {
+.scope-bar__switch {
   display: flex;
   padding: 4px 12px;
   font-family: inherit;
@@ -158,12 +158,12 @@ defineEmits<{
   flex-shrink: 0;
 }
 
-.scope-bar-switch:hover {
+.scope-bar__switch:hover {
   background: rgb(30 64 175 / 10%);
   border-color: rgb(30 64 175 / 40%);
 }
 
-.scope-bar-switch:active {
+.scope-bar__switch:active {
   transform: scale(0.97);
 }
 </style>

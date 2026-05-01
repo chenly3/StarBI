@@ -6,6 +6,7 @@ import Exceljs from 'exceljs'
 import { saveAs } from 'file-saver'
 import html2canvas from 'html2canvas'
 import NativeChartPreview from '@/views/sqlbot/NativeChartPreview.vue'
+import ReasoningPanel from '@/views/sqlbot/components/ReasoningPanel.vue'
 import { explainSqlbotError } from '@/views/sqlbot/sqlbotErrorInfo'
 import StarbiMarkdown from '@/views/sqlbot/StarbiMarkdown.vue'
 import { canAttemptSqlbotChartInsert } from '@/views/sqlbot-new/sqlbotChartInsert'
@@ -47,6 +48,19 @@ interface ChartDataset {
   sql?: string
 }
 
+interface ReasoningFieldValue {
+  field: string
+  value: string
+}
+
+interface ReasoningData {
+  time_range?: ReasoningFieldValue
+  metrics?: ReasoningFieldValue[]
+  dimensions?: ReasoningFieldValue[]
+  filters?: ReasoningFieldValue[]
+  datasource?: ReasoningFieldValue
+}
+
 interface SQLBotChatRecordLike {
   localId: string
   id?: number
@@ -59,6 +73,11 @@ interface SQLBotChatRecordLike {
   analysisError?: string
   analysisDuration?: number
   analysisTotalTokens?: number
+  predict?: string
+  predictThinking?: string
+  predictLoading?: boolean
+  predictError?: string
+  reasoning?: Record<string, any>
   sql?: string
   chart?: string
   data?: ChartDataset | string
@@ -87,17 +106,20 @@ const props = withDefaults(
     sourceInsights?: SqlbotNewSourceInsights | null
     reasoningExpanded?: boolean
     showExecutionDetails?: boolean
+    showPredictAction?: boolean
   }>(),
   {
     sourceInsights: undefined,
     reasoningExpanded: false,
-    showExecutionDetails: false
+    showExecutionDetails: false,
+    showPredictAction: false
   }
 )
 
 const emit = defineEmits<{
   (event: 'toggle-reasoning'): void
   (event: 'interpret'): void
+  (event: 'predict'): void
   (event: 'followup'): void
   (event: 'retry'): void
   (event: 'learning-fix', record: SQLBotChatRecordLike): void
@@ -114,6 +136,7 @@ const fullscreenVisible = ref(false)
 const currentChartType = ref<ChartType>('table')
 const showLabel = ref(true)
 const analysisExpanded = ref(false)
+const predictExpanded = ref(false)
 
 const formatClock = (value?: string | number) => {
   if (!value) {
@@ -336,6 +359,75 @@ const thinkingText = computed(() => {
   return sanitizeNarrative(String(props.record.chartAnswer || props.record.sqlAnswer || ''))
 })
 
+const readReasoningValue = (source: Record<string, any>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = source[key]
+    if (value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+  return undefined
+}
+
+const normalizeReasoningEntry = (value: unknown, fallbackField: string): ReasoningFieldValue | undefined => {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const item = value as Record<string, any>
+    const field = String(item.field || item.name || item.label || fallbackField)
+    const entryValue = readReasoningValue(item, 'value', 'text', 'target', 'fieldName')
+    const renderedValue = entryValue === undefined ? '' : String(entryValue)
+    if (!field && !renderedValue) {
+      return undefined
+    }
+    return {
+      field,
+      value: renderedValue || field
+    }
+  }
+  return {
+    field: fallbackField,
+    value: String(value)
+  }
+}
+
+const normalizeReasoningList = (value: unknown, fallbackField: string) => {
+  const rawItems = Array.isArray(value) ? value : value === undefined ? [] : [value]
+  return rawItems
+    .map(item => normalizeReasoningEntry(item, fallbackField))
+    .filter((item): item is ReasoningFieldValue => Boolean(item))
+}
+
+const normalizeReasoningData = (value?: Record<string, any>): ReasoningData | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const normalized: ReasoningData = {
+    time_range: normalizeReasoningEntry(readReasoningValue(value, 'time_range', 'timeRange'), '时间范围'),
+    metrics: normalizeReasoningList(readReasoningValue(value, 'metrics', 'metric'), '指标'),
+    dimensions: normalizeReasoningList(readReasoningValue(value, 'dimensions', 'dimension'), '维度'),
+    filters: normalizeReasoningList(readReasoningValue(value, 'filters', 'filter'), '筛选条件'),
+    datasource: normalizeReasoningEntry(readReasoningValue(value, 'datasource', 'dataSource'), '数据源')
+  }
+
+  if (
+    normalized.time_range ||
+    normalized.metrics?.length ||
+    normalized.dimensions?.length ||
+    normalized.filters?.length ||
+    normalized.datasource
+  ) {
+    return normalized
+  }
+  return undefined
+}
+
+const structuredReasoning = computed(() => {
+  return normalizeReasoningData(props.record.reasoning)
+})
+
 const errorInfo = computed(() => {
   return explainSqlbotError(String(props.record.error || ''))
 })
@@ -381,7 +473,40 @@ const showReasoningBlock = computed(() => {
   if (!props.record.finish) {
     return true
   }
-  return Boolean(props.reasoningExpanded && (thinkingText.value || props.record.sql))
+  return Boolean(
+    props.reasoningExpanded && (thinkingText.value || structuredReasoning.value || props.record.sql)
+  )
+})
+
+const reasoningDuration = computed(() => {
+  const duration = props.record.duration
+  return Number.isFinite(duration) ? `${duration} 秒` : undefined
+})
+
+const reasoningExecutionSteps = computed(() => {
+  const steps: Array<{ key: string; label: string; value: string }> = []
+  if (props.record.sql) {
+    steps.push({
+      key: 'sql',
+      label: 'SQL 生成',
+      value: '已生成查询语句'
+    })
+  }
+  if (chartLoaded.value) {
+    steps.push({
+      key: 'data',
+      label: '数据加载',
+      value: hasRows.value ? `已返回 ${chartRows.value.length} 行数据` : '已完成查询，暂无数据'
+    })
+  }
+  if (props.record.chart) {
+    steps.push({
+      key: 'chart',
+      label: '图表渲染',
+      value: showChartBlock.value ? '已生成可视化图表' : '已生成图表配置'
+    })
+  }
+  return steps
 })
 
 const showChartBlock = computed(() => {
@@ -465,6 +590,29 @@ const analysisActionText = computed(() => {
   return '数据解读'
 })
 
+const predictContent = computed(() => String(props.record.predict || '').trim())
+const predictAvailable = computed(() => Boolean(predictContent.value))
+const predictLoading = computed(() => Boolean(props.record.predictLoading))
+const predictStatusText = computed(() => {
+  if (props.record.predictError) {
+    return '预测失败'
+  }
+  if (predictLoading.value) {
+    return '生成中'
+  }
+  if (predictAvailable.value) {
+    return '已完成'
+  }
+  return ''
+})
+
+const predictActionText = computed(() => {
+  if (predictLoading.value) {
+    return '趋势预测中...'
+  }
+  return predictAvailable.value ? '查看预测' : '趋势预测'
+})
+
 const sourceInsightsValue = computed(() => props.sourceInsights || null)
 const sourceInsightDatasets = computed(() => sourceInsightsValue.value?.datasets || [])
 const sourceInsightRelations = computed(() => sourceInsightsValue.value?.relations || [])
@@ -494,6 +642,13 @@ const showAnalysisPanel = computed(() => {
   return Boolean(
     analysisExpanded.value &&
       (analysisLoading.value || analysisAvailable.value || props.record.analysisError)
+  )
+})
+
+const showPredictPanel = computed(() => {
+  return Boolean(
+    predictExpanded.value &&
+      (predictLoading.value || predictAvailable.value || props.record.predictError)
   )
 })
 
@@ -604,6 +759,15 @@ const handleInterpretAction = () => {
   }
   analysisExpanded.value = !analysisExpanded.value
 }
+
+const handlePredictAction = () => {
+  if (!predictAvailable.value && !predictLoading.value) {
+    predictExpanded.value = true
+    emit('predict')
+    return
+  }
+  predictExpanded.value = !predictExpanded.value
+}
 </script>
 
 <template>
@@ -616,7 +780,7 @@ const handleInterpretAction = () => {
       </div>
       <div class="starbi-result-head-side">
         <button
-          v-if="thinkingText || record.sql"
+          v-if="thinkingText || structuredReasoning || record.sql"
           class="starbi-result-link"
           type="button"
           @click="emit('toggle-reasoning')"
@@ -714,6 +878,17 @@ const handleInterpretAction = () => {
     </div>
 
     <div v-if="showReasoningBlock" class="starbi-detail-grid">
+      <ReasoningPanel
+        v-if="structuredReasoning"
+        :reasoning="structuredReasoning"
+        :row-count="chartLoaded ? chartRows.length : undefined"
+        :duration="reasoningDuration"
+        :token-count="record.totalTokens"
+        :execution-sql="record.sql"
+        :execution-steps="reasoningExecutionSteps"
+        :record-id="record.id"
+      />
+
       <div v-if="thinkingText" class="starbi-detail-panel" :class="{ live: !record.finish }">
         <div class="starbi-detail-title">{{ reasoningPanelTitle }}</div>
         <div class="starbi-detail-copy">{{ thinkingText }}</div>
@@ -768,6 +943,37 @@ const handleInterpretAction = () => {
 
       <div v-if="record.analysisError" class="starbi-analysis-error">
         {{ record.analysisError }}
+      </div>
+    </div>
+
+    <div
+      v-if="showPredictPanel"
+      class="starbi-analysis-panel"
+      :class="{ loading: predictLoading, error: !!record.predictError }"
+    >
+      <div class="starbi-analysis-head">
+        <div class="starbi-analysis-head-main">
+          <div class="starbi-analysis-kicker">趋势预测</div>
+          <div class="starbi-analysis-title">
+            {{ predictAvailable ? '预测结果与风险提示' : 'StarBI 正在生成趋势预测' }}
+          </div>
+        </div>
+        <span v-if="predictStatusText" class="starbi-analysis-status">
+          {{ predictStatusText }}
+        </span>
+      </div>
+
+      <div v-if="predictLoading && !predictAvailable" class="starbi-analysis-loading">
+        <span class="starbi-analysis-dot"></span>
+        <span class="starbi-analysis-dot"></span>
+        <span class="starbi-analysis-dot"></span>
+        <span>正在基于当前结果生成预测，请稍候</span>
+      </div>
+
+      <StarbiMarkdown v-if="predictAvailable" :message="record.predict || ''" />
+
+      <div v-if="record.predictError" class="starbi-analysis-error">
+        {{ record.predictError }}
       </div>
     </div>
 
@@ -848,6 +1054,18 @@ const handleInterpretAction = () => {
           @click.stop="handleInterpretAction"
         >
           {{ analysisActionText }}
+        </button>
+        <button
+          v-if="showPredictAction && record.finish && !record.error && record.id"
+          class="starbi-foot-btn ghost"
+          :class="{ disabled: predictLoading }"
+          type="button"
+          :disabled="predictLoading"
+          @pointerdown.stop
+          @mousedown.stop
+          @click.stop="handlePredictAction"
+        >
+          {{ predictActionText }}
         </button>
         <button
           v-if="record.finish && !record.error && record.sql"

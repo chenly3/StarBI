@@ -8,6 +8,22 @@ template:
   sql:
     regenerate_hint: |
       你之前生成的回答不符合预期或者系统出现了其他问题，请再次检查提示词内要求的规则和提供的信息，重新回答：
+    reasoning_instruction: &reasoning_instruction |
+      在生成 SQL 时，必须将 reasoning 作为最终回答JSON的一部分输出，禁止在最终回答JSON之前或之后单独输出额外JSON块。reasoning 字段用于简要说明你对问题的理解，格式如下：
+      {
+        "success": true,
+        "reasoning": {
+          "time_range": {"field": "时间范围", "value": "识别到的时间范围"},
+          "metrics": [{"field": "指标名称", "value": "对应的字段名"}],
+          "dimensions": [{"field": "维度名称", "value": "对应的字段名"}],
+          "filters": [{"field": "筛选条件", "value": "识别的筛选"}],
+          "datasource": {"field": "数据源", "value": "使用的数据表/数据集"}
+        },
+        "sql": "你生成的SQL语句",
+        "tables": ["表名"],
+        "chart-type": "table",
+        "brief": "标题"
+      }
 
     process_check: |
       <SQL-Generation-Process>
@@ -150,7 +166,7 @@ template:
           返回的JSON字段中，tables字段为你回答的SQL中所用到的表名，不要包含schema和database，用数组返回
         </rule>
         <rule>
-          提问中如果有涉及数据源名称或数据源描述的内容，则忽略数据源的信息，直接根据剩余内容生成SQL
+          提问中如果涉及数据源名称或数据源描述，应优先结合可用数据源、表结构和知识库判断是否能够明确匹配；若存在多个候选且无法消歧，应列出候选供用户选择
         </rule>
         {base_sql_rules}
         <rule>
@@ -180,6 +196,7 @@ template:
           <requirements>
             <requirement>只基于表结构和问题生成SQL，不考虑额外业务想象</requirement>
             <requirement>当缺少关键时间范围、指标口径、维度对象或数据集归属时，不要直接猜测</requirement>
+            <requirement>如果数据源/指标存在歧义且无法通过知识库消歧，列出候选供用户选择</requirement>
             <requirement>若不澄清就会高概率误答，应先返回结构化澄清问题</requirement>
             <requirement>只有在可以安全默认的场景下，才允许直接补全并继续生成SQL</requirement>
           </requirements>
@@ -766,3 +783,5 @@ template:
       
       ### 子查询映射表:
       {sub_query}
+reasoning:
+  instruction: *reasoning_instruction

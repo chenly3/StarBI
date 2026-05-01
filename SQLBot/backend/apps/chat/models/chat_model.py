@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional, Any, Union
 
 from fastapi import Body
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, Text, BigInteger, DateTime, Identity, Boolean, ForeignKey, String
 from sqlalchemy import Enum as SQLAlchemyEnum
@@ -393,6 +393,7 @@ class AiModelQuestion(BaseModel):
                                                                      example_answer_1=_example_answer_1,
                                                                      example_answer_2=_example_answer_2,
                                                                      example_answer_3=_example_answer_3)
+        templates['reasoning'] = _base_template['reasoning_instruction']
         templates['schema'] = _base_template['generate_basic_info'].format(engine=self.engine, schema=self.db_schema)
 
         if self.terminologies:
@@ -547,3 +548,19 @@ class AIPromptMessage(AIMessage):
             self, content: Union[str, list[Union[str, dict]]], **kwargs: Any
     ) -> None:
         super().__init__(content=content, **kwargs)
+
+
+def build_sql_system_messages(system_templates: dict[str, str]) -> list[Union[BaseMessage, dict[str, Any]]]:
+    messages: list[Union[BaseMessage, dict[str, Any]]] = [
+        SystemPromptMessage(content=system_templates['system']),
+        HumanPromptMessage(content=system_templates['rules']),
+        AIPromptMessage(content='我已掌握所有规则，包括表结构、SQL规范、安全限制和输出格式，我会严格遵守这些规则。'),
+    ]
+    if system_templates.get('reasoning'):
+        messages.append(HumanPromptMessage(content=system_templates['reasoning']))
+        messages.append(AIPromptMessage(content='我已确认会将 reasoning 放入最终JSON回答中，不会单独输出额外JSON块。'))
+    messages.extend([
+        HumanPromptMessage(content=system_templates['schema']),
+        AIPromptMessage(content='我已确认您提供的数据库信息与表结构schema，我生成的SQL不会超出您提供的范围。'),
+    ])
+    return messages

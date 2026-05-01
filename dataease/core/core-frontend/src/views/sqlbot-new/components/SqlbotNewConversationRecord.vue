@@ -20,6 +20,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'interpret', record: SqlbotNewConversationRecord): void
+  (event: 'predict', record: SqlbotNewConversationRecord): void
   (event: 'followup', record: SqlbotNewConversationRecord): void
   (event: 'retry', record: SqlbotNewConversationRecord): void
   (event: 'learning-fix', record: SqlbotNewConversationRecord): void
@@ -68,8 +69,10 @@ watch(
       :source-insights="sourceInsights"
       :reasoning-expanded="reasoningExpanded"
       :show-execution-details="true"
+      :show-predict-action="true"
       @toggle-reasoning="reasoningExpanded = !reasoningExpanded"
       @interpret="emit('interpret', record)"
+      @predict="emit('predict', record)"
       @followup="emit('followup', record)"
       @retry="emit('retry', record)"
       @learning-fix="emit('learning-fix', record)"

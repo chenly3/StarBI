@@ -16,6 +16,7 @@ import SqlbotNewContextSwitchCard from '@/views/sqlbot-new/components/SqlbotNewC
 import SqlbotNewDatasetCombinationDialog from '@/views/sqlbot-new/components/SqlbotNewDatasetCombinationDialog.vue'
 import SqlbotNewDatasetDetailDialog from '@/views/sqlbot-new/components/SqlbotNewDatasetDetailDialog.vue'
 import ExecutionDetailsDrawer from '@/views/sqlbot-new/components/ExecutionDetailsDrawer.vue'
+import ScopeBar from '@/views/sqlbot-new/components/ScopeBar.vue'
 import SqlbotNewFileDetailDialog from '@/views/sqlbot-new/components/SqlbotNewFileDetailDialog.vue'
 import SqlbotNewFileUploadDialog from '@/views/sqlbot-new/components/SqlbotNewFileUploadDialog.vue'
 import SqlbotNewLearningFixDialog, {
@@ -60,6 +61,7 @@ const {
   pageTitle,
   pageSubtitle,
   requestRecordAnalysis,
+  requestRecordPredict,
   resetConversation,
   restoredHistoryContext,
   restoreHistorySession,
@@ -641,6 +643,10 @@ const hasDisplaySelection = computed(() => {
   return Boolean(displaySelectionTitle.value)
 })
 
+const displayThemeName = computed(() => {
+  return activeTheme.value?.name || '全部'
+})
+
 const selectDialogSummary = computed(() => {
   if (selectDialogTab.value === 'dataset') {
     if (!selectedDatasetTitle.value) {
@@ -1142,6 +1148,11 @@ const submitWithDatasetClarification = async (
   question: string,
   reason: 'submit' | 'recommend' = 'submit'
 ) => {
+  const scopeReady = await ensureActiveThemeSelectionReady()
+  if (!scopeReady) {
+    return false
+  }
+
   await ensureRuntimeModelReady()
   const normalizedQuestion = String(question || '').trim()
 
@@ -1191,29 +1202,48 @@ const handleSubmitFromResult = async () => {
 
 const ensureActiveThemeSelectionReady = async () => {
   if (!activeThemeId.value) {
-    return
+    return true
+  }
+  if (selectionActionInFlight.value) {
+    ElMessage.info('正在切换问数范围，请稍后再提交')
+    return false
   }
 
-  const scopedDatasetIds = activeTheme.value?.datasetIds || []
+  const scopedDatasetIds = (activeTheme.value?.datasetIds || [])
+    .map(item => String(item))
+    .filter(Boolean)
   if (!scopedDatasetIds.length) {
-    return
+    ElMessage.warning('当前分析主题未绑定数据集，请先切换主题或绑定数据集')
+    return false
   }
 
-  const currentDatasetId = String(selectedDatasetId.value || '').trim()
-  if (currentDatasetId && scopedDatasetIds.includes(currentDatasetId)) {
-    return
+  const scopedDatasetSet = new Set(scopedDatasetIds)
+  const currentContext = effectiveExecutionContext.value
+  const currentSourceIds =
+    currentContext.queryMode === 'dataset-combination'
+      ? (currentContext.sourceIds || []).map(item => String(item)).filter(Boolean)
+      : [String(selectedDatasetId.value || currentContext.sourceId || '').trim()].filter(Boolean)
+  if (
+    currentSourceIds.length &&
+    currentSourceIds.every(datasetId => scopedDatasetSet.has(datasetId))
+  ) {
+    return true
   }
 
-  const fallbackDatasetId = activeTheme.value?.defaultDatasetIds?.[0] || scopedDatasetIds[0] || ''
+  const fallbackDatasetId =
+    (activeTheme.value?.defaultDatasetIds || []).find(item => scopedDatasetIds.includes(item)) ||
+    scopedDatasetIds[0] ||
+    ''
   if (!fallbackDatasetId) {
-    return
+    ElMessage.warning('当前分析主题未绑定数据集，请先切换主题或绑定数据集')
+    return false
   }
 
   await handleAskFromDatasetCard(fallbackDatasetId)
+  return true
 }
 
 const handleRecommendedQuestion = async (question: string) => {
-  await ensureActiveThemeSelectionReady()
   await submitWithDatasetClarification(question, 'recommend')
 }
 
@@ -1306,6 +1336,10 @@ const handleChooseInsertTarget = async (target: {
 
 const handleInterpretRecord = (record: SqlbotNewConversationRecordItem) => {
   void requestRecordAnalysis(record, effectiveExecutionContext.value)
+}
+
+const handlePredictRecord = (record: SqlbotNewConversationRecordItem) => {
+  void requestRecordPredict(record, effectiveExecutionContext.value)
 }
 
 const handleFollowUpRecord = (record: SqlbotNewConversationRecordItem) => {
@@ -2091,6 +2125,11 @@ const conversationAnswerTurnMap = computed(() => {
 
         <template v-else>
           <section class="sqlbot-conversation-shell">
+            <ScopeBar
+              :theme-name="displayThemeName"
+              :dataset-name="displaySelectionTitle"
+              @switch="openSelectDialog()"
+            />
             <div ref="conversationScrollRef" class="sqlbot-conversation-scroll">
               <section class="sqlbot-conversation">
                 <template v-if="hasConversationRecords">
@@ -2119,6 +2158,7 @@ const conversationAnswerTurnMap = computed(() => {
                           @clarification-selection-change="handleClarificationSelectionChange"
                           @prefill-question="handlePrefillQuestion"
                           @interpret="handleInterpretRecord"
+                          @predict="handlePredictRecord"
                           @followup="handleFollowUpRecord"
                           @learning-fix="openLearningFixDialog"
                           @insert-dashboard="handleInsertDashboardRecord"

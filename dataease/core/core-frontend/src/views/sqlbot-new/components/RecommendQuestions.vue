@@ -1,8 +1,8 @@
 <template>
   <div v-if="questions.length" class="recommend-questions">
-    <div class="recommend-questions-header">
+    <div class="recommend-questions__header">
       <svg
-        class="recommend-questions-icon"
+        class="recommend-questions__icon"
         width="15"
         height="15"
         viewBox="0 0 24 24"
@@ -14,20 +14,20 @@
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="10" y1="11" x2="14" y2="11" />
       </svg>
-      <span class="recommend-questions-label">{{ title }}</span>
+      <span class="recommend-questions__label">{{ title }}</span>
     </div>
-    <div class="recommend-questions-list">
+    <div class="recommend-questions__list">
       <button
         v-for="q in questions"
         :key="q"
         class="recommend-question-card"
-        :class="{ 'recommend-question-card-loading': loading }"
+        :class="{ 'recommend-question-card--loading': loading }"
         :disabled="loading"
         @click="$emit('select', q)"
       >
-        <span class="recommend-question-card-text">{{ q }}</span>
+        <span class="recommend-question-card__text">{{ q }}</span>
         <svg
-          class="recommend-question-card-arrow"
+          class="recommend-question-card__arrow"
           width="14"
           height="14"
           viewBox="0 0 24 24"
@@ -60,7 +60,7 @@ defineEmits<{
   margin-top: 16px;
 }
 
-.recommend-questions-header {
+.recommend-questions__header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -68,18 +68,18 @@ defineEmits<{
   color: #64748b;
 }
 
-.recommend-questions-icon {
+.recommend-questions__icon {
   flex-shrink: 0;
 }
 
-.recommend-questions-label {
+.recommend-questions__label {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
-.recommend-questions-list {
+.recommend-questions__list {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -112,24 +112,24 @@ defineEmits<{
   transform: translateX(4px) scale(0.99);
 }
 
-.recommend-question-card-loading {
+.recommend-question-card--loading {
   cursor: wait;
   opacity: 0.5;
 }
 
-.recommend-question-card-text {
+.recommend-question-card__text {
   flex: 1;
   line-height: 1.5;
 }
 
-.recommend-question-card-arrow {
+.recommend-question-card__arrow {
   color: #1e40af;
   opacity: 0;
   transition: opacity 200ms ease-out;
   flex-shrink: 0;
 }
 
-.recommend-question-card:hover .recommend-question-card-arrow {
+.recommend-question-card:hover .recommend-question-card__arrow {
   opacity: 1;
 }
 </style>

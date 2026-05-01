@@ -807,3 +807,48 @@ export const streamSQLBotRecordAnalysis = async (
     })
   }
 }
+
+export const streamSQLBotRecordPredict = async (
+  context: SQLBotRequestContext,
+  recordId: number,
+  options: {
+    signal?: AbortSignal
+    onEvent: (event: SQLBotStreamEvent) => void
+  }
+) => {
+  const response = await fetchSqlBotWithFallback(
+    context.domain,
+    base => `${base}/chat/record/${recordId}/predict`,
+    {
+      method: 'POST',
+      headers: buildAssistantHeaders(context),
+      body: JSON.stringify({}),
+      signal: options.signal
+    }
+  )
+
+  if (!response.ok || !response.body) {
+    throw new Error(`SQLBot predict stream failed: ${response.status}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      if (buffer.trim()) {
+        readStreamChunk(buffer, options.onEvent)
+      }
+      break
+    }
+
+    buffer += decoder.decode(value, { stream: true })
+    const segments = buffer.split('\n\n')
+    buffer = segments.pop() || ''
+    segments.forEach(segment => {
+      readStreamChunk(segment, options.onEvent)
+    })
+  }
+}
