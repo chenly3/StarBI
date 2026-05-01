@@ -39,6 +39,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router_2'
+import type { LocationQueryRaw } from 'vue-router_2'
 import { useI18n } from '@/hooks/web/useI18n'
 import QueryThemePage from '@/views/visualized/data/query-theme/index.vue'
 import QueryResourcePrototype from './QueryResourcePrototype.vue'
@@ -69,7 +70,7 @@ const currentTab = computed(() => {
 })
 
 const setCurrentTab = (tabName: QueryConfigTabName) => {
-  const nextQuery = { ...route.query, tab: tabName }
+  const nextQuery: LocationQueryRaw = { ...route.query, tab: tabName }
   delete nextQuery.datasetId
   delete nextQuery.datasetName
 
@@ -107,7 +108,7 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 0;
   background: transparent;
   border: none;
@@ -118,7 +119,7 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
   min-height: 0;
   flex: 1 1 auto;
   background: transparent;
-  height: auto;
+  height: 100%;
 }
 
 .general-config-content :deep(.query-resource-prototype) {
@@ -128,7 +129,7 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
   flex: 1 1 auto;
   border: 1px solid #e6ebf2;
   border-radius: 14px;
-  padding: 12px;
+  padding: 12px 14px;
   box-sizing: border-box;
   background: #fff;
   box-shadow: 0 8px 20px rgba(31, 68, 143, 0.045);
@@ -137,21 +138,21 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
 .general-config-content :deep(.query-theme-layout) {
   grid-template-columns: 292px minmax(0, 1fr);
   gap: 12px;
-  height: auto;
+  height: 100%;
   min-height: 0;
-  align-items: start;
+  align-items: stretch;
 }
 
 .general-config-content :deep(.query-theme-panel) {
   border-radius: 12px;
   border-color: #e6ebf2;
   box-shadow: none;
-  height: auto;
+  height: 100%;
   min-height: 0;
 }
 
 .general-config-content :deep(.resource-manage-card) {
-  height: auto;
+  height: 100%;
   min-height: 0;
   box-shadow: none;
 }
@@ -180,7 +181,7 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
 
 .general-config-content :deep(.theme-main-page-search-input),
 .general-config-content :deep(.resource-manage-search-input) {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .general-config-content :deep(.theme-main-page-table-row) {
@@ -188,19 +189,41 @@ const setCurrentTab = (tabName: QueryConfigTabName) => {
 }
 
 .general-config-content :deep(.theme-main-page-table-head) {
-  min-height: 46px;
-  font-size: 13px;
+  min-height: 50px;
+  font-size: 15px;
 }
 
 .general-config-content :deep(.theme-main-page-resource-name),
 .general-config-content :deep(.resource-manage-name),
 .general-config-content :deep(.resource-manage-tag) {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .general-config-content :deep(.theme-main-page-table-cell),
 .general-config-content :deep(.resource-manage-cell) {
+  font-size: 15px;
+  line-height: 24px;
+}
+
+.general-config-content :deep(.resource-manage-table-head) {
+  min-height: 50px;
+  font-size: 15px;
+}
+
+.general-config-content :deep(.resource-manage-table-row) {
+  min-height: 66px;
+}
+
+.general-config-content :deep(.resource-manage-subtitle),
+.general-config-content :deep(.theme-name-list),
+.general-config-content :deep(.preview-link) {
   font-size: 14px;
+  line-height: 22px;
+}
+
+.general-config-content :deep(.theme-main-page-cta),
+.general-config-content :deep(.theme-main-page-action-button) {
+  font-size: 15px;
 }
 
 @media (max-width: 1440px) {

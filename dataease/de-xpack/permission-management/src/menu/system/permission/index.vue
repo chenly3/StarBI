@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { useRoute, useRouter } from './useHashRoute'
+import { useRoute, useRouter } from './useHostRoute'
 import MenuPermissionPanel from './MenuPermissionPanel.vue'
 import ResourcePermissionPanel from './ResourcePermissionPanel.vue'
 import { usePermissionShellStore } from './store'
@@ -32,6 +32,9 @@ watch(
   () => route.query,
   async query => {
     const normalizedQuery = query as Record<string, unknown>
+    if (route.path !== '/sys-setting/permission') {
+      return
+    }
     const sheet = resolveSheet(normalizedQuery)
     const rawSheet = queryValue(normalizedQuery.sheet)
     const needsSheetNormalization = rawSheet !== sheet
@@ -39,7 +42,7 @@ watch(
     const defaultMode = sheet === 'resource' ? 'by-resource' : 'by-user'
     const rawMode = queryValue(normalizedQuery.mode)
     const mode = rawMode === 'by-resource' || rawMode === 'by-user' ? rawMode : defaultMode
-    const defaultTab = mode === 'by-resource' ? 'menu' : 'resource'
+    const defaultTab = 'menu'
     const rawTab = queryValue(normalizedQuery.tab)
     const tab = rawTab === 'menu' || rawTab === 'resource' ? rawTab : defaultTab
 
@@ -72,7 +75,7 @@ const openSheet = async (sheet: PermissionSheet) => {
   delete nextQuery.datasetName
   if (sheet === 'user') {
     nextQuery.mode = 'by-user'
-    nextQuery.tab = 'resource'
+    nextQuery.tab = 'menu'
   } else {
     nextQuery.mode = 'by-resource'
     nextQuery.tab = 'menu'

@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute, useRouter } from './useHashRoute'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from './useHostRoute'
 import { usePermissionShellStore } from './store'
 import {
   PERMISSION_COLUMN_DEFINITIONS
 } from './types'
-import type { PermissionColumnKey, PermissionSubjectType, PermissionTreeRow } from './types'
+import type {
+  PermissionColumnKey,
+  PermissionSubjectOption,
+  PermissionSubjectType,
+  PermissionTreeRow
+} from './types'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +25,12 @@ const shell = usePermissionShellStore()
 const route = useRoute()
 const router = useRouter()
 const permissionColumns = PERMISSION_COLUMN_DEFINITIONS
+const subjectKeyword = ref('')
+const resourceKeyword = ref('')
+const originKeyword = ref('')
+const selectedMenuGroupId = ref<number | null>(null)
+
+const normalizeKeyword = (value: string) => value.trim().toLowerCase()
 
 const replaceView = async (mode: 'by-user' | 'by-resource', tab: 'menu' | 'resource') => {
   await router.replace({
@@ -33,7 +44,7 @@ const replaceView = async (mode: 'by-user' | 'by-resource', tab: 'menu' | 'resou
 }
 
 const openMode = async (mode: 'by-user' | 'by-resource') => {
-  const nextTab = mode === 'by-user' ? 'resource' : shell.tab.value
+  const nextTab = mode === 'by-user' ? 'menu' : shell.tab.value
   await replaceView(mode, nextTab)
 }
 
@@ -52,6 +63,29 @@ const panelState = computed(() => shell.menuPanel.value)
 
 const topGroups = computed(() => panelState.value.tree || [])
 
+const findSelectedGroupIds = (
+  nodes: PermissionTreeRow[],
+  selectedId: number | null
+): Set<number> | null => {
+  if (selectedId == null) {
+    return null
+  }
+  const selectedIndex = nodes.findIndex(row => row.id === selectedId)
+  if (selectedIndex < 0) {
+    return null
+  }
+  const selectedLevel = nodes[selectedIndex].level
+  const ids = new Set<number>()
+  for (let index = selectedIndex; index < nodes.length; index += 1) {
+    const row = nodes[index]
+    if (index > selectedIndex && row.level <= selectedLevel) {
+      break
+    }
+    ids.add(row.id)
+  }
+  return ids
+}
+
 const selectedResourceName = computed(() => {
   const findName = (rows: PermissionTreeRow[], id: number | null): string => {
     if (id == null) {
@@ -64,7 +98,55 @@ const selectedResourceName = computed(() => {
 })
 
 const rows = computed(() => panelState.value.rows || [])
+const selectedMenuRows = computed(() => {
+  const ids = findSelectedGroupIds(rows.value, selectedMenuGroupId.value)
+  return ids ? rows.value.filter(row => ids.has(row.id)) : rows.value
+})
 const originRows = computed(() => panelState.value.originRows || [])
+const visibleSubjects = computed(() => {
+  const keyword = normalizeKeyword(subjectKeyword.value)
+  if (!keyword) {
+    return shell.filteredSubjects.value
+  }
+  return shell.filteredSubjects.value.filter(subject => {
+    const name = subject.name.toLowerCase()
+    const account = String(subject.account || '').toLowerCase()
+    return name.includes(keyword) || account.includes(keyword)
+  })
+})
+const visibleRows = computed(() => {
+  const keyword = normalizeKeyword(resourceKeyword.value)
+  if (!keyword) {
+    return selectedMenuRows.value
+  }
+  return selectedMenuRows.value.filter(row => row.name.toLowerCase().includes(keyword))
+})
+const visibleOriginRows = computed(() => {
+  const keyword = normalizeKeyword(originKeyword.value)
+  if (!keyword) {
+    return originRows.value
+  }
+  return originRows.value.filter(row => row.name.toLowerCase().includes(keyword))
+})
+const duplicatedSubjectNames = computed(() => {
+  const counts = new Map<string, number>()
+  shell.filteredSubjects.value.forEach(subject => {
+    counts.set(subject.name, (counts.get(subject.name) || 0) + 1)
+  })
+  return new Set(
+    Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name)
+  )
+})
+
+const shouldShowSubjectAccount = (subject: PermissionSubjectOption) => {
+  return Boolean(
+    subject.account &&
+      subject.account !== subject.name &&
+      duplicatedSubjectNames.value.has(subject.name)
+  )
+}
 
 const selectSubject = async (subjectId: number) => {
   if (shell.selectedSubjectId.value === subjectId) {
@@ -78,6 +160,10 @@ const selectResource = async (resourceId: number) => {
     return
   }
   await shell.setSelectedResourceId(resourceId)
+}
+
+const selectMenuGroup = (resourceId: number | null) => {
+  selectedMenuGroupId.value = resourceId
 }
 
 const toggleRow = (resourceId: number, permissionKey: PermissionColumnKey) => {
@@ -96,10 +182,6 @@ const save = async () => {
 <template>
   <main class="permission-page">
     <section class="permission-page__content">
-      <header class="permission-page__header">
-        <h1>权限配置</h1>
-      </header>
-
       <div class="content__inner">
         <div v-if="props.showPrimarySwitch" class="switch-row">
           <button
@@ -124,6 +206,10 @@ const save = async () => {
           <div class="panel__toolbar">
             <div class="tab-row">
               <template v-if="shell.mode.value === 'by-user'">
+                <button type="button" class="tab-row__item is-active">菜单权限</button>
+                <button type="button" class="tab-row__item" @click="openTab('resource')">
+                  资源权限
+                </button>
                 <button
                   type="button"
                   class="tab-row__item"
@@ -149,7 +235,10 @@ const save = async () => {
               </template>
             </div>
             <div class="panel__section-title">菜单权限</div>
-            <div class="search-box"><span>⌕</span><span>搜索名称</span></div>
+            <label class="search-box">
+              <span>⌕</span>
+              <input v-model.trim="resourceKeyword" type="search" placeholder="搜索菜单名称" />
+            </label>
             <button
               type="button"
               class="save-btn"
@@ -163,29 +252,43 @@ const save = async () => {
 
           <div v-if="shell.mode.value === 'by-user'" class="panel__body panel__body--user">
             <div class="column column--subjects">
-              <div class="search-box search-box--small"><span>⌕</span><span>搜索</span></div>
+              <label class="search-box search-box--small">
+                <span>⌕</span>
+                <input v-model.trim="subjectKeyword" type="search" placeholder="搜索用户或账号" />
+              </label>
               <div class="list-card">
                 <button
-                  v-for="subject in shell.filteredSubjects.value"
+                  v-for="subject in visibleSubjects"
                   :key="subject.id"
                   type="button"
                   class="list-card__item"
                   :class="{ 'is-active': shell.selectedSubjectId.value === subject.id }"
                   @click="selectSubject(subject.id)"
                 >
-                  {{ subject.name }}
+                  <span class="subject-name">{{ subject.name }}</span>
+                  <span v-if="shouldShowSubjectAccount(subject)" class="subject-account">
+                    {{ subject.account }}
+                  </span>
                 </button>
               </div>
             </div>
 
             <div class="column column--groups">
               <button
+                type="button"
+                class="group-item"
+                :class="{ 'is-active': selectedMenuGroupId === null }"
+                @click="selectMenuGroup(null)"
+              >
+                全部菜单
+              </button>
+              <button
                 v-for="group in topGroups"
                 :key="group.id"
                 type="button"
                 class="group-item"
-                :class="{ 'is-active': shell.selectedResourceId.value === group.id }"
-                @click="selectResource(group.id)"
+                :class="{ 'is-active': selectedMenuGroupId === group.id }"
+                @click="selectMenuGroup(group.id)"
               >
                 {{ group.name }}
               </button>
@@ -197,7 +300,7 @@ const save = async () => {
                   <span class="name-col">资源名称</span>
                   <span v-for="column in permissionColumns" :key="column.key">{{ column.label }}</span>
                 </div>
-                <div v-for="row in rows" :key="row.id" class="table-card__row">
+                <div v-for="row in visibleRows" :key="row.id" class="table-card__row">
                   <div class="name-col name-cell" :style="{ paddingLeft: `${20 + row.level * 22}px` }">
                     <span class="tree-arrow" :class="{ hidden: row.leaf }">⌄</span>
                     <span class="node-icon" :class="{ file: row.leaf }"></span>
@@ -238,13 +341,16 @@ const save = async () => {
               </div>
             </div>
             <div class="column column--table">
-              <div class="search-box search-box--full"><span>⌕</span><span>搜索</span></div>
+              <label class="search-box search-box--full">
+                <span>⌕</span>
+                <input v-model.trim="originKeyword" type="search" placeholder="搜索用户或角色" />
+              </label>
               <div class="table-card">
                 <div class="table-card__head">
                   <span class="name-col">名称</span>
                   <span v-for="column in permissionColumns" :key="column.key">{{ column.label }}</span>
                 </div>
-                <div v-for="row in originRows" :key="row.id" class="table-card__row">
+                <div v-for="row in visibleOriginRows" :key="row.id" class="table-card__row">
                   <div class="name-col">{{ row.name }}</div>
                   <button
                     v-for="column in permissionColumns"
@@ -353,7 +459,7 @@ const save = async () => {
 
 .panel__toolbar {
   display: grid;
-  grid-template-columns: minmax(184px, 212px) minmax(110px, 132px) minmax(280px, 1fr) 88px;
+  grid-template-columns: minmax(260px, max-content) minmax(220px, 1fr) 88px;
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
@@ -377,7 +483,7 @@ const save = async () => {
   border-radius: 9px;
   background: transparent;
   color: #667085;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 .tab-row__item.is-active {
@@ -385,6 +491,7 @@ const save = async () => {
   background: #eef4ff;
 }
 .panel__section-title {
+  display: none;
   color: #2f6bff;
   font-size: 15px;
   font-weight: 700;
@@ -393,15 +500,35 @@ const save = async () => {
 .search-box {
   height: 40px;
   border: 1px solid #d7deea;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 10px;
   color: #98a2b3;
-  font-size: 14px;
+  font-size: 15px;
   box-sizing: border-box;
   background: #ffffff;
+}
+
+.search-box:focus-within {
+  border-color: #6f99ff;
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.1);
+}
+
+.search-box input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #26364f;
+  font: inherit;
+}
+
+.search-box input::placeholder {
+  color: #98a2b3;
 }
 
 .search-box--small {
@@ -421,7 +548,7 @@ const save = async () => {
   border-radius: 8px;
   background: #c7ccd5;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -430,23 +557,30 @@ const save = async () => {
 .panel__body {
   display: grid;
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .panel__body--user {
-  grid-template-columns: minmax(196px, 240px) minmax(168px, 220px) minmax(520px, 1fr);
+  grid-template-columns: minmax(204px, 240px) minmax(150px, 168px) minmax(0, 1fr);
 }
 
 .panel__body--resource {
-  grid-template-columns: minmax(196px, 240px) minmax(220px, 280px) minmax(520px, 1fr);
+  grid-template-columns: minmax(178px, 210px) minmax(190px, 228px) minmax(0, 1fr);
 }
 
 .column--table,
 .table-card {
   min-width: 0;
+}
+
+.column--table {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 .column--subjects,
@@ -459,29 +593,57 @@ const save = async () => {
   border-radius: 12px;
   background: #fbfcff;
   box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .list-card {
   border: 1px solid #dfe7f3;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
   background: #ffffff;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .list-card__item {
   width: 100%;
   border: none;
   text-align: left;
-  height: 40px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 6px 14px;
   color: #344054;
   background: #fff;
-  font-size: 14px;
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 .list-card__item + .list-card__item {
   border-top: 1px solid #eef2f7;
 }
 .list-card__item.is-active { background: #eaf2ff; color: #2f6bff; font-weight: 600; }
+
+.subject-name,
+.subject-account {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subject-account {
+  color: #7a8699;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.list-card__item.is-active .subject-account {
+  color: #5d7edb;
+}
 
 .group-item {
   width: 100%;
@@ -494,7 +656,7 @@ const save = async () => {
   border-radius: 10px;
   color: #344054;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
 }
 .group-item + .group-item {
   margin-top: 4px;
@@ -510,7 +672,7 @@ const save = async () => {
   border-radius: 10px;
   background: #eaf2ff;
   color: #2f6bff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -522,37 +684,47 @@ const save = async () => {
 .table-card {
   border: 1px solid #dfe7f3;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
   background: #ffffff;
+  flex: 1 1 auto;
+  min-height: 0;
   box-shadow: none;
 }
 
 .table-card__head,
 .table-card__row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) repeat(4, minmax(78px, 96px));
+  grid-template-columns: minmax(260px, 1fr) repeat(4, 96px);
   align-items: center;
-  min-height: 44px;
+  min-height: 50px;
+  min-width: 644px;
 }
 
 .table-card__head {
   background: #f5f8fd;
-  color: #475467;
-  font-size: 13px;
-  font-weight: 600;
+  color: #243047;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .table-card__row {
   border-top: 1px solid #eef2f7;
   color: #344054;
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 24px;
 }
 .table-card__row:nth-child(odd) {
   background: #fcfdff;
 }
 
 .name-col {
-  padding: 0 14px;
+  padding: 0 18px;
+}
+
+.table-card__head span:not(.name-col),
+.table-card__row > button {
+  text-align: center;
+  justify-self: stretch;
 }
 
 .name-cell {
@@ -586,25 +758,25 @@ const save = async () => {
 
 @media (max-width: 1480px) {
   .panel__toolbar {
-    grid-template-columns: minmax(168px, 196px) 120px minmax(220px, 1fr) 88px;
+    grid-template-columns: minmax(260px, max-content) minmax(220px, 1fr) 88px;
     gap: 14px;
   }
 
   .panel__body--user {
-    grid-template-columns: minmax(176px, 204px) minmax(152px, 180px) minmax(460px, 1fr);
+    grid-template-columns: minmax(196px, 220px) minmax(146px, 164px) minmax(0, 1fr);
   }
 
   .panel__body--resource {
-    grid-template-columns: minmax(176px, 204px) minmax(212px, 248px) minmax(460px, 1fr);
+    grid-template-columns: minmax(170px, 196px) minmax(180px, 210px) minmax(0, 1fr);
   }
 
   .table-card__head,
   .table-card__row {
-    grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(66px, 76px));
+    grid-template-columns: minmax(240px, 1fr) repeat(4, 88px);
   }
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1100px) {
   .switch-row {
     width: 100%;
   }
@@ -649,7 +821,7 @@ const save = async () => {
 
   .table-card__head,
   .table-card__row {
-    grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(72px, 84px));
+    grid-template-columns: minmax(220px, 1fr) repeat(4, 88px);
   }
 }
 </style>

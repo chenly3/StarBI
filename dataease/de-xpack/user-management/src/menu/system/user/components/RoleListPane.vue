@@ -188,7 +188,7 @@ watch(
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 15px;
   background: transparent;
   color: #1f2a44;
 }
@@ -204,7 +204,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   color: #5a657c;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -270,7 +270,7 @@ watch(
 .role-list-pane__empty,
 .role-list-pane__state {
   color: #97a1b4;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .role-list-pane__empty {

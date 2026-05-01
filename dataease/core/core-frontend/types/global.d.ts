@@ -3,6 +3,10 @@ declare global {
   interface Window {
     DataEaseBi: any
     _de_get_time_out: number
+    AMap: any
+    TMap: any
+    T: any
+    tinymce: any
   }
   interface Fn<T = any> {
     (...arg: T[]): T
@@ -38,6 +42,7 @@ declare global {
     code: string | number
     data: T extends any ? T : T & any
     msg: string
+    [key: string]: any
   }
 
   type DeepPartial<T> = {

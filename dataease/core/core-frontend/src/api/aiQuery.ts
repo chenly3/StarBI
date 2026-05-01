@@ -29,6 +29,37 @@ const resolveFetchUrl = (url: string) => {
   return `${base}${url}`
 }
 
+const unwrapResponseData = (response: any) => {
+  let payload = response
+  while (
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload) &&
+    'data' in payload &&
+    'code' in payload
+  ) {
+    payload = payload.data
+  }
+  return payload
+}
+
+const normalizeArrayResponse = (response: any) => {
+  const payload = unwrapResponseData(response)
+  return Array.isArray(payload) ? payload : []
+}
+
+const normalizePageResponse = (response: any) => {
+  const payload = unwrapResponseData(response)
+  const data = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
+  return {
+    current_page: payload?.current_page || 1,
+    page_size: payload?.page_size || data.length,
+    total_count: payload?.total_count || data.length,
+    total_pages: payload?.total_pages || 0,
+    data
+  }
+}
+
 const parseSseMessage = (message: string): ChatStreamEvent | null => {
   const event: ChatStreamEvent = { data: '' }
   const data: string[] = []
@@ -120,21 +151,46 @@ export const chatRecommend = (data: Record<string, unknown>) =>
   request.post({ url: '/ai/query/chat/recommend', data })
 
 // --- Models ---
-export const listModels = () => request.get({ url: '/ai/query/models' })
+export const listModels = () =>
+  request.get({ url: '/ai/query/models', silentError: true }).then(normalizeArrayResponse)
+export const getModel = (id: string) =>
+  request.get({ url: `/ai/query/models/${id}` }).then(unwrapResponseData)
 export const createModel = (data: Record<string, unknown>) =>
-  request.post({ url: '/ai/query/models', data })
+  request.post({ url: '/ai/query/models', data }).then(unwrapResponseData)
 export const updateModel = (id: string, data: Record<string, unknown>) =>
-  request.put({ url: `/ai/query/models/${id}`, data })
-export const deleteModel = (id: string) => request.delete({ url: `/ai/query/models/${id}` })
+  request.post({ url: '/ai/query/models/save', data: { ...data, id } }).then(unwrapResponseData)
+export const deleteModel = (id: string) =>
+  request.delete({ url: `/ai/query/models/${id}` }).then(unwrapResponseData)
+export const setDefaultModel = (id: string) =>
+  request.put({ url: `/ai/query/models/${id}/default` }).then(unwrapResponseData)
+export const checkModel = (data: Record<string, unknown>) =>
+  request.post({ url: '/ai/query/models/check', data }).then(unwrapResponseData)
 
 // --- Terminology ---
 export const listTerminology = (params?: Record<string, unknown>) =>
-  request.get({ url: '/ai/query/terminology', params })
+  request
+    .get({ url: '/ai/query/terminology', params, silentError: true })
+    .then(normalizePageResponse)
+export const getTerm = (id: string) =>
+  request.get({ url: `/ai/query/terminology/${id}` }).then(unwrapResponseData)
 export const createTerm = (data: Record<string, unknown>) =>
-  request.post({ url: '/ai/query/terminology', data })
+  request.post({ url: '/ai/query/terminology', data }).then(unwrapResponseData)
 export const updateTerm = (id: string, data: Record<string, unknown>) =>
-  request.put({ url: `/ai/query/terminology/${id}`, data })
-export const deleteTerm = (id: string) => request.delete({ url: `/ai/query/terminology/${id}` })
+  request
+    .post({ url: '/ai/query/terminology/save', data: { ...data, id } })
+    .then(unwrapResponseData)
+export const deleteTerm = (id: string) =>
+  request.post({ url: '/ai/query/terminology/delete', data: [id] }).then(unwrapResponseData)
+export const createOrUpdateTerm = (data: Record<string, unknown>) =>
+  data.id ? updateTerm(String(data.id), data) : createTerm(data)
+export const deleteTerms = (ids: Array<string | number>) =>
+  Promise.all(ids.map(id => deleteTerm(String(id))))
+export const enableTerm = (id: string | number, enabled: string | boolean) =>
+  request
+    .put({ url: `/ai/query/terminology/${id}/enable`, data: { enabled } })
+    .then(unwrapResponseData)
+export const exportTerm = (params?: Record<string, unknown>) =>
+  request.get({ url: '/ai/query/terminology/export', params, responseType: 'blob' } as any)
 export const uploadTerminology = (formData: FormData) =>
   request.post({
     url: '/ai/query/terminology/upload',
@@ -144,17 +200,41 @@ export const uploadTerminology = (formData: FormData) =>
 
 // --- SQL Examples ---
 export const listSqlExamples = (params?: Record<string, unknown>) =>
-  request.get({ url: '/ai/query/sql-examples', params })
+  request
+    .get({ url: '/ai/query/sql-examples', params, silentError: true })
+    .then(normalizePageResponse)
+export const getSqlExample = (id: string) =>
+  request.get({ url: `/ai/query/sql-examples/${id}` }).then(unwrapResponseData)
 export const createSqlExample = (data: Record<string, unknown>) =>
-  request.post({ url: '/ai/query/sql-examples', data })
+  request.post({ url: '/ai/query/sql-examples', data }).then(unwrapResponseData)
 export const updateSqlExample = (id: string, data: Record<string, unknown>) =>
-  request.put({ url: `/ai/query/sql-examples/${id}`, data })
+  request
+    .post({ url: '/ai/query/sql-examples/save', data: { ...data, id } })
+    .then(unwrapResponseData)
 export const deleteSqlExample = (id: string) =>
-  request.delete({ url: `/ai/query/sql-examples/${id}` })
+  request.post({ url: '/ai/query/sql-examples/delete', data: [id] }).then(unwrapResponseData)
+export const createOrUpdateSqlExample = (data: Record<string, unknown>) =>
+  data.id ? updateSqlExample(String(data.id), data) : createSqlExample(data)
+export const deleteSqlExamples = (ids: Array<string | number>) =>
+  Promise.all(ids.map(id => deleteSqlExample(String(id))))
+export const enableSqlExample = (id: string | number, enabled: string | boolean) =>
+  request
+    .put({ url: `/ai/query/sql-examples/${id}/enable`, data: { enabled } })
+    .then(unwrapResponseData)
+export const exportSqlExample = (params?: Record<string, unknown>) =>
+  request.get({ url: '/ai/query/sql-examples/export', params, responseType: 'blob' } as any)
+
+// --- Datasources ---
+export const listDatasources = () =>
+  request.get({ url: '/ai/query/datasources', silentError: true }).then(normalizeArrayResponse)
+export const listAdvancedApplications = () =>
+  request
+    .get({ url: '/ai/query/advanced-applications', silentError: true })
+    .then(normalizeArrayResponse)
 
 // --- Resource Learning ---
 export const listLearningResources = () =>
-  request.get({ url: '/ai/query/resource-learning/resources' })
+  request.get({ url: '/ai/query/resource-learning/resources', silentError: true })
 export const triggerLearning = (resourceId: string) =>
   request.post({ url: `/ai/query/resource-learning/resources/${resourceId}/learn` })
 export const getLearningQuality = (resourceId: string) =>

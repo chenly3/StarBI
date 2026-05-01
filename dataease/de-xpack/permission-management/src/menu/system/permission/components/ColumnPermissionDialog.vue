@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import MaskRuleDialog from './MaskRuleDialog.vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type {
   ColumnDesensitizationRule,
   ColumnPermissionFieldRule,
@@ -70,6 +71,13 @@ const busy = computed(() => props.saving || props.deleting)
 
 const targetPlaceholder = computed(() => (props.subjectType === 'user' ? '请选择用户' : '请选择角色'))
 
+const targetSelectOptions = computed(() =>
+  props.targetOptions.map(item => ({
+    label: item.name || '-',
+    value: item.id
+  }))
+)
+
 const selectedWhitelistItems = computed(() =>
   props.whitelistOptions.filter(item => selectedWhitelistSet.value.has(item.id))
 )
@@ -116,9 +124,8 @@ watch(
   { immediate: true }
 )
 
-const onTargetChange = (event: Event) => {
-  const value = (event.target as HTMLSelectElement).value
-  emit('change-target', value || null)
+const onTargetChange = (value: string | number | null) => {
+  emit('change-target', value == null || value === '' ? null : String(value))
 }
 
 const onToggleEnable = () => {
@@ -229,17 +236,13 @@ const removeWhitelist = (id: string) => {
           </div>
 
           <div class="select-box">
-            <select
-              class="select-box__native"
-              :value="selectedTargetId || ''"
+            <SystemSelect
+              :model-value="selectedTargetId || ''"
+              :options="targetSelectOptions"
+              :placeholder="targetPlaceholder"
               :disabled="busy || targetLoading"
               @change="onTargetChange"
-            >
-              <option value="" disabled>{{ targetPlaceholder }}</option>
-              <option v-for="item in targetOptions" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
+            />
           </div>
           <div v-if="targetLoading" class="helper-tip">受限对象加载中...</div>
           <div v-if="missingTarget" class="missing-target-tip">原受限对象不存在，请重新选择</div>
@@ -418,7 +421,7 @@ const removeWhitelist = (id: string) => {
 }
 
 .dialog-card {
-  width: 900px;
+  width: 960px;
   max-width: calc(100vw - 32px);
   border-radius: 14px;
   background: #ffffff;
@@ -432,7 +435,7 @@ const removeWhitelist = (id: string) => {
 
 @media (min-width: 2120px) {
   .dialog-card {
-    width: 980px;
+    width: 1040px;
   }
 }
 
@@ -508,7 +511,7 @@ const removeWhitelist = (id: string) => {
 
 .section-title__desc {
   color: #9aa4b2;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
@@ -562,7 +565,7 @@ const removeWhitelist = (id: string) => {
 .field-label {
   margin-bottom: 10px;
   color: #334155;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -577,7 +580,7 @@ const removeWhitelist = (id: string) => {
   align-items: center;
   gap: 8px;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -606,7 +609,6 @@ const removeWhitelist = (id: string) => {
   background: #2f6bff;
 }
 
-.select-box,
 .whitelist-box {
   width: 100%;
   min-height: 46px;
@@ -618,40 +620,19 @@ const removeWhitelist = (id: string) => {
 
 .select-box {
   position: relative;
-}
-
-.select-box::after {
-  content: '⌄';
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.select-box__native {
   width: 100%;
-  height: 44px;
-  border: none;
-  outline: none;
-  background: transparent;
-  padding: 0 38px 0 14px;
-  color: #344054;
-  font-size: 14px;
-  appearance: none;
 }
 
 .missing-target-tip {
   margin-top: 8px;
   color: #f04438;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .helper-tip {
   margin-top: 8px;
   color: #667085;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .rule-surface {
@@ -680,7 +661,7 @@ const removeWhitelist = (id: string) => {
   outline: none;
   box-sizing: border-box;
   color: #1f2937;
-  font-size: 14px;
+  font-size: 15px;
   background: #ffffff;
 }
 
@@ -712,25 +693,33 @@ const removeWhitelist = (id: string) => {
 .rule-table__head,
 .rule-table__row {
   display: grid;
-  grid-template-columns: 50px minmax(180px, 1.5fr) minmax(150px, 1fr) minmax(220px, 1.4fr);
+  grid-template-columns: 56px minmax(240px, 1.25fr) minmax(180px, 0.8fr) 230px;
   align-items: center;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 14px;
   box-sizing: border-box;
-  min-width: 720px;
+  min-width: 760px;
 }
 
 .rule-table__head {
   background: #f5f8fd;
-  color: #344054;
-  font-size: 13px;
-  font-weight: 600;
+  color: #243047;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .rule-table__row {
   border-top: 1px solid #eef2f7;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.rule-table__head .col-check,
+.rule-table__head .col-actions,
+.rule-table__row .col-check {
+  text-align: center;
+  justify-content: center;
 }
 
 .rule-table__row:nth-child(odd) {
@@ -802,8 +791,9 @@ const removeWhitelist = (id: string) => {
 .action-cell {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: nowrap;
   padding: 8px 0;
 }
 
@@ -812,7 +802,7 @@ const removeWhitelist = (id: string) => {
   align-items: center;
   gap: 8px;
   color: #667085;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -899,7 +889,7 @@ const removeWhitelist = (id: string) => {
   border-radius: 6px;
   background: #eef2f6;
   color: #475467;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -957,7 +947,7 @@ const removeWhitelist = (id: string) => {
   min-width: 84px;
   height: 40px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }

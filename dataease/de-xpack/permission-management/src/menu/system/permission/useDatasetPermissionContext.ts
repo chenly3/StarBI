@@ -1,5 +1,5 @@
 import { computed, reactive, watch } from 'vue'
-import { useRoute, useRouter } from './useHashRoute'
+import { useRoute, useRouter } from './useHostRoute'
 
 const queryValue = (value: unknown): string => {
   const current = Array.isArray(value) ? value[0] : value
@@ -82,6 +82,9 @@ export const useDatasetPermissionContext = () => {
   watch(
     () => route.query.tab,
     async tab => {
+      if (route.path !== DATASET_PERMISSION_PAGE_PATH) {
+        return
+      }
       if (tab === 'preview' || tab === 'structure' || tab === 'row' || tab === 'column') {
         return
       }

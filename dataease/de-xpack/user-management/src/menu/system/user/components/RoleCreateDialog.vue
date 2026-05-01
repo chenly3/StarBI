@@ -186,7 +186,7 @@ const submit = () => {
 
 .role-create-dialog__field span,
 .role-create-dialog__inherit h3 {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #1f2a44;
 }
@@ -198,11 +198,11 @@ const submit = () => {
 }
 
 .role-create-dialog__field input {
-  height: 40px;
+  height: 42px;
   border: 1px solid #d8deea;
   border-radius: 8px;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .role-create-dialog__inherit {
@@ -217,7 +217,7 @@ const submit = () => {
 
 .role-create-dialog__hint {
   color: #97a1b4;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .role-create-dialog__inherit ul {
@@ -233,7 +233,7 @@ const submit = () => {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  font-size: 14px;
+  font-size: 15px;
   color: #1f2a44;
 }
 
@@ -254,7 +254,7 @@ const submit = () => {
   display: flex;
   align-items: center;
   color: #9f4a00;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -267,10 +267,10 @@ const submit = () => {
 .role-create-dialog__actions button {
   flex: 1;
   border-radius: 8px;
-  height: 40px;
+  height: 42px;
   cursor: pointer;
   border: 1px solid #d8deea;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .role-create-dialog__actions button:last-child {

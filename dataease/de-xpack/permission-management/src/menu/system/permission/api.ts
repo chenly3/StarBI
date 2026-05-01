@@ -294,15 +294,30 @@ const normalizePermissionSubjects = (
 ): PermissionSubjectOption[] => {
   const result: PermissionSubjectOption[] = []
   const seen = new Set<string>()
+  const resolveUserDisplayName = (user: Record<string, unknown>, id: number, account: string) => {
+    const candidates = [
+      user.name,
+      user.nickName,
+      user.nickname,
+      user.displayName,
+      user.username,
+      user.realName
+    ]
+      .map(item => String(item || '').trim())
+      .filter(Boolean)
+    const readableName = candidates.find(item => item !== account)
+    return readableName || account || `用户 ${id}`
+  }
 
   if (Array.isArray(users)) {
     users.forEach(user => {
-      const id = toNumber((user as { id?: unknown }).id)
+      const record = user as Record<string, unknown>
+      const id = toNumber(record.id)
       if (id === null) {
         return
       }
-      const account = String((user as { account?: unknown }).account || '').trim()
-      const name = account || String((user as { name?: unknown }).name || '').trim() || String(id)
+      const account = String(record.account || '').trim()
+      const displayName = resolveUserDisplayName(record, id, account)
       const key = `user:${id}`
       if (seen.has(key)) {
         return
@@ -310,7 +325,8 @@ const normalizePermissionSubjects = (
       seen.add(key)
       result.push({
         id,
-        name,
+        name: displayName,
+        account,
         type: 'user'
       })
     })
@@ -566,15 +582,19 @@ export const getDatasetPreviewData = async (id: string): Promise<DatasetPreviewR
   const res = await postJson<DatasetPreviewResponseDTO>(`/datasetTree/get/${id}`, {})
   const payload = (res?.data || {
     allFields: [],
-    data: { fields: [], data: [] }
+    data: { fields: [], fieldNames: [], data: [], rows: [] }
   }) as DatasetPreviewResponseDTO
   decodeOriginNames(payload.allFields)
-  decodeOriginNames(payload.data?.fields)
+  if (payload.data?.fields?.every(field => typeof field === 'object')) {
+    decodeOriginNames(payload.data.fields)
+  }
   return {
     allFields: Array.isArray(payload.allFields) ? payload.allFields : [],
     data: {
       fields: Array.isArray(payload.data?.fields) ? payload.data.fields : [],
-      data: Array.isArray(payload.data?.data) ? payload.data.data : []
+      fieldNames: Array.isArray(payload.data?.fieldNames) ? payload.data.fieldNames : [],
+      data: Array.isArray(payload.data?.data) ? payload.data.data : [],
+      rows: Array.isArray(payload.data?.rows) ? payload.data.rows : []
     }
   }
 }
@@ -644,18 +664,32 @@ export const listFieldsWithPermissions = async (
   const res = await getJson(`/datasetField/listWithPermissions/${requestDatasetId}`)
   decodeOriginNames(res?.data)
   const rows = unwrapResponseData<unknown>(res)
-  if (!Array.isArray(rows)) {
-    return []
-  }
-  const normalized = rows
+  const sourceRows = Array.isArray(rows)
+    ? rows
+    : []
+  const fallbackRows =
+    sourceRows.length > 0 ? sourceRows : (await getDatasetPreviewData(requestDatasetId)).allFields
+  const normalized = fallbackRows
     .map(item => {
       const id = toIdString((item as { id?: unknown }).id)
       if (id === null) {
         return null
       }
+      const nameSource = item as {
+        name?: unknown
+        originName?: unknown
+        fieldShortName?: unknown
+        dataeaseName?: unknown
+      }
       return {
         id,
-        name: String((item as { name?: unknown }).name || ''),
+        name: String(
+          nameSource.name ||
+            nameSource.originName ||
+            nameSource.fieldShortName ||
+            nameSource.dataeaseName ||
+            id
+        ),
         deType: toNumber((item as { deType?: unknown }).deType),
         selected: false,
         opt: 'Prohibit' as const,

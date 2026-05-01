@@ -54,7 +54,7 @@ const loadMap = () => {
 const createMapInstance = () => {
   if (window.T) {
     mapInstance.value = new window.T.Map(domId.value)
-    mapInstance.value.centerAndZoom(new T.LngLat(center[0], center[1]), 11)
+    mapInstance.value.centerAndZoom(new window.T.LngLat(center[0], center[1]), 11)
   }
 }
 const loadScript = (url: string) => {

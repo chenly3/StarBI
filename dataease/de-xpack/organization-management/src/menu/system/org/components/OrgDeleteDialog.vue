@@ -5,6 +5,8 @@ defineProps<{
   visible: boolean
   row: OrgTableRow | null
   deleting: boolean
+  mode?: 'confirm' | 'blocked'
+  message?: string
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +19,7 @@ const emit = defineEmits<{
   <div v-if="visible" class="org-modal-mask" @click.self="emit('cancel')">
     <div class="org-modal">
       <header class="org-modal__header">
-        <h3>确认删除</h3>
+        <h3>{{ mode === 'blocked' ? '无法删除' : '确认删除' }}</h3>
         <button type="button" class="org-modal__close" @click="emit('cancel')">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path
@@ -41,17 +43,25 @@ const emit = defineEmits<{
           </svg>
         </div>
         <div class="org-delete__copy">
-          <p class="org-delete__title">您确定要删除该组织吗？</p>
+          <p class="org-delete__title">
+            {{ mode === 'blocked' ? '当前组织不能删除' : '您确定要删除该组织吗？' }}
+          </p>
           <p class="org-delete__desc">
-            删除后组织下的所有子组织和关联数据都会被移除，该操作无法撤销。
+            {{
+              mode === 'blocked'
+                ? message || '当前组织暂不支持删除。'
+                : '删除后组织下的所有子组织和关联数据都会被移除，该操作无法撤销。'
+            }}
           </p>
         </div>
       </div>
 
       <footer class="org-modal__footer">
-        <button type="button" class="org-button org-button--ghost" @click="emit('cancel')">取消</button>
+        <button v-if="mode !== 'blocked'" type="button" class="org-button org-button--ghost" @click="emit('cancel')">
+          取消
+        </button>
         <button type="button" class="org-button" :disabled="deleting" @click="emit('confirm')">
-          {{ deleting ? '删除中...' : '确认删除' }}
+          {{ mode === 'blocked' ? '知道了' : (deleting ? '删除中...' : '确认删除') }}
         </button>
       </footer>
     </div>
@@ -142,7 +152,7 @@ const emit = defineEmits<{
 .org-delete__title,
 .org-delete__desc {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 22px;
 }
 
@@ -164,14 +174,14 @@ const emit = defineEmits<{
 
 .org-button {
   min-width: 93px;
-  height: 40px;
+  height: 44px;
   border: none;
   border-radius: 8px;
   padding: 0 20px;
   background: #3370ff;
   color: #ffffff;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   cursor: pointer;
 }
 

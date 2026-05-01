@@ -2,7 +2,8 @@
 import { computed, reactive, ref, watch } from 'vue'
 // @ts-ignore DataEase bundles this from the parent frontend workspace.
 import { ElMessage } from '../../../../../../core/core-frontend/node_modules/element-plus-secondary/dist/index.full.mjs'
-import { useRoute, useRouter } from './useHashRoute'
+import SystemSelect from '../shared/SystemSelect.vue'
+import { useRoute, useRouter } from './useHostRoute'
 import ColumnPermissionDialog from './components/ColumnPermissionDialog.vue'
 import { useDatasetPermissionContext } from './useDatasetPermissionContext'
 import {
@@ -68,6 +69,25 @@ const listQuery = reactive<ColumnPermissionListQuery>({
   size: defaultPageSize,
   authTargetType: 'all',
   keyword: ''
+})
+
+const filterTypeOptions = [
+  { label: '全部类型', value: 'all' },
+  { label: '角色', value: 'role' },
+  { label: '用户', value: 'user' }
+]
+
+const pageSizeOptions = [
+  { label: '10 / 页', value: '10' },
+  { label: '20 / 页', value: '20' },
+  { label: '50 / 页', value: '50' }
+]
+
+const selectedPageSize = computed({
+  get: () => String(listQuery.size),
+  set: value => {
+    void onPageSizeChange(value)
+  }
 })
 
 const serverPager = reactive({
@@ -158,6 +178,30 @@ const whiteListSummary = (row: DatasetColumnPermissionDTO): string => {
     return '-'
   }
   return `${ids.length} 人`
+}
+
+const columnRuleSummary = (row: DatasetColumnPermissionDTO): string => {
+  try {
+    const parsed = JSON.parse(row.permissions || '{}') as { columns?: unknown }
+    const columns = Array.isArray(parsed.columns) ? parsed.columns : []
+    const selected = columns.filter(item => {
+      return Boolean((item as { selected?: unknown })?.selected)
+    })
+    if (!selected.length) {
+      return '未选择字段'
+    }
+    const names = selected
+      .map(item => {
+        const field = item as { name?: unknown; id?: unknown; opt?: unknown }
+        const name = String(field.name || field.id || '-')
+        return field.opt === 'Desensitization' ? `${name}(脱敏)` : `${name}(禁用)`
+      })
+      .filter(Boolean)
+    const preview = names.slice(0, 3).join('、')
+    return selected.length > 3 ? `${selected.length} 个字段：${preview}...` : `${selected.length} 个字段：${preview}`
+  } catch {
+    return '规则解析失败'
+  }
 }
 
 const filteredRows = computed(() => {
@@ -785,8 +829,8 @@ const onApplyFilters = async () => {
   await refreshRows()
 }
 
-const onFilterTypeChange = (event: Event) => {
-  listQuery.authTargetType = (event.target as HTMLSelectElement).value as ColumnPermissionFilterType
+const onFilterTypeChange = (value: string | number | null) => {
+  listQuery.authTargetType = String(value || 'all') as ColumnPermissionFilterType
 }
 
 const onResetFilters = async () => {
@@ -804,12 +848,12 @@ const onPageChange = async (page: number) => {
   await refreshRows()
 }
 
-const onPageSizeChange = async (event: Event) => {
-  const value = Number((event.target as HTMLSelectElement).value)
-  if (!Number.isFinite(value) || value <= 0 || value === listQuery.size) {
+const onPageSizeChange = async (value: string | number | null) => {
+  const nextSize = Number(value)
+  if (!Number.isFinite(nextSize) || nextSize <= 0 || nextSize === listQuery.size) {
     return
   }
-  listQuery.size = value
+  listQuery.size = nextSize
   listQuery.page = 1
   allRowsReady.value = false
   await refreshRows()
@@ -946,15 +990,12 @@ watch(
         <div class="panel-toolbar">
           <button type="button" class="add-btn" @click="openCreateDialog()">＋ 添加</button>
           <div class="list-controls">
-            <select
+            <SystemSelect
+              v-model="listQuery.authTargetType"
               class="list-controls__select"
-              :value="listQuery.authTargetType"
+              :options="filterTypeOptions"
               @change="onFilterTypeChange"
-            >
-              <option value="all">全部类型</option>
-              <option value="role">角色</option>
-              <option value="user">用户</option>
-            </select>
+            />
             <input
               v-model.trim="listQuery.keyword"
               class="list-controls__input"
@@ -970,6 +1011,7 @@ watch(
         <div class="table-head">
           <span>类型</span>
           <span>受限对象</span>
+          <span>字段规则</span>
           <span>白名单</span>
           <span>操作</span>
         </div>
@@ -994,6 +1036,7 @@ watch(
           >
             <span>{{ typeLabel(row.authTargetType) }}</span>
             <span>{{ row.authTargetName || '-' }}</span>
+            <span class="table-row__summary" :title="columnRuleSummary(row)">{{ columnRuleSummary(row) }}</span>
             <span>{{ whiteListSummary(row) }}</span>
             <span class="table-row__ops">
               <button type="button" class="link-btn" @click="openEditDialog(row)">编辑</button>
@@ -1012,11 +1055,7 @@ watch(
         <div v-if="totalRows > 0" class="pagination-bar">
           <div class="pagination-bar__summary">共 {{ totalRows }} 条</div>
           <div class="pagination-bar__controls">
-            <select class="pagination-bar__size" :value="listQuery.size" @change="onPageSizeChange">
-              <option :value="10">10 / 页</option>
-              <option :value="20">20 / 页</option>
-              <option :value="50">50 / 页</option>
-            </select>
+            <SystemSelect v-model="selectedPageSize" class="pagination-bar__size" :options="pageSizeOptions" />
             <button
               type="button"
               class="pager-btn"
@@ -1108,10 +1147,10 @@ watch(
 }
 
 .add-btn {
-  height: 40px;
+  height: 44px;
   padding: 0 18px;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   border: 1px solid #d7deea;
   background: #ffffff;
@@ -1125,7 +1164,7 @@ watch(
   padding: 12px;
   box-sizing: border-box;
   flex: 1 1 auto;
-  min-height: 360px;
+  min-height: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -1137,9 +1176,9 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #e7edf7;
   border-radius: 12px;
   background: #f8fbff;
@@ -1148,30 +1187,28 @@ watch(
 .list-controls {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.list-controls__select,
 .list-controls__input,
 .toolbar-btn,
-.pagination-bar__size,
 .pager-btn {
-  height: 38px;
+  height: 40px;
   border: 1px solid #d7deea;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .list-controls__select,
 .pagination-bar__size {
-  padding: 0 12px;
+  width: 144px;
 }
 
 .list-controls__input {
-  width: 240px;
+  width: 280px;
   padding: 0 12px;
   box-sizing: border-box;
 }
@@ -1187,27 +1224,49 @@ watch(
 
 .table-head,
 .table-row {
-  min-height: 44px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 12px;
   display: grid;
-  grid-template-columns: minmax(92px, 1fr) minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(120px, 140px);
+  grid-template-columns: 92px minmax(160px, 0.85fr) minmax(260px, 1.3fr) minmax(170px, 0.8fr) 128px;
   align-items: center;
-  color: #344054;
-  font-size: 14px;
-  min-width: 640px;
+  column-gap: 12px;
+  color: #243047;
+  font-size: 16px;
+  line-height: 24px;
+  min-width: 860px;
 }
 
 .table-head {
-  margin-top: 12px;
+  flex: 0 0 auto;
+}
+
+.table-row {
+  flex: 0 0 auto;
+}
+
+.table-head {
+  margin-top: 10px;
   background: #f5f8fd;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   border-radius: 10px 10px 0 0;
 }
 
 .table-row {
   border-bottom: 1px solid #eef2f7;
-  font-size: 14px;
+  font-size: 16px;
+}
+
+.table-head span:last-child {
+  text-align: center;
+}
+
+.table-head span,
+.table-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-row:nth-child(odd) {
@@ -1215,9 +1274,17 @@ watch(
 }
 
 .table-row__ops {
-  display: inline-flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: nowrap;
+  overflow: visible;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.table-row__summary {
+  color: #475467;
 }
 
 .link-btn {
@@ -1226,6 +1293,8 @@ watch(
   color: #2f6bff;
   padding: 0;
   cursor: pointer;
+  font-size: 15.5px;
+  line-height: 24px;
 }
 
 .link-btn.danger {
@@ -1238,7 +1307,7 @@ watch(
 }
 
 .empty-state {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   padding: 54px 0 28px;
   display: flex;
@@ -1251,13 +1320,13 @@ watch(
 }
 
 .empty-state__text {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 22px;
 }
 
 .empty-state__desc {
   color: #b3bdca;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
   max-width: 320px;
 }
@@ -1293,8 +1362,9 @@ watch(
 }
 
 .pagination-bar {
-  margin-top: auto;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1305,20 +1375,20 @@ watch(
 .pagination-bar__summary,
 .pagination-bar__page {
   color: #667085;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .pagination-bar__controls {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 @media (max-width: 1480px) {
   .table-head,
   .table-row {
-    min-width: 600px;
+    min-width: 820px;
   }
 }
 </style>

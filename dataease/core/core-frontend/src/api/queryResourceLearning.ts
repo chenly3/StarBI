@@ -740,10 +740,7 @@ export const getQueryLearningQualitySummary = async (
     url: `/ai/query/resource-learning/resources/${resourceId}/quality-summary`,
     silentError: true
   })
-  const payload =
-    response && typeof response === 'object' && 'data' in response
-      ? response.data || undefined
-      : response
+  const payload = extractPayload<RawQueryLearningQualitySummary>(response)
   return normalizeQualitySummary(payload)
 }
 
@@ -756,27 +753,31 @@ export const getQueryLearningFeedbackSummary = async (
     url: `/ai/query/resource-learning/resources/${resourceId}/feedback-summary`,
     silentError: true
   })
-  const payload =
-    response && typeof response === 'object' && 'data' in response
-      ? response.data || undefined
-      : response
+  const payload = extractPayload<RawQueryLearningFeedbackSummary>(response)
   return normalizeFeedbackSummary(payload)
 }
 
 export const resolveQueryLearningDatasourceName = async (
   resourceId: string
 ): Promise<string | undefined> => {
+  const datasourceId = String(resourceId).startsWith('datasource:')
+    ? String(resourceId).slice('datasource:'.length)
+    : String(resourceId)
+  if (!/^\d+$/.test(datasourceId)) {
+    return undefined
+  }
   const response = await request.get<RuntimeDatasourceResponse>({
     url: '/sqlbot/datasource',
     params: {
-      dsId: resourceId
+      datasetIds: datasourceId,
+      dsId: datasourceId
     },
     silentError: true
   })
   const list = extractRuntimeDatasourceList(response)
-  const matched = list.find(item => toRequiredString(item.id) === resourceId)
+  const matched = list.find(item => toRequiredString(item.id) === datasourceId)
   const matchedName = toOptionalString(matched?.name)?.trim()
-  if (!matchedName || matchedName === resourceId) {
+  if (!matchedName || matchedName === resourceId || matchedName === datasourceId) {
     return undefined
   }
   return matchedName

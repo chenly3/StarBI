@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type { IdType, OrgFormState, ParentOption } from '../types'
 
 const props = defineProps<{
@@ -19,6 +19,7 @@ const state = reactive<OrgFormState>({
   name: '',
   pid: ''
 })
+const formError = ref('')
 
 watch(
   () => props.modelValue,
@@ -26,6 +27,7 @@ watch(
     state.id = value?.id
     state.name = value?.name || ''
     state.pid = value?.pid ?? ''
+    formError.value = ''
   },
   { deep: true, immediate: true }
 )
@@ -36,9 +38,14 @@ const selectedParentLabel = computed(() => {
 })
 
 const handleSubmit = () => {
+  if (!state.name.trim()) {
+    formError.value = '组织名称不能为空。'
+    return
+  }
+  formError.value = ''
   emit('save', {
     id: state.id,
-    name: state.name,
+    name: state.name.trim(),
     pid: state.pid === '' ? '' : (state.pid as IdType)
   })
 }
@@ -93,6 +100,10 @@ const handleSubmit = () => {
         </label>
       </div>
 
+      <div v-if="formError" class="org-modal__error" role="alert" aria-live="polite">
+        {{ formError }}
+      </div>
+
       <footer class="org-modal__footer">
         <button type="button" class="org-button org-button--ghost" @click="emit('cancel')">取消</button>
         <button type="button" class="org-button" :disabled="submitting" @click="handleSubmit">
@@ -117,8 +128,8 @@ const handleSubmit = () => {
 
 .org-modal {
   width: min(720px, 100%);
-  min-height: 347px;
-  border-radius: 8px;
+  min-height: 380px;
+  border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 16px 40px rgba(31, 35, 41, 0.18);
   overflow: hidden;
@@ -176,9 +187,9 @@ const handleSubmit = () => {
   align-items: center;
   gap: 4px;
   margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 500;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
   color: #1f2329;
 }
 
@@ -190,17 +201,17 @@ const handleSubmit = () => {
 .org-field input,
 .org-select {
   width: 100%;
-  height: 40px;
+  height: 44px;
   border: 1px solid #d0d5dd;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #ffffff;
   box-sizing: border-box;
 }
 
 .org-field input {
-  padding: 0 12px;
-  font-size: 14px;
-  line-height: 20px;
+  padding: 0 14px;
+  font-size: 16px;
+  line-height: 24px;
   color: #111827;
   outline: none;
 }
@@ -220,9 +231,9 @@ const handleSubmit = () => {
   height: 100%;
   border: none;
   background: transparent;
-  padding: 0 36px 0 12px;
-  font-size: 14px;
-  line-height: 20px;
+  padding: 0 36px 0 14px;
+  font-size: 16px;
+  line-height: 24px;
   color: #111827;
   outline: none;
   appearance: none;
@@ -239,10 +250,10 @@ const handleSubmit = () => {
 }
 
 .org-select--readonly {
-  padding: 0 12px;
+  padding: 0 14px;
   color: #111827;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .org-modal__footer {
@@ -252,16 +263,29 @@ const handleSubmit = () => {
   padding: 0 24px 28px;
 }
 
+.org-modal__error {
+  margin: -12px 24px 18px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #dc2626;
+  font-size: 15px;
+  line-height: 22px;
+  box-sizing: border-box;
+}
+
 .org-button {
   min-width: 72px;
-  height: 40px;
+  height: 44px;
   border: none;
   border-radius: 8px;
   padding: 0 20px;
   background: #3370ff;
   color: #ffffff;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   cursor: pointer;
 }
 

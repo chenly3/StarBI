@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type { BuiltInMaskRule, ColumnDesensitizationRule } from '../types'
 
 const props = defineProps<{
@@ -17,6 +18,10 @@ const builtInRule = ref<BuiltInMaskRule>('CompleteDesensitization')
 const customBuiltInRule = ref<'RetainBeforeMAndAfterN' | 'RetainMToN'>('RetainMToN')
 const m = ref(1)
 const n = ref(1)
+const customBuiltInRuleOptions = [
+  { label: '保留第M至N位', value: 'RetainMToN' },
+  { label: '保留前M后N位', value: 'RetainBeforeMAndAfterN' }
+]
 
 const normalizeRule = (rule: ColumnDesensitizationRule | null): ColumnDesensitizationRule => {
   if (!rule) {
@@ -147,10 +152,7 @@ const submit = () => {
 
         <template v-if="builtInRule === 'custom'">
           <div class="select-box">
-            <select v-model="customBuiltInRule" class="select-box__native">
-              <option value="RetainMToN">保留第M至N位</option>
-              <option value="RetainBeforeMAndAfterN">保留前M后N位</option>
-            </select>
+            <SystemSelect v-model="customBuiltInRule" :options="customBuiltInRuleOptions" />
           </div>
 
           <div class="range-row">
@@ -243,7 +245,7 @@ const submit = () => {
 
 .field-name {
   color: #667085;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .option-row {
@@ -280,23 +282,7 @@ const submit = () => {
 }
 
 .select-box {
-  height: 44px;
-  border: 1px solid #d7deea;
-  border-radius: 8px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.select-box__native {
   width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #344054;
-  font-size: 15px;
-  appearance: none;
 }
 
 .range-row {

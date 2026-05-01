@@ -60,6 +60,7 @@ export const encodePermissionColumns = (permissions: PermissionColumnState): num
 export interface PermissionSubjectOption {
   id: number
   name: string
+  account?: string
   type: PermissionSubjectType
 }
 
@@ -217,8 +218,10 @@ export interface DatasetPreviewFieldDTO {
 }
 
 export interface DatasetPreviewTableDTO {
-  fields: DatasetPreviewFieldDTO[]
-  data: Array<Record<string, unknown>>
+  fields: Array<DatasetPreviewFieldDTO | string>
+  fieldNames?: string[]
+  data?: Array<Record<string, unknown>>
+  rows?: unknown[][]
 }
 
 export interface DatasetPreviewResponseDTO {

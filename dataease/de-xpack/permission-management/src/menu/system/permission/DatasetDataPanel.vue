@@ -13,6 +13,7 @@ interface DisplayField {
   name: string
   deType: number
   description: string
+  index: number
 }
 
 const { datasetId, invalidContext } = useDatasetPermissionContext()
@@ -25,23 +26,60 @@ const previewRows = ref<Array<Record<string, unknown>>>([])
 const loadedDatasetId = ref('')
 const requestVersion = ref(0)
 
-const resolveFieldKey = (field: DatasetPreviewFieldDTO, index: number): string => {
+const resolveFieldKey = (
+  field: DatasetPreviewFieldDTO | string,
+  index: number,
+  fieldNames: string[] = []
+): string => {
+  if (typeof field === 'string') {
+    return fieldNames[index] || field || `field_${index}`
+  }
   const candidates = [field.dataeaseName, field.fieldShortName, field.originName, field.name]
   const key = candidates.find(item => typeof item === 'string' && item.trim())
   return key?.trim() || `field_${index}`
 }
 
-const resolveFieldName = (field: DatasetPreviewFieldDTO, index: number): string => {
-  return String(field.name || field.originName || field.fieldShortName || resolveFieldKey(field, index))
+const resolveFieldName = (
+  field: DatasetPreviewFieldDTO | string,
+  index: number,
+  fieldNames: string[] = []
+): string => {
+  if (typeof field === 'string') {
+    return field
+  }
+  return String(field.name || field.originName || field.fieldShortName || resolveFieldKey(field, index, fieldNames))
 }
 
-const normalizeFields = (fields: DatasetPreviewFieldDTO[]): DisplayField[] =>
+const normalizeFields = (
+  fields: Array<DatasetPreviewFieldDTO | string>,
+  fieldNames: string[] = []
+): DisplayField[] =>
   fields.map((field, index) => ({
-    key: resolveFieldKey(field, index),
-    name: resolveFieldName(field, index),
-    deType: Number(field.deType) || 0,
-    description: String(field.description || '')
+    key: resolveFieldKey(field, index, fieldNames),
+    name: resolveFieldName(field, index, fieldNames),
+    deType: typeof field === 'string' ? 0 : Number(field.deType) || 0,
+    description: typeof field === 'string' ? '' : String(field.description || ''),
+    index
   }))
+
+const normalizePreviewRows = (rows: unknown[][] | undefined): Array<Record<string, unknown>> => {
+  if (!Array.isArray(rows)) {
+    return []
+  }
+  return rows.map(row => {
+    if (!Array.isArray(row)) {
+      return {}
+    }
+    return row.reduce<Record<string, unknown>>((record, value, index) => {
+      const field = previewFields.value[index]
+      if (field) {
+        record[field.key] = value
+      }
+      record[String(index)] = value
+      return record
+    }, {})
+  })
+}
 
 const fieldTypeLabel = (deType: number): string => {
   if (deType === 2) return '整数'
@@ -77,8 +115,13 @@ const ensurePreviewLoaded = async () => {
       return
     }
     allFields.value = normalizeFields(previewData.allFields || [])
-    previewFields.value = normalizeFields(previewData.data?.fields || [])
-    previewRows.value = Array.isArray(previewData.data?.data) ? previewData.data.data : []
+    previewFields.value = normalizeFields(
+      previewData.data?.fields || [],
+      previewData.data?.fieldNames || []
+    )
+    previewRows.value = Array.isArray(previewData.data?.data) && previewData.data.data.length
+      ? previewData.data.data
+      : normalizePreviewRows(previewData.data?.rows)
     total.value = previewTotal
     loadedDatasetId.value = currentDatasetId
   } finally {
@@ -119,7 +162,8 @@ const summaryText = computed(() => {
 })
 
 const previewCellText = (row: Record<string, unknown>, key: string): string => {
-  const value = row[key]
+  const column = activeColumns.value.find(item => item.key === key)
+  const value = row[key] ?? (column ? row[String(column.index)] : undefined)
   if (value == null || value === '') {
     return '-'
   }
@@ -288,7 +332,7 @@ const previewCellText = (row: Record<string, unknown>, key: string): string => {
   border-radius: 999px;
   background: #f3f6fb;
   color: #526075;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -323,7 +367,7 @@ const previewCellText = (row: Record<string, unknown>, key: string): string => {
   z-index: 1;
   background: #f5f8fd;
   color: #344054;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   border-bottom: 1px solid #e6edf7;
 }
@@ -351,8 +395,8 @@ const previewCellText = (row: Record<string, unknown>, key: string): string => {
 .table-row {
   border-bottom: 1px solid #eef3f9;
   color: #344054;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .table-row:nth-child(odd) {
@@ -387,8 +431,8 @@ const previewCellText = (row: Record<string, unknown>, key: string): string => {
 }
 
 .empty-state__text {
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .empty-state__icon {

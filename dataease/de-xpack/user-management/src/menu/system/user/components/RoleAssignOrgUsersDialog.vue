@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
 import type { UserOptionItem } from '../types'
 
 const props = withDefaults(
@@ -31,6 +31,7 @@ const emit = defineEmits<{
 
 const localKeyword = ref(props.keyword)
 const allCheckbox = ref<HTMLInputElement | null>(null)
+let searchTimer: number | undefined
 
 watch(
   () => props.keyword,
@@ -67,8 +68,27 @@ watchEffect(() => {
 })
 
 const onSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+    searchTimer = undefined
+  }
   emit('search', localKeyword.value.trim())
 }
+
+const scheduleSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+  searchTimer = window.setTimeout(() => {
+    onSearch()
+  }, 300)
+}
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+})
 
 const toggleUser = (user: UserOptionItem, checked: boolean) => {
   if (checked) {
@@ -110,7 +130,13 @@ const toggleAll = (checked: boolean) => {
             fill="currentColor"
           />
         </svg>
-        <input v-model="localKeyword" type="text" placeholder="搜索用户" @keyup.enter="onSearch" />
+        <input
+          v-model="localKeyword"
+          type="text"
+          placeholder="搜索用户"
+          @input="scheduleSearch"
+          @keyup.enter="onSearch"
+        />
       </div>
 
       <div class="role-assign-dialog__pane">
@@ -247,7 +273,7 @@ const toggleAll = (checked: boolean) => {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 15px;
   background: transparent;
   color: #1f2a44;
 }
@@ -276,7 +302,7 @@ const toggleAll = (checked: boolean) => {
 
 .role-assign-dialog__list h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   color: #4d5870;
   font-weight: 500;
 }
@@ -286,7 +312,7 @@ const toggleAll = (checked: boolean) => {
   background: transparent;
   color: #1f6dff;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .role-assign-dialog__list ul {
@@ -299,7 +325,7 @@ const toggleAll = (checked: boolean) => {
 
 .role-assign-dialog__option,
 .role-assign-dialog__selected-item {
-  min-height: 40px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -312,7 +338,7 @@ const toggleAll = (checked: boolean) => {
   align-items: center;
   gap: 10px;
   width: 100%;
-  font-size: 14px;
+  font-size: 15px;
   color: #1f2a44;
   cursor: pointer;
 }
@@ -356,7 +382,7 @@ const toggleAll = (checked: boolean) => {
   flex: 1;
   height: 42px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   border: 1px solid #d8deea;
 }

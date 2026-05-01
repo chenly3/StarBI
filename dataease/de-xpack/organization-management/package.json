@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+    "build": "NODE_PATH=../../core/core-frontend/node_modules vite build",
+    "typecheck": "NODE_PATH=../../core/core-frontend/node_modules vue-tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "vue": "3.3.4"

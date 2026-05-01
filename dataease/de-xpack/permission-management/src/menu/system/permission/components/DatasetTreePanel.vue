@@ -228,6 +228,7 @@ loadTree()
 <style scoped>
 .dataset-tree-panel {
   height: 100%;
+  max-height: none;
   min-height: 0;
   border: 1px solid #dde6f2;
   border-radius: 14px;
@@ -271,7 +272,7 @@ loadTree()
   padding: 0 12px;
   box-sizing: border-box;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
 }
 
@@ -284,6 +285,7 @@ loadTree()
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }
@@ -299,7 +301,7 @@ loadTree()
   align-items: center;
   gap: 7px;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   text-align: left;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -349,7 +351,7 @@ loadTree()
 .dataset-tree-panel__empty {
   padding: 0 16px;
   color: #98a2b3;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 36px;
 }
 
@@ -358,8 +360,8 @@ loadTree()
   border-radius: 8px;
   background: #fff2f0;
   color: #d92d20;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   padding: 6px 8px;
 }
 </style>

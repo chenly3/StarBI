@@ -27,14 +27,12 @@
         </button>
       </header>
 
-      <section class="prototype-table">
+      <section class="prototype-table" :class="{ 'is-empty': showResourceEmptyState }">
         <div class="prototype-table__header-row">
-          <div class="cell cell--name">
-            <label class="checkbox-wrap">
-              <input v-model="allChecked" type="checkbox" />
-              <span>名称</span>
-            </label>
+          <div class="cell cell--select">
+            <input v-model="allChecked" type="checkbox" />
           </div>
+          <div class="cell cell--name">名称</div>
           <div class="cell cell--creator">创建者</div>
           <div class="cell cell--theme">分析主题</div>
           <div class="cell cell--time">最后学习时间</div>
@@ -44,11 +42,10 @@
 
         <div class="prototype-table__body">
           <div v-for="row in filteredRows" :key="row.id" class="prototype-table__data-row">
+            <div class="cell cell--select">
+              <input v-model="selectedIds" :value="row.id" type="checkbox" />
+            </div>
             <div class="cell cell--name cell--name-row">
-              <label class="checkbox-wrap checkbox-wrap--row">
-                <input v-model="selectedIds" :value="row.id" type="checkbox" />
-              </label>
-
               <div class="dataset-entry">
                 <span class="dataset-entry__title">{{ row.name }}</span>
                 <button
@@ -59,7 +56,6 @@
                 >
                   重命名
                 </button>
-                <button class="name-link" type="button" @click="removeResource(row)">移除</button>
               </div>
             </div>
 
@@ -68,11 +64,19 @@
             <div class="cell cell--time">{{ row.lastLearnTime }}</div>
             <div class="cell cell--status">
               <div class="learning-status-cell">
-                <LearningStatusTag :status="row.learningStatus || row.status" />
-                <LearningScoreCard v-if="row.qualityGrade" :grade="row.qualityGrade" compact />
-                <span v-if="row.qualityScore != null" class="learning-status-cell__score">
-                  {{ row.qualityScore }} 分
-                </span>
+                <div class="learning-status-cell__primary">
+                  <LearningStatusTag :status="row.learningStatus || row.status" />
+                  <span v-if="hasLearningScore(row)" class="learning-status-cell__score">
+                    {{ buildLearningScoreLabel(row) }}
+                  </span>
+                  <button
+                    class="task-detail-link"
+                    type="button"
+                    @click.stop="openLearningTaskDetail(row)"
+                  >
+                    任务详情
+                  </button>
+                </div>
                 <span
                   v-if="row.failureReason"
                   class="learning-status-cell__failure"
@@ -80,13 +84,6 @@
                 >
                   {{ row.failureReason }}
                 </span>
-                <button
-                  class="task-detail-link"
-                  type="button"
-                  @click="openLearningTaskDetail(row.learningTaskId || row.id)"
-                >
-                  任务详情
-                </button>
               </div>
             </div>
             <div class="cell cell--operation">
@@ -100,16 +97,7 @@
                 <Icon><iconSyncPlayRoundOutlined class="icon-action__svg" /></Icon>
               </button>
               <button
-                class="icon-action"
-                type="button"
-                title="任务详情"
-                aria-label="任务详情"
-                @click="openLearningTaskDetail(row.learningTaskId || row.id)"
-              >
-                <Icon><iconInfoOutlined class="icon-action__svg" /></Icon>
-              </button>
-              <button
-                class="icon-action"
+                class="icon-action icon-action--danger"
                 type="button"
                 title="移除资源"
                 aria-label="移除资源"
@@ -119,12 +107,42 @@
               </button>
             </div>
           </div>
+          <div
+            v-if="showResourceEmptyState"
+            class="prototype-table__empty"
+            :class="{ 'is-search-empty': hasKeyword }"
+          >
+            <div class="prototype-table__empty-card">
+              <div class="prototype-table__empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M16 16h32v32H16z" fill="#eef4ff" stroke="#b8c7e8" stroke-width="2" />
+                  <path
+                    d="M23 25h18M23 32h12M23 39h16"
+                    stroke="#2f6bff"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                  />
+                  <path d="M47 45l7 7" stroke="#8ba7e8" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="prototype-table__empty-title">{{ emptyStateTitle }}</div>
+              <p class="prototype-table__empty-copy">{{ emptyStateCopy }}</p>
+              <button
+                class="primary-inline prototype-table__empty-action"
+                type="button"
+                :disabled="loadingResources"
+                @click="handleRefreshList"
+              >
+                {{ loadingResources ? '刷新中...' : '刷新列表' }}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     </section>
 
-    <footer class="prototype-footer">
-      <div class="prototype-footer__left">
+    <footer class="prototype-footer" :class="{ 'has-selection': selectedIds.length > 0 }">
+      <div v-if="selectedIds.length" class="prototype-footer__left">
         <label class="checkbox-wrap">
           <input v-model="allChecked" type="checkbox" />
           <span>全选</span>
@@ -473,7 +491,6 @@ import { useRoute, useRouter } from 'vue-router_2'
 import { ElMessage } from 'element-plus-secondary'
 import { Icon } from '@/components/icon-custom'
 import iconSyncPlayRoundOutlined from '@/assets/svg/icon_sync-play-round_outlined.svg'
-import iconInfoOutlined from '@/assets/svg/icon_info_outlined.svg'
 import iconDeleteTrashOutlined from '@/assets/svg/icon_delete-trash_outlined.svg'
 import {
   deleteQueryLearningResource,
@@ -487,7 +504,6 @@ import {
   type QueryLearningQualitySummary,
   type QueryLearningResource
 } from '@/api/queryResourceLearning'
-import LearningScoreCard from './components/LearningScoreCard.vue'
 import LearningStatusTag from './components/LearningStatusTag.vue'
 import LearningTaskDrawer from './components/LearningTaskDrawer.vue'
 
@@ -527,6 +543,7 @@ const fallbackRows: ResourceRow[] = [
     qualityGrade: 'A',
     qualityScore: 96,
     qualitySummary: {
+      risks: [],
       signals: ['字段完整度高', '语义标签已生成'],
       suggestions: ['补充更多业务问题示例']
     },
@@ -623,6 +640,20 @@ const filteredRows = computed(() => {
   return rows.value.filter(row => row.name.toLowerCase().includes(search))
 })
 
+const hasKeyword = computed(() => keyword.value.trim().length > 0)
+
+const showResourceEmptyState = computed(
+  () => !loadingResources.value && filteredRows.value.length === 0
+)
+
+const emptyStateTitle = computed(() => (hasKeyword.value ? '没有匹配的问数资源' : '暂无问数资源'))
+
+const emptyStateCopy = computed(() =>
+  hasKeyword.value
+    ? '当前搜索条件下没有资源，请调整关键词后重试。'
+    : '当前接口没有返回可学习资源。请先完成分析主题或数据集资源接入，再刷新同步最新资源。'
+)
+
 const filteredUsers = computed(() => {
   if (route.query.panel === 'user') {
     return ['李永']
@@ -656,7 +687,11 @@ const objectRuleSummary = computed(() => ({
 
 const selectedLearningRow = computed(
   () =>
-    rows.value.find(row => (row.learningTaskId || row.id) === selectedLearningTaskId.value) || null
+    rows.value.find(
+      row =>
+        row.id === selectedLearningTaskId.value ||
+        row.learningTaskId === selectedLearningTaskId.value
+    ) || null
 )
 
 const selectedLearningQualitySummary = computed(() => {
@@ -676,7 +711,7 @@ const selectedLearningFeedbackSummary = computed(() => {
 })
 
 const loadLearningDrawerSummaries = (taskId: string) => {
-  const selectedRow = rows.value.find(row => (row.learningTaskId || row.id) === taskId)
+  const selectedRow = rows.value.find(row => row.id === taskId || row.learningTaskId === taskId)
   if (!selectedRow) {
     return
   }
@@ -774,7 +809,7 @@ const syncRouteState = () => {
 }
 
 watch(
-  () => route.query,
+  () => route.fullPath,
   () => syncRouteState(),
   { immediate: true }
 )
@@ -1008,12 +1043,6 @@ const renameAlias = (row: ResourceRow) => {
   }
 }
 
-const openPreview = (row: ResourceRow) => {
-  previewRow.value = row
-  previewVisible.value = true
-  updatePrototypeRoute({ dialog: 'preview', previewId: row.id })
-}
-
 const closePreviewDialog = () => {
   previewVisible.value = false
   updatePrototypeRoute({})
@@ -1034,7 +1063,21 @@ const buildLearningActionTitle = (row: ResourceRow) => {
   return '开始学习'
 }
 
-const openLearningTaskDetail = (taskId: string) => {
+const hasLearningScore = (row: ResourceRow) => Boolean(row.qualityGrade || row.qualityScore != null)
+
+const buildLearningScoreLabel = (row: ResourceRow) => {
+  const scoreParts: string[] = []
+  if (row.qualityGrade) {
+    scoreParts.push(`评分 ${row.qualityGrade}`)
+  }
+  if (row.qualityScore != null) {
+    scoreParts.push(`${row.qualityScore} 分`)
+  }
+  return scoreParts.join(' · ')
+}
+
+const openLearningTaskDetail = (row: ResourceRow) => {
+  const taskId = row.id
   selectedLearningTaskId.value = taskId
   learningDrawerVisible.value = true
   updatePrototypeRoute({ dialog: 'learning-task', taskId })
@@ -1097,7 +1140,7 @@ const startLearningForRow = (
 const handleLearningAction = (row: ResourceRow) => {
   const status = row.learningStatus || row.status || ''
   if (isLearningPendingOrRunning(status)) {
-    openLearningTaskDetail(row.learningTaskId || row.id)
+    openLearningTaskDetail(row)
     return
   }
   const hasLearningHistory = status.includes('学习成功') || status.includes('学习失败')
@@ -1116,12 +1159,6 @@ const handleLearningRetry = () => {
     successMessage: '已重新发起学习任务',
     errorMessage: '重新学习失败，请稍后重试'
   })
-}
-
-const openQuickDialog = (mode: QuickMode) => {
-  quickMode.value = mode
-  quickDialogVisible.value = true
-  updatePrototypeRoute({ dialog: 'quick', mode })
 }
 
 const closeQuickDialog = () => {
@@ -1210,6 +1247,8 @@ onMounted(() => {
 
 <style lang="less" scoped>
 .query-resource-prototype {
+  --resource-table-columns: 44px minmax(260px, 1.35fr) minmax(112px, 0.55fr) minmax(132px, 0.7fr)
+    minmax(168px, 0.85fr) minmax(240px, 1.2fr) 118px;
   position: relative;
   display: flex;
   min-height: 0;
@@ -1226,7 +1265,6 @@ onMounted(() => {
   display: flex;
   min-height: 0;
   flex: 1 1 auto;
-  height: 100%;
   flex-direction: column;
   overflow: hidden;
 }
@@ -1249,7 +1287,7 @@ onMounted(() => {
   gap: 8px;
   width: 320px;
   max-width: 100%;
-  height: 42px;
+  height: 44px;
   padding: 0 14px;
   border: 1px solid #dfe5ef;
   border-radius: 12px;
@@ -1275,7 +1313,7 @@ onMounted(() => {
   outline: none;
   background: transparent;
   color: #1f2329;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .ghost-button,
@@ -1285,9 +1323,9 @@ onMounted(() => {
 .secondary-button,
 .primary-button,
 .primary-inline {
-  height: 42px;
+  height: 44px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .ghost-button,
@@ -1317,54 +1355,116 @@ onMounted(() => {
 .prototype-table {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .prototype-table__header-row,
 .prototype-table__data-row {
   display: grid;
-  grid-template-columns:
-    minmax(300px, 2.8fr)
-    minmax(120px, 1fr)
-    minmax(120px, 1.1fr)
-    minmax(180px, 1.3fr)
-    minmax(120px, 0.95fr)
-    minmax(120px, 0.9fr);
+  width: 100%;
+  grid-template-columns: var(--resource-table-columns);
   align-items: center;
-  gap: 12px;
+  column-gap: 14px;
   padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .prototype-table__header-row {
-  min-height: 50px;
+  min-height: 54px;
   border-bottom: 1px solid #edf0f5;
   background: #fbfcfe;
   color: #7b8799;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
 }
 
 .prototype-table__body {
-  min-height: 0;
   flex: 1 1 auto;
-  height: 100%;
+  min-height: 0;
   overflow: auto;
 }
 
+.prototype-table.is-empty .prototype-table__body {
+  display: flex;
+  flex: 1 1 auto;
+}
+
 .prototype-table__data-row {
-  min-height: 62px;
+  min-height: 66px;
   border-bottom: 1px solid #edf0f5;
   color: #344054;
-  font-size: 14px;
+  font-size: 16px;
   background: #fff;
   transition: background-color 0.2s ease;
 }
 
 .prototype-table__data-row:hover {
   background: #fbfcff;
+}
+
+.prototype-table__empty {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 264px;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+  background: radial-gradient(circle at 50% 0%, rgba(47, 107, 255, 0.07), transparent 34%),
+    linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+  box-sizing: border-box;
+}
+
+.prototype-table__empty.is-search-empty {
+  min-height: 238px;
+}
+
+.prototype-table__empty-card {
+  display: flex;
+  width: min(520px, 100%);
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.prototype-table__empty-icon {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border: 1px solid #e3ebff;
+  border-radius: 24px;
+  background: #f6f9ff;
+}
+
+.prototype-table__empty-icon svg {
+  width: 54px;
+  height: 54px;
+}
+
+.prototype-table__empty-title {
+  margin-top: 2px;
+  color: #1f2329;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 700;
+}
+
+.prototype-table__empty-copy {
+  max-width: 430px;
+  margin: 0;
+  color: #667085;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.prototype-table__empty-action {
+  margin-top: 6px;
 }
 
 .cell {
@@ -1377,10 +1477,46 @@ onMounted(() => {
   color: #475467;
 }
 
+.cell--time {
+  white-space: nowrap;
+}
+
+.cell--status {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cell--select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell--select input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2f6bff;
+}
+
+.prototype-table__header-row .cell--status,
+.prototype-table__data-row .cell--status {
+  justify-self: stretch;
+}
+
+.prototype-table__header-row .cell--operation,
+.prototype-table__data-row .cell--operation {
+  justify-self: center;
+  width: 100%;
+}
+
+.prototype-table__header-row .cell--operation {
+  text-align: center;
+}
+
 .cell--name-row {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
 .checkbox-wrap {
@@ -1413,8 +1549,10 @@ onMounted(() => {
   font-weight: 600;
   color: #344054;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 17px;
+  line-height: 25px;
 }
 
 .name-link {
@@ -1422,53 +1560,86 @@ onMounted(() => {
   background: transparent;
   padding: 0;
   color: #2f6bff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .learning-status-cell {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.learning-status-cell__primary {
+  display: inline-flex;
+  max-width: 100%;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
   flex-wrap: wrap;
 }
 
 .learning-status-cell__score {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef4ff;
   color: #175cd3;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .learning-status-cell__failure {
-  max-width: 220px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   color: #b42318;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .task-detail-link {
-  border: 0;
-  background: transparent;
-  padding: 0;
+  min-height: 32px;
+  border: 1px solid #d6e4ff;
+  border-radius: 999px;
+  background: #f5f8ff;
+  padding: 0 12px;
   color: #2f6bff;
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.task-detail-link:hover {
+  border-color: #9dbbff;
+  background: #eaf2ff;
 }
 
 .cell--operation {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
 .icon-action {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -1482,9 +1653,14 @@ onMounted(() => {
   color: #2f6bff;
 }
 
+.icon-action--danger:hover {
+  background: #fff1f0;
+  color: #d92d20;
+}
+
 .icon-action__svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: currentColor;
 }
 
@@ -1492,7 +1668,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 56px;
+  min-height: 46px;
   margin-top: 0;
   padding: 0 16px;
   border-top: 1px solid #edf0f5;
@@ -1501,13 +1677,17 @@ onMounted(() => {
   gap: 16px;
 }
 
+.prototype-footer.has-selection {
+  min-height: 52px;
+}
+
 .prototype-footer__left,
 .prototype-footer__right,
 .pagination {
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 14px;
+  font-size: 15px;
   color: #475467;
   flex-wrap: wrap;
 }
@@ -1518,7 +1698,7 @@ onMounted(() => {
   background: transparent;
   padding: 0;
   color: #2f6bff;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .mini-link svg {
@@ -1527,8 +1707,8 @@ onMounted(() => {
 }
 
 .pagination__button {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: 1px solid #dfe5ef;
   border-radius: 8px;
   background: #fff;
@@ -1542,7 +1722,7 @@ onMounted(() => {
 }
 
 .page-size {
-  height: 38px;
+  height: 44px;
   padding: 0 14px;
 }
 
@@ -1590,7 +1770,7 @@ onMounted(() => {
   min-height: 52px;
   padding: 0 22px;
   border-bottom: 1px solid #edf0f5;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -1602,7 +1782,7 @@ onMounted(() => {
 
 .dialog-header__info {
   color: #98a2b3;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .dialog-close {
@@ -1623,13 +1803,13 @@ onMounted(() => {
 .dialog-label {
   margin-bottom: 10px;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .dialog-tip {
   color: #98a2b3;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .mode-group {
@@ -1642,7 +1822,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .mode-option input,
@@ -1666,7 +1846,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -1698,14 +1878,14 @@ onMounted(() => {
 }
 
 .question-line {
-  min-height: 38px;
-  line-height: 22px;
+  min-height: 44px;
+  line-height: 24px;
   padding: 7px 12px;
   border: 1px solid #d9e2f0;
   border-radius: 8px;
   background: #fff;
   color: #475467;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .question-line + .question-line {
@@ -1740,7 +1920,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid #d9e2f0;
   border-radius: 8px;
@@ -1816,12 +1996,11 @@ onMounted(() => {
 }
 
 .empty-panel__text {
-  font-size: 14px;
+  font-size: 15px;
   color: #97a1b1;
 }
 
 .primary-inline {
-  height: 36px;
   padding: 0 16px;
   border: 0;
   border-radius: 8px;
@@ -1839,7 +2018,7 @@ onMounted(() => {
 
 .rule-box__title {
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -1847,19 +2026,19 @@ onMounted(() => {
   margin-top: 10px;
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  height: 26px;
   padding: 0 8px;
   border-radius: 999px;
   background: #eaf2ff;
   color: #2f6bff;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .rule-box__label {
   margin-top: 14px;
   margin-bottom: 10px;
   color: #667085;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .rule-box .expert-item {
@@ -1887,9 +2066,9 @@ onMounted(() => {
 .field-select,
 .selector-button {
   width: 100%;
-  height: 38px;
+  height: 44px;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .field-select,
@@ -1939,13 +2118,13 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 22px;
+  height: 26px;
   padding: 0 8px;
   border-radius: 6px;
   background: #eaf2ff;
   color: #2f6bff;
-  font-size: 12px;
-  line-height: 22px;
+  font-size: 15px;
+  line-height: 24px;
 }
 
 .field-select__tag button {
@@ -1972,7 +2151,7 @@ onMounted(() => {
 
 .search-box--panel {
   width: 100%;
-  height: 38px;
+  height: 44px;
   margin-bottom: 8px;
 }
 
@@ -1980,7 +2159,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 8px;
   border-radius: 8px;
 }
@@ -1999,10 +2178,10 @@ onMounted(() => {
 .secondary-button,
 .primary-button {
   min-width: 76px;
-  height: 38px;
+  height: 44px;
   padding: 0 18px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .primary-button {
@@ -2056,7 +2235,7 @@ onMounted(() => {
   gap: 12px;
   margin-bottom: 16px;
   color: #475467;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .preview-table {
@@ -2069,7 +2248,7 @@ onMounted(() => {
   border: 1px solid #edf0f5;
   padding: 10px 12px;
   text-align: left;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .preview-table th {
@@ -2081,13 +2260,8 @@ onMounted(() => {
 @media (max-width: 1600px) {
   .prototype-table__header-row,
   .prototype-table__data-row {
-    grid-template-columns:
-      minmax(260px, 2.3fr)
-      minmax(110px, 0.95fr)
-      minmax(110px, 1fr)
-      minmax(168px, 1.18fr)
-      minmax(110px, 0.9fr)
-      minmax(112px, 0.86fr);
+    column-gap: 12px;
+    padding: 0 14px;
   }
 }
 
@@ -2102,14 +2276,8 @@ onMounted(() => {
 
   .prototype-table__header-row,
   .prototype-table__data-row {
-    grid-template-columns:
-      minmax(240px, 2fr)
-      minmax(96px, 0.9fr)
-      minmax(96px, 1fr)
-      minmax(148px, 1.08fr)
-      minmax(96px, 0.86fr)
-      minmax(96px, 0.82fr);
-    gap: 10px;
+    min-width: 1080px;
+    column-gap: 12px;
     padding: 0 12px;
   }
 

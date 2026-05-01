@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import OrgDeleteDialog from './components/OrgDeleteDialog.vue'
 import OrgEditDialog from './components/OrgEditDialog.vue'
 import OrgFormDialog from './components/OrgFormDialog.vue'
 import { useOrgManagementPage } from './composables/useOrgManagementPage'
-import type { OrgTableRow } from './types'
 import '@/views/system/shared/system-setting-page.less'
 
 const page = useOrgManagementPage()
 
 const hasTable = computed(() => page.tableRows.value.length > 0)
+let searchTimer: number | undefined
 
 const formatDate = (value?: number | string) => {
   if (value === undefined || value === null || value === '') {
@@ -28,8 +28,27 @@ const formatDate = (value?: number | string) => {
 }
 
 const handleSearch = async () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+    searchTimer = undefined
+  }
   await page.search()
 }
+
+const scheduleSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+  searchTimer = window.setTimeout(() => {
+    void handleSearch()
+  }, 300)
+}
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+})
 
 const handleResetSearch = async () => {
   await page.clearSearch()
@@ -66,6 +85,7 @@ const handleResetSearch = async () => {
                 type="text"
                 maxlength="20"
                 placeholder="请输入名称搜索"
+                @input="scheduleSearch"
                 @keyup.enter="handleSearch"
               />
             </label>
@@ -201,6 +221,15 @@ const handleResetSearch = async () => {
       @confirm="page.confirmDelete"
       @cancel="page.closeDeleteDialog"
     />
+    <OrgDeleteDialog
+      :visible="page.deleteBlockerVisible.value"
+      :row="null"
+      :deleting="false"
+      mode="blocked"
+      :message="page.deleteBlockerMessage.value"
+      @confirm="page.closeDeleteBlocker"
+      @cancel="page.closeDeleteBlocker"
+    />
   </main>
 </template>
 
@@ -247,14 +276,14 @@ const handleResetSearch = async () => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 14px;
+  min-height: var(--system-control-height);
+  padding: 0 18px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #3370ff;
   color: #ffffff;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -269,10 +298,10 @@ const handleResetSearch = async () => {
   align-items: center;
   gap: 8px;
   width: 240px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
+  min-height: var(--system-control-height);
+  padding: 0 14px;
+  border: 1px solid #cfd8e8;
+  border-radius: 10px;
   background: #ffffff;
   box-sizing: border-box;
   color: #9ca3af;
@@ -289,8 +318,8 @@ const handleResetSearch = async () => {
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   color: #111827;
   outline: none;
 }
@@ -304,8 +333,8 @@ const handleResetSearch = async () => {
   background: transparent;
   padding: 0;
   color: #64748b;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   cursor: pointer;
 }
 
@@ -324,45 +353,49 @@ const handleResetSearch = async () => {
 
 .org-table {
   width: 100%;
+  min-width: 860px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .org-table thead th {
-  height: 48px;
+  height: 52px;
   padding: 0 18px;
   border-bottom: 1px solid #eef2f6;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 600;
-  color: #3d4757;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  color: #243047;
   text-align: left;
   white-space: nowrap;
 }
 
 .org-table tbody td {
-  height: 50px;
+  height: 54px;
   padding: 0 18px;
   border-top: 1px solid #f3f5f8;
-  font-size: 14px;
-  line-height: 20px;
-  color: #1f2329;
+  font-size: 16px;
+  line-height: 24px;
+  color: #27364f;
   vertical-align: middle;
 }
 
 .org-col--name {
-  width: 100%;
+  width: auto;
 }
 
 .org-col--count {
-  width: 112px;
+  width: 150px;
+  text-align: center !important;
 }
 
 .org-col--time {
-  width: 172px;
+  width: 220px;
 }
 
 .org-col--actions {
-  width: 72px;
+  width: 120px;
+  text-align: center !important;
 }
 
 .org-table tbody .org-col--time {
@@ -373,7 +406,7 @@ const handleResetSearch = async () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 48px;
+  min-height: 52px;
   min-width: 0;
 }
 
@@ -469,14 +502,15 @@ const handleResetSearch = async () => {
 
 .org-name-text {
   min-width: 0;
-  color: #1f2329;
-  font-size: 14px;
-  font-weight: 500;
+  color: #27364f;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .org-row-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -484,10 +518,11 @@ const handleResetSearch = async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
   border: none;
-  background: transparent;
+  border-radius: 8px;
+  background: rgba(51, 112, 255, 0.08);
   padding: 0;
   color: #3370ff;
   cursor: pointer;
@@ -504,7 +539,7 @@ const handleResetSearch = async () => {
   justify-content: center;
   min-height: 320px;
   color: #94a3b8;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 @media (max-width: 960px) {

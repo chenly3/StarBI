@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, reactive, ref, watch } from 'vue'
 import RowAuth from '@/views/visualized/data/dataset/auth-tree/RowAuth.vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type {
   ColumnPermissionFieldRule,
   DatasetPermissionAuthObj,
@@ -76,6 +77,13 @@ const objectPlaceholder = computed(() => {
   return '系统变量'
 })
 
+const targetSelectOptions = computed(() =>
+  props.targetOptions.map(item => ({
+    label: item.name || '-',
+    value: item.id
+  }))
+)
+
 const fieldOptionsForEditor = computed(() =>
   props.fieldOptions.map(field => ({
     id: field.id,
@@ -144,9 +152,8 @@ watch(
   { immediate: true }
 )
 
-const onTargetChange = (event: Event) => {
-  const value = (event.target as HTMLSelectElement).value
-  emit('change-target', value || null)
+const onTargetChange = (value: string | number | null) => {
+  emit('change-target', value == null || value === '' ? null : String(value))
 }
 
 const onWhiteListToggle = (id: string, checked: boolean) => {
@@ -267,12 +274,12 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
           </div>
 
           <div v-if="type !== 'sysVar'" class="select-box">
-            <select class="select-box__native" :value="selectedTargetId || ''" @change="onTargetChange">
-              <option value="" disabled>{{ objectPlaceholder }}</option>
-              <option v-for="item in targetOptions" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
+            <SystemSelect
+              :model-value="selectedTargetId || ''"
+              :options="targetSelectOptions"
+              :placeholder="objectPlaceholder"
+              @change="onTargetChange"
+            />
           </div>
           <div v-else class="select-box select-box--readonly">
             <span>{{ objectPlaceholder }}</span>
@@ -368,7 +375,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 }
 
 .dialog-card {
-  width: 860px;
+  width: 940px;
   max-width: calc(100vw - 32px);
   border-radius: 14px;
   background: #ffffff;
@@ -382,7 +389,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 
 @media (min-width: 2120px) {
   .dialog-card {
-    width: 940px;
+    width: 1020px;
   }
 }
 
@@ -449,7 +456,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 
 .section-title__desc {
   color: #9aa4b2;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
@@ -494,7 +501,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 .field-label {
   margin-bottom: 10px;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -515,7 +522,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   align-items: center;
   gap: 10px;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -547,35 +554,20 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 
 .select-box {
   min-height: 44px;
-  border: 1px solid #d3deef;
-  border-radius: 8px;
-  padding: 0 12px;
   display: flex;
   align-items: center;
   color: #667085;
-  font-size: 14px;
-  width: min(100%, 520px);
-  background: #ffffff;
+  width: min(100%, 560px);
 }
 
 .select-box--readonly {
   justify-content: space-between;
 }
 
-.select-box__native {
-  width: 100%;
-  min-height: 44px;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-  outline: none;
-}
-
 .missing-target-tip {
   margin-top: 8px;
   color: #f04438;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .rule-builder {
@@ -596,14 +588,14 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   padding: 10px 0 12px;
   text-align: center;
   color: #b1bbc9;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .rule-builder__tip,
 .rule-builder__error {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 18px;
 }
 
@@ -633,7 +625,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   gap: 8px;
   flex-wrap: wrap;
   color: #667085;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .whitelist-box__placeholder {
@@ -672,13 +664,13 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-  max-height: 128px;
+  max-height: 148px;
   overflow-y: auto;
 }
 
 .whitelist-list__item {
   width: 100%;
-  min-height: 36px;
+  min-height: 40px;
   border: none;
   background: #ffffff;
   padding: 6px 12px;
@@ -686,7 +678,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   align-items: center;
   justify-content: space-between;
   color: #344054;
-  font-size: 14px;
+  font-size: 15px;
   text-align: left;
 }
 
@@ -719,7 +711,7 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
   min-width: 84px;
   height: 40px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -743,8 +735,9 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 }
 
 :deep(.rowAuth) {
-  min-width: 760px;
+  min-width: 820px;
   text-align: left;
+  font-size: 15px;
 }
 
 :deep(.rowAuth .logic) {
@@ -757,12 +750,13 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 }
 
 :deep(.rowAuth .logic-left .operate-title) {
-  width: 62px;
+  width: 68px;
   border: 1px solid #dbe4f0;
   border-radius: 8px;
   background: #f8fafc;
   line-height: 30px;
   height: 30px;
+  font-size: 14px;
 }
 
 :deep(.rowAuth .logic-left .operate-title .mrg-title) {
@@ -788,14 +782,14 @@ const onAuthSave = (payload: RowAuthSubmitPayload) => {
 }
 
 :deep(.rowAuth .logic-right-add .operand-btn) {
-  height: 30px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 14px;
   margin-right: 0;
   border-radius: 8px;
   border-color: #8fb3ff;
   background: #ffffff;
   box-shadow: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 

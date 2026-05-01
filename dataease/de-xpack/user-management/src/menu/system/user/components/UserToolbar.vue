@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, watch } from 'vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type { RoleQueryItem, UserFilterState } from '../types'
 
 const props = withDefaults(
@@ -32,6 +33,27 @@ const localState = reactive({
   status: '',
   roleId: ''
 })
+let searchTimer: number | undefined
+
+const originOptions = [
+  { label: '全部', value: '' },
+  { label: '本地', value: '0' },
+  { label: 'LDAP', value: '1' }
+]
+
+const statusOptions = [
+  { label: '全部', value: '' },
+  { label: '启用', value: '1' },
+  { label: '禁用', value: '0' }
+]
+
+const roleFilterOptions = computed(() => [
+  { label: '全部', value: '' },
+  ...props.roleOptions.map(role => ({
+    label: role.name || '-',
+    value: String(role.id)
+  }))
+])
 
 const syncFromProps = () => {
   localState.keyword = props.keyword
@@ -57,8 +79,27 @@ watch(
 )
 
 const onSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+    searchTimer = undefined
+  }
   emit('search', localState.keyword.trim())
 }
+
+const scheduleSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+  searchTimer = window.setTimeout(() => {
+    onSearch()
+  }, 300)
+}
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+})
 
 const onApplyFilters = () => {
   emit('applyFilters', {
@@ -123,6 +164,7 @@ const onImport = () => {
             v-model="localState.keyword"
             type="text"
             placeholder="搜索姓名、账号、邮箱"
+            @input="scheduleSearch"
             @keyup.enter="onSearch"
           />
         </div>
@@ -143,28 +185,15 @@ const onImport = () => {
     <div class="user-toolbar__filter-panel">
       <label class="user-toolbar__field">
         <span>用户来源：</span>
-        <select v-model="localState.origin">
-          <option value="">全部</option>
-          <option value="0">本地</option>
-          <option value="1">LDAP</option>
-        </select>
+        <SystemSelect v-model="localState.origin" :options="originOptions" placeholder="全部" />
       </label>
       <label class="user-toolbar__field">
         <span>启用状态：</span>
-        <select v-model="localState.status">
-          <option value="">全部</option>
-          <option value="1">启用</option>
-          <option value="0">禁用</option>
-        </select>
+        <SystemSelect v-model="localState.status" :options="statusOptions" placeholder="全部" />
       </label>
       <label class="user-toolbar__field">
         <span>角色：</span>
-        <select v-model="localState.roleId">
-          <option value="">全部</option>
-          <option v-for="role in roleOptions" :key="String(role.id)" :value="String(role.id)">
-            {{ role.name }}
-          </option>
-        </select>
+        <SystemSelect v-model="localState.roleId" :options="roleFilterOptions" placeholder="全部" />
       </label>
       <button type="button" class="user-toolbar__ghost-button" :disabled="loading" @click="onResetFilters">
         重置
@@ -223,8 +252,8 @@ const onImport = () => {
 }
 
 .user-toolbar__search {
-  width: 300px;
-  height: 38px;
+  width: 340px;
+  height: 44px;
   border: 1px solid #d8e0ef;
   border-radius: 9px;
   padding: 0 14px;
@@ -238,7 +267,7 @@ const onImport = () => {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 15px;
   color: #1f2a44;
   background: transparent;
 }
@@ -263,8 +292,9 @@ const onImport = () => {
 .user-toolbar__ghost-button,
 .user-toolbar__confirm-button {
   height: 42px;
-  border-radius: 9px;
-  font-size: 14px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 15px;
   cursor: pointer;
   border: 1px solid #d8e0ef;
 }
@@ -318,7 +348,7 @@ const onImport = () => {
 
 .user-toolbar__filter-panel {
   gap: 12px;
-  min-height: 58px;
+  min-height: 62px;
   padding: 10px 12px;
   background: #fff;
   border: 1px solid #dde6f2;
@@ -333,18 +363,12 @@ const onImport = () => {
   align-items: center;
   gap: 10px;
   color: #41506d;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 600;
 }
 
-.user-toolbar__field select {
+.user-toolbar__field :deep(.system-select) {
   width: 180px;
-  height: 36px;
-  border: 1px solid #d8e0ef;
-  border-radius: 8px;
-  background: #fff;
-  padding: 0 12px;
-  font-size: 14px;
-  color: #1f2a44;
 }
 
 .user-toolbar__top-row :disabled,

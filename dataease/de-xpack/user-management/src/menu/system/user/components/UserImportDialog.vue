@@ -204,7 +204,7 @@ watch(
   gap: 10px;
   padding: 0 16px;
   color: #3368e8;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .user-import-dialog__banner button {
@@ -254,7 +254,7 @@ watch(
 }
 
 .user-import-dialog__picker small {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .user-import-dialog__input {
@@ -272,7 +272,7 @@ watch(
 .user-import-dialog__primary {
   height: 42px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
 }
 

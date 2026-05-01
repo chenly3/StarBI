@@ -4,9 +4,29 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
+const coreFrontendSrcDir = resolve(rootDir, '../../core/core-frontend/src')
+const coreVariableLessPath = resolve(coreFrontendSrcDir, 'style/variable.less')
 
 export default defineConfig({
   plugins: [vue()],
+  css: {
+    preprocessorOptions: {
+      less: {
+        modifyVars: {
+          hack: `true; @import (reference) "${coreVariableLessPath}";`
+        },
+        javascriptEnabled: true
+      }
+    }
+  },
+  resolve: {
+    alias: [
+      {
+        find: '@',
+        replacement: coreFrontendSrcDir
+      }
+    ]
+  },
   build: {
     lib: {
       entry: resolve(rootDir, 'src/index.ts'),

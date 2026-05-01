@@ -24,21 +24,18 @@
       </header>
 
       <section class="system-setting-workspace parameter-config-content">
-        <sql-bot-embed-frame
-          :key="currentTab.pageKey"
-          :page-key="currentTab.pageKey"
-          :page-title="currentTab.label"
-        />
+        <ai-model-config v-if="currentTab.name === 'ai_model'" />
+        <terminology-config v-else-if="currentTab.name === 'ai_term'" />
+        <sql-example-config v-else-if="currentTab.name === 'ai_sql'" />
       </section>
     </section>
   </main>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router_2'
 import { useI18n } from '@/hooks/web/useI18n'
-import SqlBotEmbedFrame from '@/views/system/ai-config/components/SqlBotEmbedFrame.vue'
 import '@/views/system/shared/system-setting-page.less'
 
 type ParameterTabName = 'ai_model' | 'ai_term' | 'ai_sql'
@@ -46,6 +43,15 @@ type ParameterTabName = 'ai_model' | 'ai_term' | 'ai_sql'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const AiModelConfig = defineAsyncComponent(
+  () => import('@/views/system/query-config/AiModelConfig.vue')
+)
+const TerminologyConfig = defineAsyncComponent(
+  () => import('@/views/system/query-config/TerminologyConfig.vue')
+)
+const SqlExampleConfig = defineAsyncComponent(
+  () => import('@/views/system/query-config/SqlExampleConfig.vue')
+)
 
 const tabArray = computed(() => [
   {
@@ -135,33 +141,67 @@ const setCurrentTab = (tabName: ParameterTabName) => {
   min-height: 0;
   height: auto;
   overflow: hidden;
+  padding: 16px 24px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 4px 0 #1f23291f;
+}
+
+.parameter-config-content:has(.no-padding) {
   padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
-.parameter-config-content :deep(.sqlbot-embed-shell) {
+.parameter-config-content :deep(.model-config),
+.parameter-config-content :deep(.professional),
+.parameter-config-content :deep(.training) {
   width: 100%;
-  min-height: 0;
   flex: 1;
-  border: none;
-  border-radius: 14px;
-  box-shadow: none;
-  background: transparent;
-}
-
-.parameter-config-content :deep(.embed-body) {
   min-height: 0;
 }
 
-.parameter-config-content :deep(.sqlbot-embed-frame) {
-  min-height: 0;
+.parameter-config-content :deep(.ed-button) {
+  min-height: var(--system-control-height);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.parameter-config-content :deep(.ed-input__wrapper) {
+  min-height: var(--system-control-height);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.parameter-config-content :deep(.ed-input__inner),
+.parameter-config-content :deep(.ed-select__input),
+.parameter-config-content :deep(.ed-textarea__inner),
+.parameter-config-content :deep(.ed-select__wrapper),
+.parameter-config-content :deep(.ed-select__placeholder) {
+  font-size: 15px;
+  line-height: 24px;
+}
+
+.parameter-config-content :deep(.ed-table) {
+  font-size: 15px;
+}
+
+.parameter-config-content :deep(.ed-table th.ed-table__cell),
+.parameter-config-content :deep(.ed-table td.ed-table__cell) {
+  font-size: 15px;
+}
+
+.parameter-config-content :deep(.ed-table .cell) {
+  line-height: 24px;
 }
 
 @media (max-width: 1440px) {
   .parameter-config-content {
+    padding: 16px 24px;
+  }
+
+  .parameter-config-content:has(.no-padding) {
     padding: 0;
   }
 }

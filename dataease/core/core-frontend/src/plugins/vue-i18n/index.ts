@@ -5,6 +5,7 @@ import type { I18n, I18nOptions } from 'vue-i18n'
 import { setHtmlPageLang } from './helper'
 export let i18n: ReturnType<typeof createI18n>
 import { PATH_URL } from '@/config/axios/service'
+import { mergeSqlbotMessages } from '@/locales/sqlbotMessages'
 const createI18nOptions = async (): Promise<I18nOptions> => {
   const localeStore = useLocaleStoreWithOut()
   let locale = localeStore.getCurrentLocale
@@ -25,7 +26,7 @@ const createI18nOptions = async (): Promise<I18nOptions> => {
     locale = localeStore.getCurrentLocale
     defaultLocal = await import(`../../locales/${locale.lang}.ts`)
   }
-  const message = defaultLocal.default ?? {}
+  const message = mergeSqlbotMessages(locale.lang, defaultLocal.default ?? {})
 
   setHtmlPageLang(locale.lang)
 

@@ -85,7 +85,7 @@ const normalizeMode = (mode?: string): PermissionViewMode => {
 
 const normalizeTab = (tab: unknown, mode: PermissionViewMode): PermissionShellTab => {
   const allowed = modeTabs[mode]
-  const defaultTab: PermissionShellTab = mode === 'by-user' ? 'resource' : 'menu'
+  const defaultTab: PermissionShellTab = 'menu'
   if (typeof tab !== 'string') {
     return defaultTab
   }
@@ -221,7 +221,11 @@ const ensureSubjectSelection = () => {
 
 let refreshSubjectsPromise: Promise<void> | null = null
 
-const refreshSubjects = async () => {
+const refreshSubjects = async (force = false) => {
+  if (!force && state.subjects.length) {
+    ensureSubjectSelection()
+    return
+  }
   if (!refreshSubjectsPromise) {
     refreshSubjectsPromise = fetchPermissionSubjects()
       .then(subjects => {
@@ -235,13 +239,13 @@ const refreshSubjects = async () => {
   await refreshSubjectsPromise
 }
 
-const refreshActivePanel = async () => {
+const refreshActivePanel = async (forceTreeReload = false) => {
   if (state.tab !== 'menu' && state.tab !== 'resource') {
     return
   }
   const panel = state.tab
   const panelState = resolvePanelState(panel)
-  if (!panelState.tree.length) {
+  if (forceTreeReload || !panelState.tree.length) {
     await loadPanelTree(panel)
   }
   if (!containsNodeId(panelState.tree, state.selectedResourceId)) {
@@ -275,10 +279,13 @@ export const usePermissionShellStore = () => {
   })
 
   const setView = async (mode?: string, tab?: string) => {
-    setModeInternal(normalizeMode(mode))
-    state.tab = normalizeTab(tab, state.mode)
+    const nextMode = normalizeMode(mode)
+    const nextTab = normalizeTab(tab, nextMode)
+    const viewChanged = state.mode !== nextMode || state.tab !== nextTab
+    setModeInternal(nextMode)
+    state.tab = nextTab
     await refreshSubjects()
-    await refreshActivePanel()
+    await refreshActivePanel(viewChanged)
   }
 
   const setSubjectType = async (type: PermissionSubjectType) => {

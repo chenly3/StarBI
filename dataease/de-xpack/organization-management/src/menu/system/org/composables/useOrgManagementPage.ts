@@ -143,6 +143,8 @@ export const useOrgManagementPage = () => {
   const editDialogVisible = ref(false)
   const deleteDialogVisible = ref(false)
   const activeDeleteRow = ref<OrgTableRow | null>(null)
+  const deleteBlockerVisible = ref(false)
+  const deleteBlockerMessage = ref('')
 
   const form = reactive<OrgFormState>(createEmptyForm())
   const parentOptions = ref<ParentOption[]>([])
@@ -313,7 +315,8 @@ export const useOrgManagementPage = () => {
     try {
       const res = await checkDeleteOrg(row.id)
       if (!res.data?.deletable) {
-        window.alert(formatDeleteBlocker(res.data))
+        deleteBlockerMessage.value = formatDeleteBlocker(res.data)
+        deleteBlockerVisible.value = true
         return
       }
       activeDeleteRow.value = row
@@ -321,6 +324,11 @@ export const useOrgManagementPage = () => {
     } catch (error) {
       window.alert(getErrorMessage(error))
     }
+  }
+
+  const closeDeleteBlocker = () => {
+    deleteBlockerVisible.value = false
+    deleteBlockerMessage.value = ''
   }
 
   const closeDeleteDialog = (force = false) => {
@@ -368,6 +376,8 @@ export const useOrgManagementPage = () => {
     editDialogVisible,
     deleteDialogVisible,
     activeDeleteRow,
+    deleteBlockerVisible,
+    deleteBlockerMessage,
     form,
     parentOptions,
     loadTree,
@@ -382,6 +392,7 @@ export const useOrgManagementPage = () => {
     submitEdit,
     requestDelete,
     closeDeleteDialog,
+    closeDeleteBlocker,
     confirmDelete
   }
 }

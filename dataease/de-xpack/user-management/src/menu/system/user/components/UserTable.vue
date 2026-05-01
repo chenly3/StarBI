@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type { UserGridRow } from '../types'
 
 const props = withDefaults(
@@ -47,6 +48,23 @@ const allSelected = computed({
   }
 })
 
+const pageSizeOptions = [
+  { label: '10条/页', value: '10' },
+  { label: '20条/页', value: '20' },
+  { label: '50条/页', value: '50' },
+  { label: '100条/页', value: '100' }
+]
+
+const selectedPageSize = computed({
+  get: () => String(props.pageSize),
+  set: value => {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      emit('pageSizeChange', parsed)
+    }
+  }
+})
+
 const formatRoles = (row: UserGridRow): string => {
   if (!Array.isArray(row.roleItems) || row.roleItems.length === 0) {
     return '-'
@@ -78,80 +96,96 @@ const formatDateTime = (value: string | number | undefined): string => {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`
 }
 
-const onPageSizeChange = (event: Event) => {
-  const target = event.target as HTMLSelectElement
-  const parsed = Number(target.value)
-  if (Number.isFinite(parsed) && parsed > 0) {
-    emit('pageSizeChange', parsed)
+const formatCompactDateTime = (value: string | number | undefined): string => {
+  const fullDateTime = formatDateTime(value)
+  if (fullDateTime === '-' || fullDateTime.length < 16) {
+    return fullDateTime
   }
+  return fullDateTime.slice(5, 16)
 }
 </script>
 
 <template>
   <section class="user-table-wrap">
-    <table class="user-table">
-      <thead>
-        <tr>
-          <th class="user-table__check-col">
-            <input v-model="allSelected" type="checkbox" />
-          </th>
-          <th class="user-table__name-col">姓名</th>
-          <th class="user-table__account-col">账号</th>
-          <th class="user-table__role-col">角色</th>
-          <th class="user-table__email-col">邮箱</th>
-          <th class="user-table__org-col">所属组织</th>
-          <th class="user-table__origin-col">用户来源</th>
-          <th class="user-table__status-col">是否启用</th>
-          <th class="user-table__sort-col">创建时间</th>
-          <th class="user-table__action-col">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="loading">
-          <td colspan="10" class="user-table__empty">加载中...</td>
-        </tr>
-        <tr v-else-if="!normalizedRows.length">
-          <td colspan="10" class="user-table__empty">暂无数据</td>
-        </tr>
-        <tr v-for="row in normalizedRows" v-else :key="row.selectionKey">
-          <td class="user-table__check-col">
-            <input v-model="selectedAccounts" :value="row.selectionKey" type="checkbox" />
-          </td>
-          <td class="user-table__name-col user-table__single-line">{{ row.name || '-' }}</td>
-          <td class="user-table__account-col user-table__single-line">{{ row.account || '-' }}</td>
-          <td class="user-table__role-col">
-            <span class="user-table__role-tag" :class="{ 'is-blue': formatRoles(row).includes('组织') }">
-              {{ formatRoles(row) }}
-            </span>
-          </td>
-          <td class="user-table__email-col user-table__single-line">{{ row.email || '-' }}</td>
-          <td class="user-table__org-col user-table__single-line">{{ row.orgName }}</td>
-          <td class="user-table__origin-col">
-            <span class="user-table__origin-tag" :class="{ 'is-purple': formatOrigin(row.origin) === 'LDAP' }">
-              {{ formatOrigin(row.origin) }}
-            </span>
-          </td>
-          <td class="user-table__status-col">
-            <button
-              type="button"
-              class="user-table__switch"
-              :class="{ 'is-on': row.enable }"
-              @click="emit('toggle', row)"
-            >
-              <span />
-            </button>
-          </td>
-          <td class="user-table__time user-table__single-line">{{ formatDateTime(row.createTime) }}</td>
-          <td class="user-table__actions">
-            <button type="button" class="user-table__icon-button" @click="emit('edit', row)">编辑</button>
-            <button type="button" class="user-table__icon-button" @click="emit('resetPwd', row)">
-              重置密码
-            </button>
-            <button type="button" class="user-table__icon-button" @click="emit('delete', row)">删除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="user-table-scroll">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th class="user-table__check-col">
+              <input v-model="allSelected" type="checkbox" />
+            </th>
+            <th class="user-table__name-col">姓名</th>
+            <th class="user-table__account-col">账号</th>
+            <th class="user-table__role-col">角色</th>
+            <th class="user-table__email-col">邮箱</th>
+            <th class="user-table__org-col">所属组织</th>
+            <th class="user-table__origin-col">用户来源</th>
+            <th class="user-table__status-col">是否启用</th>
+            <th class="user-table__sort-col">创建时间</th>
+            <th class="user-table__action-col">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading">
+            <td colspan="10" class="user-table__empty">加载中...</td>
+          </tr>
+          <tr v-else-if="!normalizedRows.length">
+            <td colspan="10" class="user-table__empty">暂无数据</td>
+          </tr>
+          <tr v-for="row in normalizedRows" v-else :key="row.selectionKey">
+            <td class="user-table__check-col">
+              <input v-model="selectedAccounts" :value="row.selectionKey" type="checkbox" />
+            </td>
+            <td class="user-table__name-col user-table__single-line" :title="row.name || '-'">
+              {{ row.name || '-' }}
+            </td>
+            <td class="user-table__account-col user-table__single-line" :title="row.account || '-'">
+              {{ row.account || '-' }}
+            </td>
+            <td class="user-table__role-col">
+              <span
+                class="user-table__role-tag"
+                :class="{ 'is-blue': formatRoles(row).includes('组织') }"
+                :title="formatRoles(row)"
+              >
+                {{ formatRoles(row) }}
+              </span>
+            </td>
+            <td class="user-table__email-col user-table__single-line" :title="row.email || '-'">
+              {{ row.email || '-' }}
+            </td>
+            <td class="user-table__org-col user-table__single-line" :title="row.orgName">
+              {{ row.orgName }}
+            </td>
+            <td class="user-table__origin-col">
+              <span class="user-table__origin-tag" :class="{ 'is-purple': formatOrigin(row.origin) === 'LDAP' }">
+                {{ formatOrigin(row.origin) }}
+              </span>
+            </td>
+            <td class="user-table__status-col">
+              <button
+                type="button"
+                class="user-table__switch"
+                :class="{ 'is-on': row.enable }"
+                @click="emit('toggle', row)"
+              >
+                <span />
+              </button>
+            </td>
+            <td class="user-table__time user-table__single-line" :title="formatDateTime(row.createTime)">
+              {{ formatCompactDateTime(row.createTime) }}
+            </td>
+            <td class="user-table__actions">
+              <button type="button" class="user-table__icon-button" @click="emit('edit', row)">编辑</button>
+              <button type="button" class="user-table__icon-button" @click="emit('resetPwd', row)">
+                重置密码
+              </button>
+              <button type="button" class="user-table__icon-button" @click="emit('delete', row)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <footer class="user-table-pagination">
       <button type="button" class="user-table__batch-button" :disabled="!selectedAccounts.length">
@@ -177,12 +211,7 @@ const onPageSizeChange = (event: Event) => {
           </button>
         </div>
         <label class="user-table-pagination__size">
-          <select :value="String(pageSize)" @change="onPageSizeChange">
-            <option value="10">10条/页</option>
-            <option value="20">20条/页</option>
-            <option value="50">50条/页</option>
-            <option value="100">100条/页</option>
-          </select>
+          <SystemSelect v-model="selectedPageSize" :options="pageSizeOptions" />
         </label>
         <label class="user-table-pagination__jump">
           跳转至
@@ -207,8 +236,15 @@ const onPageSizeChange = (event: Event) => {
   flex-direction: column;
 }
 
+.user-table-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
 .user-table {
   width: 100%;
+  min-width: 1184px;
   border-collapse: collapse;
   table-layout: fixed;
   color: #1f2a44;
@@ -217,58 +253,79 @@ const onPageSizeChange = (event: Event) => {
 
 .user-table th,
 .user-table td {
-  height: 48px;
-  padding: 0 16px;
+  height: 54px;
+  padding: 0 12px;
   border-bottom: 1px solid #eef2f8;
   text-align: left;
   vertical-align: middle;
+  box-sizing: border-box;
 }
 
 .user-table th {
   background: #fafcff;
-  color: #1d2740;
-  font-weight: 600;
-  font-size: 14px;
+  color: #243047;
+  font-weight: 700;
+  font-size: 16px;
 }
 
 .user-table td {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .user-table__check-col {
-  width: 44px;
+  width: 42px;
+  text-align: center;
 }
 
 .user-table__action-col {
-  width: 186px;
+  width: 164px;
+  text-align: center;
 }
 
 .user-table__name-col {
-  width: 100px;
+  width: 132px;
 }
 
 .user-table__account-col {
-  width: 128px;
+  width: 108px;
 }
 
 .user-table__role-col {
-  width: 150px;
+  width: 128px;
 }
 
 .user-table__email-col {
-  width: 206px;
+  width: 192px;
 }
 
 .user-table__org-col {
-  width: 120px;
+  width: 132px;
 }
 
 .user-table__origin-col {
-  width: 92px;
+  width: 90px;
+  text-align: center;
 }
 
 .user-table__status-col {
-  width: 96px;
+  width: 90px;
+  text-align: center;
+}
+
+.user-table__sort-col,
+.user-table__time {
+  width: 106px;
+}
+
+.user-table th.user-table__check-col,
+.user-table td.user-table__check-col,
+.user-table th.user-table__origin-col,
+.user-table td.user-table__origin-col,
+.user-table th.user-table__status-col,
+.user-table td.user-table__status-col,
+.user-table th.user-table__action-col,
+.user-table td.user-table__actions {
+  text-align: center;
 }
 
 .user-table__single-line {
@@ -290,9 +347,9 @@ const onPageSizeChange = (event: Event) => {
   align-items: center;
   justify-content: center;
   min-height: 30px;
-  padding: 0 12px;
+  padding: 0 9px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .user-table__role-tag {
@@ -355,14 +412,16 @@ const onPageSizeChange = (event: Event) => {
   color: #4b7cff;
   cursor: pointer;
   padding: 0;
-  font-size: 14px;
-  line-height: 1;
+  font-size: 15px;
+  line-height: 22px;
 }
 
 .user-table__actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
   white-space: nowrap;
 }
 
@@ -372,7 +431,8 @@ const onPageSizeChange = (event: Event) => {
 }
 
 .user-table__empty {
-  padding: 56px 0;
+  height: 100%;
+  padding: 72px 0;
   text-align: center;
   color: #8994aa;
 }
@@ -381,14 +441,16 @@ const onPageSizeChange = (event: Event) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: auto;
   padding: 14px 0;
   border-top: 1px solid #eef2f8;
   background: #fbfcff;
+  flex: 0 0 auto;
 }
 
 .user-table__batch-button {
   margin-left: 16px;
-  height: 38px;
+  height: 40px;
   padding: 0 18px;
   border: 1px solid #d8e0ef;
   border-radius: 8px;
@@ -400,9 +462,10 @@ const onPageSizeChange = (event: Event) => {
 .user-table-pagination__right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   margin-right: 16px;
   color: #5e6b84;
+  font-size: 15px;
 }
 
 .user-table-pagination__pager {
@@ -413,7 +476,6 @@ const onPageSizeChange = (event: Event) => {
 
 .user-table-pagination__pager button,
 .user-table-pagination__page,
-.user-table-pagination__size select,
 .user-table-pagination__jump input {
   height: 34px;
   min-width: 34px;
@@ -435,10 +497,13 @@ const onPageSizeChange = (event: Event) => {
   border-color: #aec4ff;
 }
 
-.user-table-pagination__size select,
+.user-table-pagination__size {
+  width: 120px;
+}
+
 .user-table-pagination__jump input {
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 15px;
   color: #33415c;
 }
 
@@ -453,16 +518,12 @@ const onPageSizeChange = (event: Event) => {
 }
 
 @media (max-width: 1200px) {
-  .user-table-wrap {
-    overflow-x: auto;
-  }
-
   .user-table {
-    min-width: 1180px;
+    width: 1184px;
   }
 
   .user-table-pagination {
-    min-width: 1180px;
+    min-width: 1184px;
   }
 }
 </style>

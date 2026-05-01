@@ -74,46 +74,6 @@ export const routes: AppRouteRecordRaw[] = [
     component: () => import('@/views/system/query-config/QueryResourcePrototype.vue')
   },
   {
-    path: '/prototype/permission/user',
-    name: 'prototype-permission-user',
-    hidden: true,
-    meta: { hidden: true },
-    component: () =>
-      import(
-        '../../../../de-xpack/permission-management/src/menu/system/permission/PermissionByUserPreview.vue'
-      )
-  },
-  {
-    path: '/prototype/permission/resource',
-    name: 'prototype-permission-resource',
-    hidden: true,
-    meta: { hidden: true },
-    component: () =>
-      import(
-        '../../../../de-xpack/permission-management/src/menu/system/permission/PermissionByResourcePreview.vue'
-      )
-  },
-  {
-    path: '/prototype/permission/row',
-    name: 'prototype-permission-row',
-    hidden: true,
-    meta: { hidden: true },
-    component: () =>
-      import(
-        '../../../../de-xpack/permission-management/src/menu/system/permission/RowPermissionPreview.vue'
-      )
-  },
-  {
-    path: '/prototype/permission/column',
-    name: 'prototype-permission-column',
-    hidden: true,
-    meta: { hidden: true },
-    component: () =>
-      import(
-        '../../../../de-xpack/permission-management/src/menu/system/permission/ColumnPermissionPreview.vue'
-      )
-  },
-  {
     path: '/query-theme',
     name: 'query-theme-redirect',
     hidden: true,
@@ -427,6 +387,8 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: routes as RouteRecordRaw[]
 })
+
+;(window as Window & { vueRouterDe?: typeof router }).vueRouterDe = router
 
 export const resetRouter = (): void => {
   const resetWhiteNameList = ['Login']

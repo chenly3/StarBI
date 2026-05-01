@@ -2,7 +2,7 @@
   <el-drawer
     v-model="drawerVisible"
     title="学习任务详情"
-    size="420px"
+    size="560px"
     direction="rtl"
     modal-class="learning-task-drawer"
   >
@@ -131,14 +131,15 @@ const timelineItems = computed(() => [
 .learning-task-drawer__body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  padding: 4px 4px 10px;
 }
 
 .learning-task-drawer__summary {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 18px;
   border: 1px solid #e4e7ec;
   border-radius: 16px;
   background: #fff;
@@ -148,20 +149,23 @@ const timelineItems = computed(() => [
   display: block;
   margin-bottom: 4px;
   color: #667085;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 23px;
 }
 
 .learning-task-drawer__value {
   color: #101828;
-  font-size: 14px;
+  font-size: 17px;
+  line-height: 25px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .learning-task-drawer__timeline {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px;
+  padding: 16px 18px;
   border: 1px solid #e4e7ec;
   border-radius: 16px;
   background: #fff;
@@ -171,7 +175,7 @@ const timelineItems = computed(() => [
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 16px 18px;
   border: 1px solid #f3d0cd;
   border-radius: 16px;
   background: #fff7f6;
@@ -186,24 +190,25 @@ const timelineItems = computed(() => [
 
 .learning-task-drawer__section-title {
   color: #b42318;
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 24px;
   font-weight: 600;
 }
 
 .learning-task-drawer__failure-copy {
   color: #912018;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
 .learning-task-drawer__retry {
-  height: 30px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 16px;
   border: 0;
   border-radius: 999px;
   background: #d92d20;
   color: #fff;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -222,14 +227,15 @@ const timelineItems = computed(() => [
 
 .learning-task-drawer__timeline-label {
   color: #344054;
-  font-size: 14px;
+  font-size: 17px;
+  line-height: 25px;
   font-weight: 600;
 }
 
 .learning-task-drawer__timeline-copy {
   margin-top: 4px;
   color: #667085;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.5;
 }
 </style>

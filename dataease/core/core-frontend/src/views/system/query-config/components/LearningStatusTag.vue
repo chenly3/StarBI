@@ -30,15 +30,16 @@ const tone = computed(() => {
 .learning-status-tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   color: #475467;
-  font-size: 13px;
-  line-height: 1;
+  font-size: 15px;
+  line-height: 24px;
+  font-weight: 600;
 }
 
 .learning-status-tag__dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   background: currentColor;
 }

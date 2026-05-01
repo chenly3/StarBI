@@ -68,7 +68,7 @@ const formatRate = (value: number) => `${value || 0}%`
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px;
+  padding: 16px 18px;
   border: 1px solid #d5e3ff;
   border-radius: 16px;
   background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
@@ -85,7 +85,8 @@ const formatRate = (value: number) => `${value || 0}%`
 .learning-feedback-summary-card__section-title,
 .learning-feedback-summary-card__metric-label {
   color: #667085;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 23px;
 }
 
 .learning-feedback-summary-card__tag {
@@ -93,7 +94,8 @@ const formatRate = (value: number) => `${value || 0}%`
   border-radius: 999px;
   background: #dfe9ff;
   color: #175cd3;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 23px;
   font-weight: 600;
 }
 
@@ -119,13 +121,15 @@ const formatRate = (value: number) => `${value || 0}%`
 
 .learning-feedback-summary-card__metric-value {
   color: #101828;
-  font-size: 18px;
+  font-size: 22px;
+  line-height: 30px;
   font-weight: 700;
 }
 
 .learning-feedback-summary-card__metric-rate {
   color: #667085;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 24px;
 }
 
 .learning-feedback-summary-card__questions {
@@ -145,7 +149,7 @@ const formatRate = (value: number) => `${value || 0}%`
 
 .learning-feedback-summary-card__governance-copy {
   color: #344054;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -153,7 +157,7 @@ const formatRate = (value: number) => `${value || 0}%`
   margin: 0;
   padding-left: 18px;
   color: #475467;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 </style>

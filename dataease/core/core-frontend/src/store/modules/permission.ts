@@ -101,7 +101,6 @@ const isAdminUser = () => {
 
 export const pathValid = path => {
   if (
-    path?.startsWith('/prototype/permission') ||
     path?.startsWith('/sqlbotnew') ||
     path?.startsWith('/sqlbot') ||
     path?.startsWith('/dashboard') ||

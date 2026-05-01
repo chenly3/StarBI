@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import SystemSelect from '../../shared/SystemSelect.vue'
 import type { IdType, UserOptionItem } from '../types'
 
 const props = withDefaults(
@@ -36,6 +37,24 @@ const emit = defineEmits<{
 }>()
 
 const localKeyword = ref(props.keyword)
+let searchTimer: number | undefined
+
+const pageSizeOptions = [
+  { label: '10条/页', value: '10' },
+  { label: '20条/页', value: '20' },
+  { label: '50条/页', value: '50' },
+  { label: '100条/页', value: '100' }
+]
+
+const selectedPageSize = computed({
+  get: () => String(props.pageSize),
+  set: value => {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      emit('pageSizeChange', parsed)
+    }
+  }
+})
 
 watch(
   () => props.keyword,
@@ -45,16 +64,27 @@ watch(
 )
 
 const onSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+    searchTimer = undefined
+  }
   emit('search', localKeyword.value.trim())
 }
 
-const onPageSizeChange = (event: Event) => {
-  const target = event.target as HTMLSelectElement
-  const parsed = Number(target.value)
-  if (Number.isFinite(parsed) && parsed > 0) {
-    emit('pageSizeChange', parsed)
+const scheduleSearch = () => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
   }
+  searchTimer = window.setTimeout(() => {
+    onSearch()
+  }, 300)
 }
+
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    window.clearTimeout(searchTimer)
+  }
+})
 
 const isRemoving = (id: IdType): boolean => {
   if (props.removingMemberId === null || props.removingMemberId === undefined) {
@@ -99,6 +129,7 @@ const isRemoving = (id: IdType): boolean => {
           v-model="localKeyword"
           type="text"
           placeholder="搜索姓名、账号"
+          @input="scheduleSearch"
           @keyup.enter="onSearch"
         />
       </div>
@@ -158,12 +189,7 @@ const isRemoving = (id: IdType): boolean => {
         ›
       </button>
       <label>
-        <select :value="String(pageSize)" @change="onPageSizeChange">
-          <option value="10">10条/页</option>
-          <option value="20">20条/页</option>
-          <option value="50">50条/页</option>
-          <option value="100">100条/页</option>
-        </select>
+        <SystemSelect v-model="selectedPageSize" :options="pageSizeOptions" />
       </label>
       <span>跳转至</span>
       <input class="role-member-table__jump" :value="String(page)" type="text" readonly />
@@ -180,7 +206,8 @@ const isRemoving = (id: IdType): boolean => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 380px;
+  height: 100%;
+  min-height: 0;
   box-shadow: 0 8px 20px rgba(31, 68, 143, 0.045);
 }
 
@@ -200,7 +227,7 @@ const isRemoving = (id: IdType): boolean => {
 
 .role-member-table__title h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   color: #1d2740;
 }
 
@@ -221,7 +248,7 @@ const isRemoving = (id: IdType): boolean => {
   align-items: center;
   gap: 4px;
   color: #53627d;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .role-member-table__count svg {
@@ -241,7 +268,7 @@ const isRemoving = (id: IdType): boolean => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -262,8 +289,8 @@ const isRemoving = (id: IdType): boolean => {
 }
 
 .role-member-table__search {
-  width: 260px;
-  height: 40px;
+  width: 320px;
+  height: 44px;
   border: 1px solid #d8deea;
   border-radius: 8px;
   display: flex;
@@ -282,7 +309,7 @@ const isRemoving = (id: IdType): boolean => {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 15px;
   background: transparent;
   color: #1f2a44;
 }
@@ -290,39 +317,67 @@ const isRemoving = (id: IdType): boolean => {
 .role-member-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
+  flex: 1 1 auto;
 }
 
 .role-member-table th,
 .role-member-table td {
   border-bottom: 1px solid #eef2f8;
-  height: 46px;
-  padding: 0 16px;
+  height: 54px;
+  padding: 0 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 .role-member-table th {
   background: #fafcff;
-  color: #1d2740;
+  color: #243047;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .role-member-table td {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .role-member-table__action-cell {
-  width: 88px;
+  width: 120px;
+  text-align: center;
+}
+
+.role-member-table th:last-child {
+  width: 120px;
+  text-align: center;
+}
+
+.role-member-table th:first-child,
+.role-member-table td:first-child {
+  width: 22%;
+}
+
+.role-member-table th:nth-child(2),
+.role-member-table td:nth-child(2) {
+  width: 24%;
+}
+
+.role-member-table th:nth-child(3),
+.role-member-table td:nth-child(3) {
+  width: auto;
 }
 
 .role-member-table__remove-button {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border: none;
+  border-radius: 9px;
   background: transparent;
   color: #3368e8;
   cursor: pointer;
+}
+
+.role-member-table__remove-button:hover {
+  background: #edf4ff;
 }
 
 .role-member-table__remove-button svg {
@@ -341,13 +396,12 @@ const isRemoving = (id: IdType): boolean => {
   gap: 12px;
   align-items: center;
   padding: 14px 16px;
-  font-size: 14px;
+  font-size: 15px;
   color: #5a657c;
   border-top: 1px solid #eef2f8;
   background: #fbfcff;
 }
 
-.role-member-table__pagination select,
 .role-member-table__pagination button,
 .role-member-table__jump {
   height: 36px;
@@ -357,8 +411,8 @@ const isRemoving = (id: IdType): boolean => {
   box-sizing: border-box;
 }
 
-.role-member-table__pagination select {
-  padding: 0 12px;
+.role-member-table__pagination label {
+  width: 120px;
 }
 
 .role-member-table__pagination button {

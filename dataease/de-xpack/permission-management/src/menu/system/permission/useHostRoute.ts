@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 
 type LocationQueryValue = string | null
 type LocationQuery = Record<string, LocationQueryValue | LocationQueryValue[]>
@@ -15,6 +15,22 @@ type NavigationTarget =
       path?: string
       query?: Record<string, unknown>
     }
+
+type HostRouter = {
+  currentRoute?: {
+    value?: {
+      path?: string
+      query?: LocationQuery
+      params?: Record<string, string | string[]>
+    }
+  }
+  push?: (target: NavigationTarget) => Promise<unknown> | unknown
+  replace?: (target: NavigationTarget) => Promise<unknown> | unknown
+}
+
+const globalWindow = window as Window & {
+  vueRouterDe?: HostRouter
+}
 
 const parseQuery = (search: string): LocationQuery => {
   const params = new URLSearchParams(search)
@@ -59,18 +75,39 @@ const parseHashRoute = (): RouteState => {
   const normalized = rawHash || '/'
   const [rawPath, rawSearch = ''] = normalized.split('?')
   const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`
-  const query = parseQuery(rawSearch)
-  const params = extractParams(path)
-  return { path, query, params }
+  return {
+    path,
+    query: parseQuery(rawSearch),
+    params: extractParams(path)
+  }
 }
 
 const routeState = reactive<RouteState>(parseHashRoute())
 
 const syncRouteState = () => {
+  const hostRoute = globalWindow.vueRouterDe?.currentRoute?.value
+  if (hostRoute?.path) {
+    routeState.path = hostRoute.path
+    routeState.query = hostRoute.query || {}
+    routeState.params = {
+      ...(hostRoute.params || {}),
+      ...extractParams(hostRoute.path)
+    }
+    return
+  }
+
   const next = parseHashRoute()
   routeState.path = next.path
   routeState.query = next.query
   routeState.params = next.params
+}
+
+const watchHostRoute = () => {
+  watch(
+    () => globalWindow.vueRouterDe?.currentRoute?.value,
+    () => syncRouteState(),
+    { immediate: true }
+  )
 }
 
 let listening = false
@@ -83,56 +120,37 @@ const ensureListener = () => {
   listening = true
 }
 
-const appendQuery = (search: URLSearchParams, query: Record<string, unknown>) => {
-  Object.entries(query).forEach(([key, value]) => {
-    if (value == null || value === '') {
-      return
-    }
-    if (Array.isArray(value)) {
-      value.forEach(item => {
-        if (item != null && item !== '') {
-          search.append(key, String(item))
-        }
-      })
-      return
-    }
-    search.set(key, String(value))
-  })
-}
-
-const buildHashTarget = (target: NavigationTarget): string => {
+const normalizeTarget = (target: NavigationTarget): NavigationTarget => {
   if (typeof target === 'string') {
-    if (target.startsWith('#')) {
-      return target
-    }
-    return `#${target.startsWith('/') ? target : `/${target}`}`
+    return target
   }
-  const path = target.path ? (target.path.startsWith('/') ? target.path : `/${target.path}`) : routeState.path
-  const search = new URLSearchParams()
-  appendQuery(search, target.query || {})
-  const queryString = search.toString()
-  return `#${path}${queryString ? `?${queryString}` : ''}`
+  return {
+    path: target.path || routeState.path,
+    query: target.query || {}
+  }
 }
 
-const navigate = (target: NavigationTarget, replace = false) => {
-  if (typeof window === 'undefined') {
-    return Promise.resolve()
-  }
-  const hashTarget = buildHashTarget(target)
-  if (replace) {
-    const url = new URL(window.location.href)
-    url.hash = hashTarget.slice(1)
-    window.history.replaceState(window.history.state, '', url.toString())
+const navigate = async (target: NavigationTarget, replace = false) => {
+  ensureListener()
+  const hostRouter = globalWindow.vueRouterDe
+  const normalized = normalizeTarget(target)
+  if (hostRouter?.replace && hostRouter?.push) {
+    if (replace) {
+      await hostRouter.replace(normalized)
+    } else {
+      await hostRouter.push(normalized)
+    }
     syncRouteState()
-    return Promise.resolve()
+    return
   }
-  window.location.hash = hashTarget
+
   syncRouteState()
-  return Promise.resolve()
 }
 
 export const useRoute = () => {
   ensureListener()
+  watchHostRoute()
+  syncRouteState()
   return routeState
 }
 

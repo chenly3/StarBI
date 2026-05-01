@@ -15,7 +15,7 @@ import {
 } from './composables/useRoleManagementPage'
 import { useUserManagementPage } from './composables/useUserManagementPage'
 import type { RoleQueryItem, UserFormState, UserGridRow, UserOptionItem } from './types'
-import '@/views/system/shared/system-setting-page.less'
+import '../shared/system-setting-page.css'
 
 const activeTab = ref<'user' | 'role'>('user')
 const userPage = useUserManagementPage()
@@ -409,11 +409,11 @@ const handleCreateRoleCancel = () => {
 .role-tab-host {
   display: grid;
   grid-template-columns: 302px minmax(0, 1fr);
-  align-items: start;
+  align-items: stretch;
   gap: 12px;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: auto;
+  overflow: hidden;
 }
 
 @media (max-width: 1200px) {

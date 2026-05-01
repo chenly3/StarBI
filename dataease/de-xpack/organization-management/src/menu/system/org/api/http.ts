@@ -1,5 +1,3 @@
-import request from '@/config/axios'
-
 export interface HttpResponse<T = unknown> {
   data: T
   status: number
@@ -25,34 +23,16 @@ interface AxiosBridge {
   ): Promise<HttpResponse<T>>
 }
 
-const buildRequestOption = (
-  url: string,
-  config: Record<string, unknown> = {},
-  data?: unknown
-): Record<string, unknown> => {
-  const headers = (config.headers as Record<string, unknown> | undefined) || {}
-  const contentType = headers['Content-Type']
-  return {
-    url,
-    data,
-    params: config.params,
-    responseType: config.responseType,
-    loading: config.loading,
-    silentError: config.silentError,
-    headersType: typeof contentType === 'string' ? contentType : undefined
-  }
-}
-
-const fallbackBridge: AxiosBridge = {
-  get: <T = unknown>(url: string, config?: Record<string, unknown>) =>
-    request.get<T>(buildRequestOption(url, config || {})) as Promise<HttpResponse<T>>,
-  post: <T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>) =>
-    request.post<T>(buildRequestOption(url, config || {}, data)) as Promise<HttpResponse<T>>
+const missingBridge = (): never => {
+  throw new Error('DataEase host request bridge window.AxiosDe is not available.')
 }
 
 const axiosBridge = (): AxiosBridge => {
   const axiosInstance = (window as Window & { AxiosDe?: AxiosBridge }).AxiosDe
-  return axiosInstance || fallbackBridge
+  if (axiosInstance) {
+    return axiosInstance
+  }
+  return missingBridge()
 }
 
 const normalizeConfig = (config: HttpConfig = {}): HttpConfig => {

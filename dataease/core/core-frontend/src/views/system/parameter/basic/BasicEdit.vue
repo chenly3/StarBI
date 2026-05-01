@@ -39,10 +39,11 @@ const requireKeys = [
   'thresholdLimit'
 ]
 const state = reactive({
-  form: reactive({
+  form: reactive<Record<string, any>>({
     dsIntervalTime: '30',
     dsExecuteTime: 'minute',
-    frontTimeOut: '30'
+    frontTimeOut: '30',
+    thresholdLimit: '50'
   }),
   settingList: [],
   orgOptions: [],

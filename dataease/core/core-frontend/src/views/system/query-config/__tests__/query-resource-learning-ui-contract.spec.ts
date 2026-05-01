@@ -15,16 +15,15 @@ type ContractCase = {
   run: () => void
 }
 
+import fs from 'node:fs'
+import path from 'node:path'
+
 declare const process:
   | {
       env?: Record<string, string | undefined>
       exitCode?: number
     }
   | undefined
-declare const require: any
-
-const fs = require('fs')
-const path = require('path')
 
 const readSource = (relativePath: string): string => {
   return fs.readFileSync(path.resolve(relativePath), 'utf8')
@@ -141,7 +140,7 @@ const contractCases: ContractCase[] = [
     run() {
       assertMatch(
         queryResourcePrototypeSource,
-        /rows\.value = resources\.map\(buildResourceRow\)/,
+        /const nextRows = resources\.map\(buildResourceRow\)\s*rows\.value = nextRows/,
         'page binds real resource list'
       )
       if (
@@ -154,7 +153,7 @@ const contractCases: ContractCase[] = [
     }
   },
   {
-    name: 'keeps preview row and recommendation user selection aligned with row data',
+    name: 'opens learning task detail from real row id and keeps recommendation user selection bound',
     run() {
       assertMatch(
         queryResourcePrototypeSource,
@@ -163,13 +162,23 @@ const contractCases: ContractCase[] = [
       )
       assertMatch(
         queryResourcePrototypeSource,
-        /updatePrototypeRoute\(\{ dialog: 'preview', previewId: row\.id \}\)/,
-        'preview route uses row id'
+        /const openLearningTaskDetail = \(row: ResourceRow\) =>/,
+        'task detail handler receives row'
       )
       assertMatch(
         queryResourcePrototypeSource,
-        /rows\.value\.find\(row => row\.id === previewId\)/,
-        'preview route restores clicked row'
+        /const taskId = row\.id/,
+        'task detail uses resource row id'
+      )
+      assertMatch(
+        queryResourcePrototypeSource,
+        /updatePrototypeRoute\(\{ dialog: 'learning-task', taskId \}\)/,
+        'task detail route uses row task id'
+      )
+      assertMatch(
+        queryResourcePrototypeSource,
+        /loadLearningDrawerSummaries\(taskId\)/,
+        'task detail loads drawer summaries'
       )
       assertMatch(
         queryResourcePrototypeSource,

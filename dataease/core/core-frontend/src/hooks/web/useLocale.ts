@@ -2,6 +2,7 @@ import { i18n } from '@/plugins/vue-i18n'
 import { useLocaleStoreWithOut } from '@/store/modules/locale'
 import { setHtmlPageLang } from '@/plugins/vue-i18n/helper'
 import { PATH_URL } from '@/config/axios/service'
+import { mergeSqlbotMessages } from '@/locales/sqlbotMessages'
 const setI18nLanguage = (locale: LocaleType) => {
   const localeStore = useLocaleStoreWithOut()
 
@@ -45,7 +46,7 @@ export const useLocale = () => {
     }
     // const langModule = await import(`../../locales/${locale}.ts`)
 
-    globalI18n.setLocaleMessage(locale, langModule.default)
+    globalI18n.setLocaleMessage(locale, mergeSqlbotMessages(locale, langModule.default ?? {}))
 
     setI18nLanguage(locale)
   }

@@ -52,8 +52,8 @@ const displayGrade = computed(() => props.grade || '--')
 .learning-score-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
+  gap: 12px;
+  padding: 16px;
   border: 1px solid #e4e7ec;
   border-radius: 14px;
   background: #f8fbff;
@@ -81,12 +81,14 @@ const displayGrade = computed(() => props.grade || '--')
 .learning-score-card__section-title,
 .learning-score-card__label {
   color: #667085;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 23px;
 }
 
 .learning-score-card__grade {
   color: #175cd3;
-  font-size: 16px;
+  font-size: 22px;
+  line-height: 30px;
   font-weight: 700;
 }
 
@@ -107,13 +109,15 @@ const displayGrade = computed(() => props.grade || '--')
   border-radius: 999px;
   background: #fff;
   color: #344054;
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 23px;
 }
 
 .learning-score-card__list {
   margin: 0;
   padding-left: 18px;
   color: #475467;
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 25px;
 }
 </style>

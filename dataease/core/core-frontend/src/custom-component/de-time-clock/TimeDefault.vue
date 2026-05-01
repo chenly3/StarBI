@@ -1,6 +1,6 @@
 <template>
   <div
-    style="width: 100%; height: 100%; display: flex; align-items: center"
+    style="display: flex; width: 100%; height: 100%; align-items: center"
     :style="{ 'justify-content': element.style.textAlign }"
   >
     <p>{{ state.nowDate }}</p>
@@ -38,7 +38,7 @@ const formatDate = () => {
 
   const date = new Date()
 
-  state.nowDate = date.format(timeFormat)
+  state.nowDate = (date as Date & { format: (format: string) => string }).format(timeFormat)
 
   if (showWeek) {
     state.nowWeek = weekArr[date.getDay()]

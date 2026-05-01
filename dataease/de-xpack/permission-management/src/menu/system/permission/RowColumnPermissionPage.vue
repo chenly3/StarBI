@@ -72,16 +72,16 @@ const { activeTab, datasetName, backToResources, setActiveTab } = useDatasetPerm
 
 .row-column-permission-page__shell {
   min-height: 0;
-  flex: 1;
+  flex: 1 1 auto;
   overflow: hidden;
 }
 
 .row-column-permission-page__layout {
   min-height: 0;
-  flex: 1;
+  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
   overflow: hidden;
 }
@@ -140,11 +140,11 @@ const { activeTab, datasetName, backToResources, setActiveTab } = useDatasetPerm
 
 @media (max-width: 1180px) {
   .row-column-permission-page__layout {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 260px minmax(0, 1fr);
   }
 
   .row-column-permission-page__content {
-    padding: 0;
+    padding: 10px;
     gap: 10px;
   }
 }

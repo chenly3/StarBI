@@ -11,7 +11,7 @@
   --system-shadow-soft: 0 8px 20px rgba(31, 68, 143, 0.045);
   --system-radius-lg: 14px;
   --system-radius-md: 10px;
-  --system-control-height: 38px;
+  --system-control-height: 44px;
 
   width: 100%;
   height: 100%;
@@ -21,8 +21,8 @@
   flex-direction: column;
   background: transparent;
   color: var(--system-text);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 16px;
+  line-height: 24px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -84,6 +84,8 @@
   background: var(--system-card-bg);
   box-shadow: var(--system-shadow-soft);
   box-sizing: border-box;
+  min-height: 0;
+  height: auto;
 }
 
 .system-setting-workspace {
@@ -131,21 +133,18 @@
 
 .system-setting-tab {
   appearance: none;
-  height: 32px;
-  padding: 0 14px;
+  height: 34px;
+  padding: 0 16px;
   border: none;
   border-radius: 999px;
   background: transparent;
   color: #4f5f76;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 22px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    color 0.16s ease,
-    background-color 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .system-setting-tab:hover {
@@ -166,6 +165,8 @@
   background: var(--system-card-bg);
   box-shadow: var(--system-shadow-soft);
   box-sizing: border-box;
+  min-height: 0;
+  height: auto;
 }
 
 .system-setting-toolbar {
@@ -174,8 +175,8 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  min-height: 52px;
-  padding: 8px 12px;
+  min-height: 56px;
+  padding: 9px 12px;
   border: 1px solid var(--system-card-border);
   border-radius: var(--system-radius-lg);
   background: #ffffff;
@@ -202,27 +203,213 @@
 
 .system-setting-page button,
 .system-setting-page .ed-button {
-  min-height: 36px;
+  min-height: var(--system-control-height);
 }
 
 .system-setting-page .ed-button {
-  border-radius: 9px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .system-setting-page input,
 .system-setting-page select,
-.system-setting-page .ed-input__wrapper {
-  min-height: 36px;
-  border-radius: 9px;
+.system-setting-page .ed-input__wrapper,
+.system-setting-page .ed-select__wrapper {
+  min-height: var(--system-control-height);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.system-setting-page .ed-input__inner,
+.system-setting-page .ed-select__input,
+.system-setting-page .ed-textarea__inner,
+.system-setting-page .ed-select__wrapper,
+.system-setting-page .ed-select__placeholder {
+  font-size: 15px;
+  line-height: 24px;
 }
 
 .system-setting-page table th {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .system-setting-page table td {
+  font-size: 15px;
+}
+
+.system-setting-page .ed-table {
+  --ed-table-header-bg-color: #f7f9fc;
+  --ed-table-row-hover-bg-color: #fbfcff;
+
+  font-size: 15px;
+}
+
+.system-setting-page .ed-table th.ed-table__cell {
+  padding: 10px 0;
+  background: #f7f9fc;
+  color: #5f6b7c;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.system-setting-page .ed-table td.ed-table__cell {
+  padding: 10px 0;
+  color: #27364f;
+  font-size: 15px;
+}
+
+.system-setting-page .ed-table .cell {
+  padding: 0 14px;
+  line-height: 24px;
+}
+
+.system-setting-page .ed-table th.ed-table__cell.is-center .cell,
+.system-setting-page .ed-table td.ed-table__cell.is-center .cell {
+  display: flex;
+  justify-content: center;
+}
+
+.system-setting-page .ed-table .ed-table__fixed-right .cell,
+.system-setting-page .ed-table td:last-child .cell,
+.system-setting-page .ed-table th:last-child .cell {
+  text-align: center;
+}
+
+.system-setting-page .ed-table th:last-child .cell,
+.system-setting-page .ed-table td:last-child .cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.system-setting-page .ed-select,
+.system-setting-page .ed-input,
+.system-setting-page .ed-button {
+  min-height: var(--system-control-height);
+}
+
+.system-setting-page .ed-pagination {
+  font-size: 15px;
+}
+
+.system-setting-page .ed-pagination button,
+.system-setting-page .ed-pagination .ed-pager li {
+  min-width: 32px;
+  height: 32px;
   font-size: 14px;
+}
+
+.professional-add_drawer,
+.professional-term_drawer,
+.training-add_drawer,
+.training-term_drawer,
+.starbi-model-drawer,
+.model-drawer-fullscreen,
+.learning-task-drawer {
+  .ed-drawer__header {
+    margin-bottom: 0;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #edf0f5;
+  }
+
+  .ed-drawer__title {
+    color: #111827;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+  }
+
+  .ed-drawer__body {
+    padding: 18px 24px;
+    color: #27364f;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-drawer__footer {
+    padding: 14px 24px 20px;
+    border-top: 1px solid #edf0f5;
+  }
+
+  .ed-form-item__label {
+    margin-bottom: 8px;
+    color: #344054;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 600;
+  }
+
+  .ed-input__wrapper,
+  .ed-select__wrapper {
+    min-height: var(--system-control-height, 44px);
+    height: var(--system-control-height, 44px);
+    border-radius: 8px;
+    font-size: 15px;
+    box-sizing: border-box;
+  }
+
+  .ed-input__inner,
+  .ed-select__input,
+  .ed-select__placeholder {
+    height: var(--system-control-height, 44px);
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-textarea__inner {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-radio__label,
+  .ed-checkbox__label {
+    font-size: 15px;
+  }
+
+  .ed-button {
+    height: var(--system-control-height, 44px);
+    min-height: var(--system-control-height, 44px);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+}
+
+.confirm-no_icon {
+  .ed-message-box__title {
+    color: #111827;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .ed-message-box__message {
+    color: #344054;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-button {
+    height: var(--system-control-height, 44px);
+    min-height: var(--system-control-height, 44px);
+    font-size: 15px;
+  }
+}
+
+.ed-select__popper {
+  .ed-select-dropdown__item {
+    min-height: var(--system-control-height, 44px);
+    font-size: 15px;
+    line-height: var(--system-control-height, 44px);
+  }
+
+  .ed-select-dropdown__item span {
+    font-size: 15px;
+    line-height: 24px;
+  }
 }
 
 @media (max-width: 1180px) {
