@@ -39,4 +39,4 @@ Do not commit secrets or machine-specific state. Treat `auth.json`, `history.jso
 - Frontend projects are usually based on `Vue 3`; prefer Vue 3 and Vite oriented solutions unless the project clearly uses another stack.
 - For Vue frontend optimization, prioritize `frontend-design`, `vue-pinia-best-practices`, and `vite` when they apply.
 - For product concepts, demo scenarios, and exploratory UI design, prefer mobile carrier style and a blue-and-white visual direction unless an existing design system should be preserved.
-- For all coding, code review, refactoring, and implementation planning tasks, use the global `karpathy-guidelines` skill by default unless it conflicts with explicit user instructions, repository instructions, or existing project conventions.
+- For all coding, code review, refactoring, and implementation planning tasks, MUST invoke the global `karpathy-guidelines` skill before writing or modifying code. Treat it as a required constraint unless it conflicts with explicit user instructions, repository instructions, or existing project conventions.
