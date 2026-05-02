@@ -45,8 +45,24 @@ import type {
   SourceKind,
   TabKey
 } from './types'
+import {
+  buildDerivedQuestionText,
+  createDerivedAnswerRecord,
+  createDerivedQuestionRecord,
+  createLegacyInsightDerivedMessagesForRestore,
+  findLatestOriginalQuestionInRecords,
+  getDerivedActionKey,
+  hasUnfinishedDerivedAnswer,
+  isDerivedAnswerRecord,
+  isDerivedQuestionRecord,
+  isFactAnswerRecord,
+  sortRestoredMessageFlowRecords,
+  stripInlineInsightsFromFactRecord,
+  type SqlbotDerivedAction,
+  type SqlbotMessageFlowRecord
+} from './sqlbotMessageFlow'
 
-type SqlbotNewDerivedAction = 'analysis' | 'predict'
+type SqlbotNewDerivedAction = SqlbotDerivedAction
 
 interface SqlbotNewEmbedState {
   domain: string
@@ -69,35 +85,12 @@ interface AppendAssistantReplyOptions {
   recommendQuestions?: string[]
 }
 
-export interface SqlbotNewConversationRecord {
+export interface SqlbotNewConversationRecord extends SqlbotMessageFlowRecord {
   kind?: SqlbotNewConversationRecordKind
   contextSwitch?: SqlbotNewContextSwitchMeta
-  localId: string
-  id?: number
   chatId?: number
   datasource?: number
   executionContext?: SqlbotNewExecutionContext
-  sourceRecordId?: number
-  sourceLocalId?: string
-  derivedAction?: 'analysis' | 'predict'
-  derivedQuestion?: string
-  question: string
-  sqlAnswer: string
-  chartAnswer: string
-  analysis?: string
-  analysisThinking?: string
-  analysisLoading?: boolean
-  analysisError?: string
-  analysisRecordId?: number
-  analysisDuration?: number
-  analysisTotalTokens?: number
-  predict?: string
-  predictThinking?: string
-  predictLoading?: boolean
-  predictError?: string
-  predictRecordId?: number
-  predictDuration?: number
-  predictTotalTokens?: number
   clarification?: SqlbotNewClarificationState
   interpretation?: SqlbotNewInterpretationMeta
   executionSummary?: SqlbotNewExecutionSummary
@@ -105,16 +98,10 @@ export interface SqlbotNewConversationRecord {
   sql?: string
   chart?: string
   data?: Record<string, any>
-  error: string
-  createTime: number
-  finish: boolean
   finishTime?: string | number
   duration?: number
   totalTokens?: number
-  recommendQuestions: string[]
-  pendingChartHydration: boolean
   display?: SqlbotNewConversationRecordDisplayState
-  assistantEventPersisted?: boolean
 }
 
 export type SqlbotNewErrorInfo = SqlbotErrorInfo
@@ -400,31 +387,6 @@ const createLocalRecord = (question: string) =>
     recommendQuestions: [],
     pendingChartHydration: false
   }) as SqlbotNewConversationRecord
-
-const isFactAnswerRecord = (record: SqlbotNewConversationRecord) =>
-  !record.kind || record.kind === 'answer' || record.kind === 'fact-answer'
-
-const isDerivedQuestionRecord = (record: SqlbotNewConversationRecord) =>
-  record.kind === 'derived-question'
-
-const isDerivedAnswerRecord = (record: SqlbotNewConversationRecord) =>
-  record.kind === 'derived-answer'
-
-const stripInlineInsightsFromFactRecord = (record: SqlbotNewConversationRecord) => {
-  if (!isFactAnswerRecord(record)) {
-    return record
-  }
-
-  record.analysis = ''
-  record.analysisThinking = ''
-  record.analysisLoading = false
-  record.analysisError = ''
-  record.predict = ''
-  record.predictThinking = ''
-  record.predictLoading = false
-  record.predictError = ''
-  return record
-}
 
 const createAssistantReplyRecord = ({
   question,
@@ -896,176 +858,39 @@ export const useSqlbotNewConversation = () => {
     return []
   }
 
-  const buildDerivedQuestionText = (
-    action: SqlbotNewDerivedAction,
-    sourceRecord: SqlbotNewConversationRecord
-  ) => {
-    const question = String(sourceRecord.question || '').trim()
-    const target = question ? `“${question}”` : '上面的结果'
-    return action === 'analysis' ? `对${target}做数据解读` : `对${target}做趋势预测`
-  }
-
-  const getDerivedActionKey = (
-    sourceRecord: SqlbotNewConversationRecord,
-    action: SqlbotNewDerivedAction
-  ) => `${sourceRecord.id || sourceRecord.localId}:${action}`
-
   const isDerivedActionPending = (
     sourceRecord: SqlbotNewConversationRecord,
     action: SqlbotNewDerivedAction
   ) => pendingDerivedActionKeys.has(getDerivedActionKey(sourceRecord, action))
 
-  const createDerivedQuestionMessage = ({
-    action,
-    sourceRecord,
-    question,
-    createTime,
-    localId,
-    assistantEventPersisted
-  }: {
+  const reactiveRecordFactory = (record: SqlbotMessageFlowRecord) =>
+    reactive(record) as SqlbotNewConversationRecord
+
+  const createDerivedQuestionMessage = (options: {
     action: SqlbotNewDerivedAction
     sourceRecord: SqlbotNewConversationRecord
     question: string
     createTime?: string | number
     localId?: string
     assistantEventPersisted?: boolean
-  }): SqlbotNewConversationRecord =>
-    reactive({
-      kind: 'derived-question',
-      localId:
-        localId ||
-        `derived-question-${sourceRecord.localId}-${action}-${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2, 7)}`,
-      sourceRecordId: sourceRecord.id,
-      sourceLocalId: sourceRecord.localId,
-      derivedAction: action,
-      derivedQuestion: question,
-      executionContext: sourceRecord.executionContext
-        ? {
-            ...sourceRecord.executionContext
-          }
-        : undefined,
-      question,
-      sqlAnswer: '',
-      chartAnswer: '',
-      error: '',
-      createTime: normalizeRecordTimestamp(createTime),
-      finish: true,
-      recommendQuestions: [],
-      pendingChartHydration: false,
-      assistantEventPersisted
-    }) as SqlbotNewConversationRecord
+  }) =>
+    createDerivedQuestionRecord({
+      ...options,
+      factory: reactiveRecordFactory
+    })
 
-  const createDerivedAnswerMessage = ({
-    action,
-    sourceRecord,
-    question,
-    createTime,
-    localId,
-    assistantEventPersisted
-  }: {
+  const createDerivedAnswerMessage = (options: {
     action: SqlbotNewDerivedAction
     sourceRecord: SqlbotNewConversationRecord
     question: string
     createTime?: string | number
     localId?: string
     assistantEventPersisted?: boolean
-  }): SqlbotNewConversationRecord =>
-    reactive({
-      kind: 'derived-answer',
-      localId:
-        localId ||
-        `derived-answer-${sourceRecord.localId}-${action}-${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2, 7)}`,
-      sourceRecordId: sourceRecord.id,
-      sourceLocalId: sourceRecord.localId,
-      derivedAction: action,
-      derivedQuestion: question,
-      executionContext: sourceRecord.executionContext
-        ? {
-            ...sourceRecord.executionContext
-          }
-        : undefined,
-      question,
-      sqlAnswer: '',
-      chartAnswer: '',
-      analysis: '',
-      analysisThinking: '',
-      analysisLoading: action === 'analysis',
-      analysisError: '',
-      predict: '',
-      predictThinking: '',
-      predictLoading: action === 'predict',
-      predictError: '',
-      error: '',
-      createTime: normalizeRecordTimestamp(createTime),
-      finish: false,
-      recommendQuestions: [],
-      pendingChartHydration: false,
-      assistantEventPersisted
-    }) as SqlbotNewConversationRecord
-
-  const createLegacyInsightDerivedMessages = (
-    sourceRecord: SqlbotNewConversationRecord,
-    coveredActions = new Set<string>()
-  ): SqlbotNewConversationRecord[] => {
-    const records: SqlbotNewConversationRecord[] = []
-    const legacyAnalysis = String(sourceRecord.analysis || '').trim()
-    const legacyPredict = String(sourceRecord.predict || '').trim()
-
-    if (legacyAnalysis && !coveredActions.has(getDerivedActionKey(sourceRecord, 'analysis'))) {
-      const question = buildDerivedQuestionText('analysis', sourceRecord)
-      records.push(
-        createDerivedQuestionMessage({
-          action: 'analysis',
-          sourceRecord,
-          question,
-          assistantEventPersisted: true
-        })
-      )
-      const answer = createDerivedAnswerMessage({
-        action: 'analysis',
-        sourceRecord,
-        question,
-        assistantEventPersisted: true
-      })
-      answer.analysis = legacyAnalysis
-      answer.analysisThinking = sourceRecord.analysisThinking || ''
-      answer.analysisLoading = false
-      answer.analysisRecordId = sourceRecord.analysisRecordId
-      answer.finish = true
-      records.push(answer)
-    }
-
-    if (legacyPredict && !coveredActions.has(getDerivedActionKey(sourceRecord, 'predict'))) {
-      const question = buildDerivedQuestionText('predict', sourceRecord)
-      records.push(
-        createDerivedQuestionMessage({
-          action: 'predict',
-          sourceRecord,
-          question,
-          assistantEventPersisted: true
-        })
-      )
-      const answer = createDerivedAnswerMessage({
-        action: 'predict',
-        sourceRecord,
-        question,
-        assistantEventPersisted: true
-      })
-      answer.predict = legacyPredict
-      answer.predictThinking = sourceRecord.predictThinking || ''
-      answer.predictLoading = false
-      answer.predictRecordId = sourceRecord.predictRecordId
-      answer.finish = true
-      records.push(answer)
-    }
-
-    stripInlineInsightsFromFactRecord(sourceRecord)
-    return records
-  }
+  }) =>
+    createDerivedAnswerRecord({
+      ...options,
+      factory: reactiveRecordFactory
+    })
 
   const normalizeConversationRecord = (
     record: Record<string, any>,
@@ -1356,12 +1181,6 @@ export const useSqlbotNewConversation = () => {
         record.data
     )
   }
-
-  const findLatestOriginalQuestionInRecords = (records: SqlbotNewConversationRecord[]) =>
-    [...records]
-      .reverse()
-      .find(record => isFactAnswerRecord(record) && String(record.question || '').trim())
-      ?.question || ''
 
   const normalizeRecordTimestamp = (value?: string | number | null) => {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -1951,53 +1770,6 @@ export const useSqlbotNewConversation = () => {
     }
 
     return record
-  }
-
-  const getExistingDerivedActionKeys = (records: SqlbotNewConversationRecord[]) => {
-    const keys = new Set<string>()
-    records.forEach(record => {
-      if (!isDerivedAnswerRecord(record) || !record.derivedAction) {
-        return
-      }
-      const sourceRecord =
-        records.find(item => record.sourceRecordId && item.id === record.sourceRecordId) ||
-        records.find(item => record.sourceLocalId && item.localId === record.sourceLocalId)
-      if (sourceRecord) {
-        keys.add(getDerivedActionKey(sourceRecord, record.derivedAction))
-      }
-    })
-    return keys
-  }
-
-  const hasUnfinishedDerivedAnswer = (
-    sourceRecord: SqlbotNewConversationRecord,
-    action: SqlbotNewDerivedAction
-  ) => {
-    return conversationRecords.value.some(record => {
-      return (
-        isDerivedAnswerRecord(record) &&
-        record.derivedAction === action &&
-        (record.sourceRecordId === sourceRecord.id ||
-          record.sourceLocalId === sourceRecord.localId) &&
-        (!record.finish || record.analysisLoading || record.predictLoading)
-      )
-    })
-  }
-
-  const createLegacyInsightDerivedMessagesForRestore = (records: SqlbotNewConversationRecord[]) => {
-    const coveredActions = getExistingDerivedActionKeys(records)
-    return records.flatMap(record => {
-      if (!isFactAnswerRecord(record)) {
-        return [record]
-      }
-      const derivedMessages = createLegacyInsightDerivedMessages(record, coveredActions)
-      derivedMessages.forEach(derivedRecord => {
-        if (isDerivedAnswerRecord(derivedRecord) && derivedRecord.derivedAction) {
-          coveredActions.add(getDerivedActionKey(record, derivedRecord.derivedAction))
-        }
-      })
-      return [record, ...derivedMessages]
-    })
   }
 
   const appendContextSwitchRecord = async (
@@ -3229,23 +3001,12 @@ export const useSqlbotNewConversation = () => {
           createPersistedDerivedMessageRecord(event, resolvedExecutionContext, baseRecords)
         )
         .filter((record): record is SqlbotNewConversationRecord => Boolean(record))
-      const restoredRecords = createLegacyInsightDerivedMessagesForRestore([
-        ...baseRecords,
-        ...derivedEventRecords
-      ]).sort((left, right) => {
-        const timestampDiff = left.createTime - right.createTime
-        if (timestampDiff !== 0) {
-          return timestampDiff
-        }
-        const order: Record<string, number> = {
-          'context-switch': 0,
-          answer: 1,
-          'fact-answer': 1,
-          'derived-question': 2,
-          'derived-answer': 3
-        }
-        return (order[left.kind || 'answer'] ?? 9) - (order[right.kind || 'answer'] ?? 9)
-      })
+      const restoredRecords = sortRestoredMessageFlowRecords(
+        createLegacyInsightDerivedMessagesForRestore(
+          [...baseRecords, ...derivedEventRecords],
+          reactiveRecordFactory
+        )
+      )
       restoredRecords.forEach(stripInlineInsightsFromFactRecord)
       const { selectionTitle, selectionMeta } = resolveHistoryRestoreSelection({
         entry,
@@ -3537,7 +3298,7 @@ export const useSqlbotNewConversation = () => {
 
     if (
       isDerivedActionPending(sourceRecord, 'analysis') ||
-      hasUnfinishedDerivedAnswer(sourceRecord, 'analysis')
+      hasUnfinishedDerivedAnswer(conversationRecords.value, sourceRecord, 'analysis')
     ) {
       return
     }
@@ -3631,7 +3392,7 @@ export const useSqlbotNewConversation = () => {
 
     if (
       isDerivedActionPending(sourceRecord, 'predict') ||
-      hasUnfinishedDerivedAnswer(sourceRecord, 'predict')
+      hasUnfinishedDerivedAnswer(conversationRecords.value, sourceRecord, 'predict')
     ) {
       return
     }
