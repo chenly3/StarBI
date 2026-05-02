@@ -312,10 +312,16 @@ export const hasUnfinishedDerivedAnswer = (
   action: SqlbotDerivedAction
 ) =>
   records.some(record => {
+    const sameSourceById =
+      record.sourceRecordId !== undefined &&
+      sourceRecord.id !== undefined &&
+      record.sourceRecordId === sourceRecord.id
+    const sameSourceByLocalId =
+      Boolean(record.sourceLocalId) && record.sourceLocalId === sourceRecord.localId
     return (
       isDerivedAnswerRecord(record) &&
       record.derivedAction === action &&
-      (record.sourceRecordId === sourceRecord.id || record.sourceLocalId === sourceRecord.localId) &&
+      (sameSourceById || sameSourceByLocalId) &&
       (!record.finish || record.analysisLoading || record.predictLoading)
     )
   })

@@ -225,6 +225,28 @@ const contractCases: ContractCase[] = [
         !hasUnfinishedDerivedAnswer([fact, unfinished], fact, 'predict'),
         'unfinished analysis should not block predict'
       )
+      const localFactA = baseFactRecord({ id: undefined, localId: 'local-a' })
+      const localFactB = baseFactRecord({ id: undefined, localId: 'local-b' })
+      const localUnfinished: SqlbotMessageFlowRecord = {
+        ...baseFactRecord({
+          kind: 'derived-answer',
+          localId: 'local-analysis-loading',
+          id: undefined,
+          sourceRecordId: undefined,
+          sourceLocalId: 'local-a',
+          derivedAction: 'analysis',
+          analysisLoading: true,
+          finish: false
+        })
+      }
+      assert(
+        hasUnfinishedDerivedAnswer([localFactA, localFactB, localUnfinished], localFactA, 'analysis'),
+        'unfinished local analysis should block the same local source'
+      )
+      assert(
+        !hasUnfinishedDerivedAnswer([localFactA, localFactB, localUnfinished], localFactB, 'analysis'),
+        'unfinished local analysis should not block a different local source'
+      )
     }
   },
   {
