@@ -101,11 +101,28 @@ Date: 2026-05-02
 
 | Case | Result | Evidence | Notes |
 |---|---|---|---|
-| Fact answer creates action suggestions | PASS | `tmp/sqlbot-message-flow-qa/01-fact-action-suggestions.png` | Local stack was already running. Logged in as `admin`. The fact question completed with a chart answer, action buttons, and recommendation chips. Screenshot includes restored prior conversation content in the same browser session, so the action-suggestion assertion was verified from the DOM snapshot around the latest fact answer. |
-| Data interpretation alternates question then answer | PASS | `tmp/sqlbot-message-flow-qa/02-analysis-derived-flow.png` | Clicking Data Interpretation generated the derived question text starting with `对“按品线统计销售金额”做数据解读`; the next AI content rendered `核心结论`, `关键依据`, and `建议动作`. HAR includes `/api/v1/chat/record/49/analysis`. |
-| Trend prediction alternates question then answer | PASS | `tmp/sqlbot-message-flow-qa/03-predict-derived-flow.png` | The final Case 3 evidence was replaced with a clean repro because the first isolated HAR was empty. The saved HAR now includes `POST /api/v1/chat/record/51/predict` returning 200, and the screenshot shows user-visible `趋势预测` output. The `data-testid` locator was not used as passing evidence because it remained unreliable in the iframe/CORS context. |
-| History restore does not regenerate | PASS | `tmp/sqlbot-message-flow-qa/04-history-restore.har` | Fresh HAR around clicking the latest history entry had no `/analysis` or `/predict` URL matches. The restored page showed the saved fact answer and derived analysis content. |
-| Recommendation click prefills composer | PASS | `tmp/sqlbot-message-flow-qa/05-recommend-prefill.png` | Clicking a recommendation prefilled the composer; the screenshot was captured before submit. After clicking submit, HAR recorded `/api/v1/chat/question`; no `/predict` or `/analysis` appeared in the recommendation HAR. |
+| Fact answer creates action suggestions | PASS | `tmp/sqlbot-message-flow-qa/01-fact-action-suggestions.png`, `tmp/sqlbot-message-flow-qa/01-fact-action-suggestions.har` | Local stack was already running. Logged in as `admin`. The fact question completed with a chart answer, action buttons, and recommendation chips. Screenshot includes restored prior conversation content in the same browser session, so the action-suggestion assertion was verified from the DOM snapshot around the latest fact answer. |
+| Data interpretation alternates question then answer | PASS | `tmp/sqlbot-message-flow-qa/02-analysis-derived-flow.png`, `tmp/sqlbot-message-flow-qa/02-analysis-derived-flow.har` | Clicking Data Interpretation generated the derived question text starting with `对“按品线统计销售金额”做数据解读`; the next AI content rendered `核心结论`, `关键依据`, and `建议动作`. HAR includes `/api/v1/chat/record/49/analysis`. |
+| Trend prediction alternates question then answer | PASS | `tmp/sqlbot-message-flow-qa/03-predict-derived-flow.png`, `tmp/sqlbot-message-flow-qa/03-predict-derived-flow.har` | The final Case 3 evidence was replaced with a clean repro because the first isolated HAR was empty. The saved HAR now includes `POST /api/v1/chat/record/51/predict` returning 200, and the screenshot shows user-visible `趋势预测` output. The `data-testid` locator was not used as passing evidence because it remained unreliable in the iframe/CORS context. |
+| History restore does not regenerate | PASS | `tmp/sqlbot-message-flow-qa/04-history-restore.png`, `tmp/sqlbot-message-flow-qa/04-history-restore.har` | Fresh HAR around clicking the latest history entry had no `/analysis` or `/predict` URL matches. The restored page showed the saved fact answer and derived analysis content. |
+| Recommendation click prefills composer | PASS | `tmp/sqlbot-message-flow-qa/05-recommend-prefill.png`, `tmp/sqlbot-message-flow-qa/05-recommend-prefill.har` | Clicking a recommendation prefilled the composer before submit; the screenshot was captured before submit. After the submit button was clicked, HAR recorded `/api/v1/chat/question`; no `/predict` or `/analysis` appeared in the recommendation HAR. |
+
+### Assertion Details
+
+| Case | Assertion | Result | Evidence |
+|---|---|---|---|
+| 1 | Fact answer rendered after asking `按品线统计销售金额` | PASS | `01-fact-action-suggestions.png`, `01-fact-action-suggestions.har` |
+| 1 | Action suggestions appeared after the fact answer | PASS | DOM snapshot and `01-fact-action-suggestions.png` |
+| 1 | Fact card did not inline data interpretation content | PASS | DOM snapshot around latest fact answer |
+| 2 | Derived question text starts with `对“按品线统计销售金额”做数据解读` | PASS | `02-analysis-derived-flow.png` |
+| 2 | Derived answer rendered after the derived question | PASS | `02-analysis-derived-flow.png` |
+| 2 | Analysis request completed | PASS | `02-analysis-derived-flow.har` includes `/api/v1/chat/record/49/analysis` |
+| 3 | Prediction request completed | PASS | `03-predict-derived-flow.har` includes `POST /api/v1/chat/record/51/predict` status 200 |
+| 3 | Prediction flow rendered user-visible `对“按品线统计销售金额”做趋势预测` and `趋势预测` | PASS | `03-predict-derived-flow.png` |
+| 4 | History restore did not regenerate analysis or prediction | PASS | `04-history-restore.har` has no `/analysis` or `/predict` matches |
+| 4 | Restored conversation showed saved fact and derived analysis content | PASS | `04-history-restore.png` |
+| 5 | Recommendation click prefilled composer before submit | PASS | `05-recommend-prefill.png` |
+| 5 | Question request started only after submit | PASS | `05-recommend-prefill.har` includes `/api/v1/chat/question` after submit capture step |
 
 Residual risks:
 
