@@ -77,6 +77,7 @@ const conversationRecordSource = readSource(
 const indexSource = readSource('src/views/sqlbot-new/index.vue')
 const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
 const starbiResultCardSource = readSource('src/views/sqlbot/StarbiResultCard.vue')
+const messageFlowSource = readSource('src/views/sqlbot-new/sqlbotMessageFlow.ts')
 const restoreHistorySource = extractFunctionSource(conversationSource, 'restoreHistorySession')
 
 const requiredContracts = [
@@ -97,15 +98,25 @@ const contractCases: ContractCase[] = [
     name: 'sqlbot-new record model separates fact and derived messages',
     run() {
       assertMatch(typesSource, requiredContracts[0], 'record kind union')
-      assertMatch(conversationSource, /sourceRecordId\?: number/, 'source record id field')
-      assertMatch(conversationSource, /sourceLocalId\?: string/, 'source local id field')
+      assertMatch(messageFlowSource, /sourceRecordId\?: number/, 'source record id field')
+      assertMatch(messageFlowSource, /sourceLocalId\?: string/, 'source local id field')
       assertMatch(
-        conversationSource,
-        /derivedAction\?: 'analysis' \| 'predict'/,
+        messageFlowSource,
+        /SqlbotDerivedAction = 'analysis' \| 'predict'/,
+        'derived action union'
+      )
+      assertMatch(
+        messageFlowSource,
+        /derivedAction\?: SqlbotDerivedAction/,
         'derived action field'
       )
-      assertMatch(conversationSource, /derivedQuestion\?: string/, 'derived question field')
-      assertMatch(conversationSource, /const isFactAnswerRecord = /, 'fact answer helper')
+      assertMatch(messageFlowSource, /derivedQuestion\?: string/, 'derived question field')
+      assertMatch(
+        conversationSource,
+        /extends SqlbotMessageFlowRecord/,
+        'conversation record extends message flow record contract'
+      )
+      assertMatch(messageFlowSource, /export const isFactAnswerRecord = /, 'fact answer helper')
     }
   },
   {
@@ -118,13 +129,13 @@ const contractCases: ContractCase[] = [
         'sqlbot-new disables inline insights'
       )
       assertMatch(
-        conversationSource,
+        messageFlowSource,
         requiredContracts[3],
         'legacy insight conversion helper exists'
       )
-      assertMatch(conversationSource, requiredContracts[4], 'inline insight strip helper exists')
+      assertMatch(messageFlowSource, requiredContracts[4], 'inline insight strip helper exists')
       assertMatch(
-        conversationSource,
+        messageFlowSource,
         /stripInlineInsightsFromFactRecord[\s\S]*record\.analysis = ''[\s\S]*record\.predict = ''/,
         'fact strip clears analysis and predict'
       )
@@ -156,6 +167,36 @@ const contractCases: ContractCase[] = [
     }
   },
   {
+    name: 'conversation composable delegates message flow rules to pure helper module',
+    run() {
+      assertMatch(
+        conversationSource,
+        /from '.\/sqlbotMessageFlow'/,
+        'conversation imports sqlbotMessageFlow helpers'
+      )
+      assertMatch(
+        messageFlowSource,
+        /export const sortRestoredMessageFlowRecords/,
+        'restore sort helper'
+      )
+      assertMatch(
+        messageFlowSource,
+        /export const createLegacyInsightDerivedMessagesForRestore/,
+        'legacy conversion helper'
+      )
+      assertMatch(
+        messageFlowSource,
+        /export const hasUnfinishedDerivedAnswer/,
+        'duplicate lock helper'
+      )
+      assertMatch(
+        restoreHistorySource,
+        /sortRestoredMessageFlowRecords\(/,
+        'restore uses stable message sort helper'
+      )
+    }
+  },
+  {
     name: 'history restore recognizes derived events and never regenerates insights',
     run() {
       assertMatch(
@@ -168,7 +209,7 @@ const contractCases: ContractCase[] = [
       assertMatch(conversationSource, requiredContracts[9], 'restore converts legacy insights')
       assertNotMatch(
         restoreHistorySource,
-        /requestDerivedRecordAnalysis|requestDerivedRecordPredict|streamSQLBotRecordAnalysis|streamSQLBotRecordPredict/,
+        /requestDerivedRecordAnalysis|requestDerivedRecordPredict|requestRecordAnalysis|requestRecordPredict|streamSQLBotRecordAnalysis|streamSQLBotRecordPredict/,
         'history restore must not generate analysis or predict'
       )
     }
@@ -177,11 +218,11 @@ const contractCases: ContractCase[] = [
     name: 'derived records do not affect original title or normal turn counting',
     run() {
       assertMatch(
-        conversationSource,
+        messageFlowSource,
         requiredContracts[6],
         'latest original question helper exists'
       )
-      assertMatch(conversationSource, requiredContracts[7], 'fact answer helper used')
+      assertMatch(messageFlowSource, requiredContracts[7], 'fact answer helper exists')
       assertMatch(
         indexSource,
         /conversationAnswerTurnMap[\s\S]*isFactAnswerRecord/,
