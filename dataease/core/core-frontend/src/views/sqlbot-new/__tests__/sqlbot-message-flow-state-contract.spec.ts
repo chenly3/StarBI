@@ -63,16 +63,20 @@ const contractCases: ContractCase[] = [
   {
     name: 'record kind helpers classify fact and derived messages',
     run() {
-      assert(isFactAnswerRecord(baseFactRecord()), 'fact-answer should be a fact record')
+      const fact = baseFactRecord()
+      const derivedQuestion = { ...baseFactRecord(), kind: 'derived-question' }
+      const derivedAnswer = { ...baseFactRecord(), kind: 'derived-answer' }
+
+      assert(isFactAnswerRecord(fact), 'fact-answer should be a fact record')
       assert(isFactAnswerRecord({ ...baseFactRecord(), kind: 'answer' }), 'legacy answer is fact')
-      assert(
-        isDerivedQuestionRecord({ ...baseFactRecord(), kind: 'derived-question' }),
-        'derived-question should be derived question'
-      )
-      assert(
-        isDerivedAnswerRecord({ ...baseFactRecord(), kind: 'derived-answer' }),
-        'derived-answer should be derived answer'
-      )
+      assert(!isDerivedQuestionRecord(fact), 'fact-answer should not be derived question')
+      assert(!isDerivedAnswerRecord(fact), 'fact-answer should not be derived answer')
+      assert(isDerivedQuestionRecord(derivedQuestion), 'derived-question should be derived question')
+      assert(!isFactAnswerRecord(derivedQuestion), 'derived-question should not be fact answer')
+      assert(!isDerivedAnswerRecord(derivedQuestion), 'derived-question should not be derived answer')
+      assert(isDerivedAnswerRecord(derivedAnswer), 'derived-answer should be derived answer')
+      assert(!isFactAnswerRecord(derivedAnswer), 'derived-answer should not be fact answer')
+      assert(!isDerivedQuestionRecord(derivedAnswer), 'derived-answer should not be derived question')
     }
   },
   {
@@ -109,8 +113,10 @@ const contractCases: ContractCase[] = [
     }
   },
   {
-    name: 'legacy inline insights convert to alternating derived messages once',
+    name: 'legacy inline insights convert to semantic alternating derived messages',
     run() {
+      const analysisQuestionText = '对“按品线统计销售金额”做数据解读'
+      const predictQuestionText = '对“按品线统计销售金额”做趋势预测'
       const fact = baseFactRecord({
         analysis: '华东品线贡献最高，建议优先补货。',
         analysisThinking: '先比较品线销售金额。',
@@ -126,6 +132,24 @@ const contractCases: ContractCase[] = [
       assert(restored[4].kind === 'derived-answer', 'predict answer should be fifth')
       assert(restored[0].analysis === '', 'fact inline analysis should be stripped after conversion')
       assert(restored[0].predict === '', 'fact inline predict should be stripped after conversion')
+      assert(restored[1].derivedAction === 'analysis', 'analysis question action mismatch')
+      assert(restored[1].sourceRecordId === 101, 'analysis question source id mismatch')
+      assert(restored[1].sourceLocalId === 'fact-1', 'analysis question source local id mismatch')
+      assert(restored[1].question === analysisQuestionText, 'analysis question text mismatch')
+      assert(restored[2].derivedAction === 'analysis', 'analysis answer action mismatch')
+      assert(restored[2].sourceRecordId === 101, 'analysis answer source id mismatch')
+      assert(restored[2].sourceLocalId === 'fact-1', 'analysis answer source local id mismatch')
+      assert(restored[2].derivedQuestion === analysisQuestionText, 'analysis answer derived question mismatch')
+      assert(restored[2].analysis === '华东品线贡献最高，建议优先补货。', 'analysis answer content mismatch')
+      assert(restored[3].derivedAction === 'predict', 'predict question action mismatch')
+      assert(restored[3].sourceRecordId === 101, 'predict question source id mismatch')
+      assert(restored[3].sourceLocalId === 'fact-1', 'predict question source local id mismatch')
+      assert(restored[3].question === predictQuestionText, 'predict question text mismatch')
+      assert(restored[4].derivedAction === 'predict', 'predict answer action mismatch')
+      assert(restored[4].sourceRecordId === 101, 'predict answer source id mismatch')
+      assert(restored[4].sourceLocalId === 'fact-1', 'predict answer source local id mismatch')
+      assert(restored[4].derivedQuestion === predictQuestionText, 'predict answer derived question mismatch')
+      assert(restored[4].predict === '预计下周仍保持增长。', 'predict answer content mismatch')
     }
   },
   {
