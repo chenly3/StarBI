@@ -98,9 +98,7 @@ export const getDerivedActionKey = (
   action: SqlbotDerivedAction
 ) => `${sourceRecord.id || sourceRecord.localId}:${action}`
 
-export const stripInlineInsightsFromFactRecord = <T extends SqlbotMessageFlowRecord>(
-  record: T
-) => {
+export const stripInlineInsightsFromFactRecord = <T extends SqlbotMessageFlowRecord>(record: T) => {
   if (!isFactAnswerRecord(record)) {
     return record
   }
@@ -269,9 +267,7 @@ export const getExistingDerivedActionKeys = (records: SqlbotMessageFlowRecord[])
   return keys
 }
 
-export const createLegacyInsightDerivedMessagesForRestore = <
-  T extends SqlbotMessageFlowRecord
->(
+export const createLegacyInsightDerivedMessagesForRestore = <T extends SqlbotMessageFlowRecord>(
   records: T[],
   factory?: DerivedRecordFactory<T>
 ) => {
@@ -329,5 +325,5 @@ export const hasUnfinishedDerivedAnswer = (
 export const findLatestOriginalQuestionInRecords = (records: SqlbotMessageFlowRecord[]) =>
   [...records]
     .reverse()
-    .find(record => isFactAnswerRecord(record) && String(record.question || '').trim())
-    ?.question || ''
+    .find(record => isFactAnswerRecord(record) && String(record.question || '').trim())?.question ||
+  ''

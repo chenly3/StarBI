@@ -57,7 +57,7 @@ const baseFactRecord = (overrides: Partial<SqlbotMessageFlowRecord> = {}) =>
     finish: true,
     recommendQuestions: [],
     ...overrides
-  }) satisfies SqlbotMessageFlowRecord & Partial<SqlbotMessageFlowRecord>
+  } satisfies SqlbotMessageFlowRecord & Partial<SqlbotMessageFlowRecord>)
 
 const contractCases: ContractCase[] = [
   {
@@ -71,12 +71,21 @@ const contractCases: ContractCase[] = [
       assert(isFactAnswerRecord({ ...baseFactRecord(), kind: 'answer' }), 'legacy answer is fact')
       assert(!isDerivedQuestionRecord(fact), 'fact-answer should not be derived question')
       assert(!isDerivedAnswerRecord(fact), 'fact-answer should not be derived answer')
-      assert(isDerivedQuestionRecord(derivedQuestion), 'derived-question should be derived question')
+      assert(
+        isDerivedQuestionRecord(derivedQuestion),
+        'derived-question should be derived question'
+      )
       assert(!isFactAnswerRecord(derivedQuestion), 'derived-question should not be fact answer')
-      assert(!isDerivedAnswerRecord(derivedQuestion), 'derived-question should not be derived answer')
+      assert(
+        !isDerivedAnswerRecord(derivedQuestion),
+        'derived-question should not be derived answer'
+      )
       assert(isDerivedAnswerRecord(derivedAnswer), 'derived-answer should be derived answer')
       assert(!isFactAnswerRecord(derivedAnswer), 'derived-answer should not be fact answer')
-      assert(!isDerivedQuestionRecord(derivedAnswer), 'derived-answer should not be derived question')
+      assert(
+        !isDerivedQuestionRecord(derivedAnswer),
+        'derived-answer should not be derived question'
+      )
     }
   },
   {
@@ -85,7 +94,10 @@ const contractCases: ContractCase[] = [
       const text = buildDerivedQuestionText('analysis', baseFactRecord())
       assert(text === '对“按品线统计销售金额”做数据解读', `unexpected analysis text: ${text}`)
       const predictText = buildDerivedQuestionText('predict', baseFactRecord())
-      assert(predictText === '对“按品线统计销售金额”做趋势预测', `unexpected predict text: ${predictText}`)
+      assert(
+        predictText === '对“按品线统计销售金额”做趋势预测',
+        `unexpected predict text: ${predictText}`
+      )
     }
   },
   {
@@ -130,7 +142,10 @@ const contractCases: ContractCase[] = [
       assert(restored[2].kind === 'derived-answer', 'analysis answer should be third')
       assert(restored[3].kind === 'derived-question', 'predict question should be fourth')
       assert(restored[4].kind === 'derived-answer', 'predict answer should be fifth')
-      assert(restored[0].analysis === '', 'fact inline analysis should be stripped after conversion')
+      assert(
+        restored[0].analysis === '',
+        'fact inline analysis should be stripped after conversion'
+      )
       assert(restored[0].predict === '', 'fact inline predict should be stripped after conversion')
       assert(restored[1].derivedAction === 'analysis', 'analysis question action mismatch')
       assert(restored[1].sourceRecordId === 101, 'analysis question source id mismatch')
@@ -139,8 +154,14 @@ const contractCases: ContractCase[] = [
       assert(restored[2].derivedAction === 'analysis', 'analysis answer action mismatch')
       assert(restored[2].sourceRecordId === 101, 'analysis answer source id mismatch')
       assert(restored[2].sourceLocalId === 'fact-1', 'analysis answer source local id mismatch')
-      assert(restored[2].derivedQuestion === analysisQuestionText, 'analysis answer derived question mismatch')
-      assert(restored[2].analysis === '华东品线贡献最高，建议优先补货。', 'analysis answer content mismatch')
+      assert(
+        restored[2].derivedQuestion === analysisQuestionText,
+        'analysis answer derived question mismatch'
+      )
+      assert(
+        restored[2].analysis === '华东品线贡献最高，建议优先补货。',
+        'analysis answer content mismatch'
+      )
       assert(restored[3].derivedAction === 'predict', 'predict question action mismatch')
       assert(restored[3].sourceRecordId === 101, 'predict question source id mismatch')
       assert(restored[3].sourceLocalId === 'fact-1', 'predict question source local id mismatch')
@@ -148,7 +169,10 @@ const contractCases: ContractCase[] = [
       assert(restored[4].derivedAction === 'predict', 'predict answer action mismatch')
       assert(restored[4].sourceRecordId === 101, 'predict answer source id mismatch')
       assert(restored[4].sourceLocalId === 'fact-1', 'predict answer source local id mismatch')
-      assert(restored[4].derivedQuestion === predictQuestionText, 'predict answer derived question mismatch')
+      assert(
+        restored[4].derivedQuestion === predictQuestionText,
+        'predict answer derived question mismatch'
+      )
       assert(restored[4].predict === '预计下周仍保持增长。', 'predict answer content mismatch')
     }
   },
@@ -178,8 +202,14 @@ const contractCases: ContractCase[] = [
       const predictAnswers = restored.filter(
         item => item.kind === 'derived-answer' && item.derivedAction === 'predict'
       )
-      assert(analysisAnswers.length === 1, `expected one analysis answer, got ${analysisAnswers.length}`)
-      assert(predictAnswers.length === 1, `expected one converted predict answer, got ${predictAnswers.length}`)
+      assert(
+        analysisAnswers.length === 1,
+        `expected one analysis answer, got ${analysisAnswers.length}`
+      )
+      assert(
+        predictAnswers.length === 1,
+        `expected one converted predict answer, got ${predictAnswers.length}`
+      )
       assert(analysisAnswers[0].analysis === '已保存的新解读。', 'persisted analysis should win')
     }
   },
@@ -240,11 +270,19 @@ const contractCases: ContractCase[] = [
         })
       }
       assert(
-        hasUnfinishedDerivedAnswer([localFactA, localFactB, localUnfinished], localFactA, 'analysis'),
+        hasUnfinishedDerivedAnswer(
+          [localFactA, localFactB, localUnfinished],
+          localFactA,
+          'analysis'
+        ),
         'unfinished local analysis should block the same local source'
       )
       assert(
-        !hasUnfinishedDerivedAnswer([localFactA, localFactB, localUnfinished], localFactB, 'analysis'),
+        !hasUnfinishedDerivedAnswer(
+          [localFactA, localFactB, localUnfinished],
+          localFactB,
+          'analysis'
+        ),
         'unfinished local analysis should not block a different local source'
       )
     }
@@ -268,9 +306,13 @@ const contractCases: ContractCase[] = [
   {
     name: 'derived action key is stable by source record id then local id',
     run() {
-      assert(getDerivedActionKey(baseFactRecord(), 'analysis') === '101:analysis', 'id key mismatch')
       assert(
-        getDerivedActionKey(baseFactRecord({ id: undefined, localId: 'local-only' }), 'predict') === 'local-only:predict',
+        getDerivedActionKey(baseFactRecord(), 'analysis') === '101:analysis',
+        'id key mismatch'
+      )
+      assert(
+        getDerivedActionKey(baseFactRecord({ id: undefined, localId: 'local-only' }), 'predict') ===
+          'local-only:predict',
         'local key mismatch'
       )
     }
