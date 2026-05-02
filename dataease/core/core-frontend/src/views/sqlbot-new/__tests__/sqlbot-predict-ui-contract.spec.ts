@@ -135,6 +135,11 @@ const contractCases: ContractCase[] = [
       )
       assertMatch(
         derivedAnswerSource,
+        /data-testid="sqlbot-derived-answer"/,
+        'derived answer test id'
+      )
+      assertMatch(
+        derivedAnswerSource,
         /data-testid="sqlbot-derived-answer-loading"/,
         'derived answer loading test id'
       )
