@@ -53,13 +53,34 @@ const filterNode = (value: string, data: Tree) => {
   return data.name.includes(value)
 }
 
+const renderSafeHighlight = (element: Element, content: string, keyword: string) => {
+  element.textContent = ''
+  if (!keyword) {
+    element.appendChild(document.createTextNode(content))
+    return
+  }
+
+  const startIndex = content.indexOf(keyword)
+  if (startIndex < 0) {
+    element.appendChild(document.createTextNode(content))
+    return
+  }
+
+  element.appendChild(document.createTextNode(content.slice(0, startIndex)))
+  const highlight = document.createElement('span')
+  highlight.className = 'highLight'
+  highlight.appendChild(document.createTextNode(keyword))
+  element.appendChild(highlight)
+  element.appendChild(document.createTextNode(content.slice(startIndex + keyword.length)))
+}
+
 watch(filterText, val => {
   showAll.value = !val
   treeRef.value.filter(val)
   nextTick(() => {
     document.querySelectorAll('.node-text').forEach(ele => {
-      const content = ele.getAttribute('title')
-      ele.innerHTML = content.replace(val, `<span class="highLight">${val}</span>`)
+      const content = ele.getAttribute('title') || ''
+      renderSafeHighlight(ele, content, val)
     })
   })
 })
