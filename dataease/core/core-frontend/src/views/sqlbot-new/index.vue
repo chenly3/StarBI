@@ -11,6 +11,7 @@ import {
 import { queryTreeApi } from '@/api/visualization/dataVisualization'
 import router from '@/router'
 import SqlbotNewConversationRecord from '@/views/sqlbot-new/components/SqlbotNewConversationRecord.vue'
+import SqlbotActionSuggestionsMessage from '@/views/sqlbot-new/components/SqlbotActionSuggestionsMessage.vue'
 import SqlbotDerivedAnswerMessage from '@/views/sqlbot-new/components/SqlbotDerivedAnswerMessage.vue'
 import SqlbotDerivedQuestionMessage from '@/views/sqlbot-new/components/SqlbotDerivedQuestionMessage.vue'
 import SqlbotInsertTargetDialog from '@/views/sqlbot-new/components/SqlbotInsertTargetDialog.vue'
@@ -2181,6 +2182,14 @@ const conversationAnswerTurnMap = computed(() => {
                           @edit-question="handleEditQuestion"
                           @select-data="openSelectDialog()"
                           @view-execution-details="openExecutionDetails"
+                        />
+                        <SqlbotActionSuggestionsMessage
+                          v-if="record.finish && !record.error && !record.clarification"
+                          :record="record"
+                          :loading="conversationLoading"
+                          @interpret="handleInterpretRecord"
+                          @predict="handlePredictRecord"
+                          @prefill-question="handlePrefillQuestion"
                         />
                       </div>
                     </article>

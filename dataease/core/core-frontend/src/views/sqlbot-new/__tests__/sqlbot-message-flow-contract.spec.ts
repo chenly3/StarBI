@@ -74,6 +74,9 @@ const conversationSource = readSource('src/views/sqlbot-new/useSqlbotNewConversa
 const conversationRecordSource = readSource(
   'src/views/sqlbot-new/components/SqlbotNewConversationRecord.vue'
 )
+const actionSuggestionsSource = readSource(
+  'src/views/sqlbot-new/components/SqlbotActionSuggestionsMessage.vue'
+)
 const indexSource = readSource('src/views/sqlbot-new/index.vue')
 const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
 const starbiResultCardSource = readSource('src/views/sqlbot/StarbiResultCard.vue')
@@ -224,6 +227,32 @@ const contractCases: ContractCase[] = [
         conversationSource,
         /getCurrentConversationHistoryEntry[\s\S]*findLatestOriginalQuestionInRecords/,
         'current history title only uses fact answer questions'
+      )
+    }
+  },
+  {
+    name: 'action suggestions are a separate bridge before derived messages',
+    run() {
+      assertMatch(indexSource, /SqlbotActionSuggestionsMessage/, 'index renders action suggestions')
+      assertMatch(
+        actionSuggestionsSource,
+        /data-testid="sqlbot-action-suggestions"/,
+        'action suggestions test id'
+      )
+      assertMatch(
+        actionSuggestionsSource,
+        /点击后会生成新的问题消息/,
+        'action suggestions explains message creation'
+      )
+      assertMatch(
+        actionSuggestionsSource,
+        /@select="question => emit\('prefill-question', question\)"/,
+        'recommended questions prefill instead of auto-submit'
+      )
+      assertMatch(
+        indexSource,
+        /@prefill-question="handlePrefillQuestion"/,
+        'index wires action suggestions recommendations to prefill'
       )
     }
   }
