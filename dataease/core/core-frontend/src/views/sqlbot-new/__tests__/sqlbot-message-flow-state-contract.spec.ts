@@ -186,14 +186,19 @@ const contractCases: ContractCase[] = [
   {
     name: 'restore sorting keeps fact before derived question before derived answer at same timestamp',
     run() {
-      const records = sortRestoredMessageFlowRecords([
+      const inputRecords: SqlbotMessageFlowRecord[] = [
         { ...baseFactRecord(), kind: 'derived-answer', localId: 'a', createTime: 1000 },
         { ...baseFactRecord(), kind: 'derived-question', localId: 'q', createTime: 1000 },
         { ...baseFactRecord(), kind: 'fact-answer', localId: 'f', createTime: 1000 }
-      ])
+      ]
+      const records = sortRestoredMessageFlowRecords(inputRecords)
       assert(
         records.map(item => item.kind).join(',') === 'fact-answer,derived-question,derived-answer',
         'unexpected order'
+      )
+      assert(
+        inputRecords.map(item => item.localId).join(',') === 'a,q,f',
+        'sort should not mutate original records'
       )
     }
   },

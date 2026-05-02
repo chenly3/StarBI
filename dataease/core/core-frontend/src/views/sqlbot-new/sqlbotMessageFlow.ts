@@ -291,7 +291,7 @@ export const createLegacyInsightDerivedMessagesForRestore = <
 }
 
 export const sortRestoredMessageFlowRecords = <T extends SqlbotMessageFlowRecord>(records: T[]) =>
-  records.sort((left, right) => {
+  [...records].sort((left, right) => {
     const timestampDiff = left.createTime - right.createTime
     if (timestampDiff !== 0) {
       return timestampDiff
