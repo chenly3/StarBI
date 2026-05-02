@@ -107,6 +107,7 @@ const props = withDefaults(
     reasoningExpanded?: boolean
     showExecutionDetails?: boolean
     showPredictAction?: boolean
+    showInsightActions?: boolean
     disableInlineInsights?: boolean
   }>(),
   {
@@ -114,6 +115,7 @@ const props = withDefaults(
     reasoningExpanded: false,
     showExecutionDetails: false,
     showPredictAction: false,
+    showInsightActions: true,
     disableInlineInsights: false
   }
 )
@@ -1079,7 +1081,7 @@ const handlePredictAction = () => {
           重试
         </button>
         <button
-          v-if="record.finish && !record.error && record.id"
+          v-if="showInsightActions && record.finish && !record.error && record.id"
           class="starbi-foot-btn"
           :class="{ disabled: analysisLoading }"
           type="button"
@@ -1091,7 +1093,7 @@ const handlePredictAction = () => {
           {{ analysisActionText }}
         </button>
         <button
-          v-if="showPredictAction && record.finish && !record.error && record.id"
+          v-if="showInsightActions && showPredictAction && record.finish && !record.error && record.id"
           class="starbi-foot-btn ghost"
           :class="{ disabled: predictLoading }"
           type="button"

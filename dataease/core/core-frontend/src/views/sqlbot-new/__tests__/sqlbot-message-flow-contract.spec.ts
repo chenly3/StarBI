@@ -262,6 +262,36 @@ const contractCases: ContractCase[] = [
     }
   },
   {
+    name: 'action suggestions are the only insight action entry in sqlbot-new flow',
+    run() {
+      assertMatch(
+        conversationRecordSource,
+        /:show-insight-actions="false"/,
+        'sqlbot-new record card disables legacy result-card insight actions'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /showInsightActions\?: boolean/,
+        'result card exposes insight action visibility prop'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /showInsightActions: true/,
+        'result card keeps insight actions enabled by default for legacy usage'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /showInsightActions && record\.finish && !record\.error && record\.id/,
+        'analysis action is gated by insight action visibility'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /showInsightActions && showPredictAction && record\.finish && !record\.error && record\.id/,
+        'predict action is gated by insight action visibility'
+      )
+    }
+  },
+  {
     name: 'page-level recommended questions prefill composer instead of auto-submit',
     run() {
       const recommendedQuestionSource = extractFunctionSource(indexSource, 'handleRecommendedQuestion')
