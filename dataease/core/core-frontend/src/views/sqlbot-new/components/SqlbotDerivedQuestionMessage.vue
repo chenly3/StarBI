@@ -12,9 +12,10 @@ const questionText = computed(() => {
 </script>
 
 <template>
-  <div class="derived-question-message">
+  <div class="derived-question-message" data-testid="sqlbot-derived-question">
     <div class="derived-question-bubble">
-      {{ questionText }}
+      <span class="derived-question-label">系统根据你的操作自动提问</span>
+      <span class="derived-question-text">{{ questionText }}</span>
     </div>
   </div>
 </template>
@@ -37,5 +38,18 @@ const questionText = computed(() => {
   font-weight: 650;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 48%, #1e40af 100%);
   box-shadow: 0 16px 32px rgba(37, 99, 235, 0.22);
+}
+
+.derived-question-label {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(248, 251, 255, 0.76);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.derived-question-text {
+  display: block;
 }
 </style>

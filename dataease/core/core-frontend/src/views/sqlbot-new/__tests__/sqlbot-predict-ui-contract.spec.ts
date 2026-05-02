@@ -41,6 +41,12 @@ const conversationSource = readSource('src/views/sqlbot-new/useSqlbotNewConversa
 const indexSource = readSource('src/views/sqlbot-new/index.vue')
 const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
 const reasoningPanelSource = readSource('src/views/sqlbot/components/ReasoningPanel.vue')
+const derivedQuestionSource = readSource(
+  'src/views/sqlbot-new/components/SqlbotDerivedQuestionMessage.vue'
+)
+const derivedAnswerSource = readSource(
+  'src/views/sqlbot-new/components/SqlbotDerivedAnswerMessage.vue'
+)
 
 const contractCases: ContractCase[] = [
   {
@@ -112,6 +118,41 @@ const contractCases: ContractCase[] = [
         'hasContent computed guard'
       )
       assertMatch(reasoningPanelSource, /v-if="hasContent"/, 'hasContent template guard')
+    }
+  },
+  {
+    name: 'derived messages expose clear user-visible states',
+    run() {
+      assertMatch(
+        derivedQuestionSource,
+        /系统根据你的操作自动提问/,
+        'derived question system label'
+      )
+      assertMatch(
+        derivedQuestionSource,
+        /data-testid="sqlbot-derived-question"/,
+        'derived question test id'
+      )
+      assertMatch(
+        derivedAnswerSource,
+        /data-testid="sqlbot-derived-answer-loading"/,
+        'derived answer loading test id'
+      )
+      assertMatch(
+        derivedAnswerSource,
+        /data-testid="sqlbot-derived-answer-partial"/,
+        'derived answer partial test id'
+      )
+      assertMatch(
+        derivedAnswerSource,
+        /data-testid="sqlbot-derived-answer-empty"/,
+        'derived answer empty test id'
+      )
+      assertMatch(
+        derivedAnswerSource,
+        /data-testid="sqlbot-derived-answer-error"/,
+        'derived answer error test id'
+      )
     }
   }
 ]

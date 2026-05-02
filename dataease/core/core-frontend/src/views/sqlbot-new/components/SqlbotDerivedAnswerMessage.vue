@@ -29,6 +29,21 @@ const errorText = computed(() => {
     : String(props.record.analysisError || '').trim()
 })
 
+const hasContent = computed(() => Boolean(content.value))
+
+const isPartial = computed(() => {
+  return Boolean(loading.value && content.value)
+})
+
+const emptyText = computed(() => {
+  if (loading.value || errorText.value || hasContent.value) {
+    return ''
+  }
+  return props.record.derivedAction === 'predict'
+    ? '本次趋势预测没有返回有效内容，可以重新预测。'
+    : '本次数据解读没有返回有效内容，可以重新解读。'
+})
+
 const usageText = computed(() => {
   const duration =
     props.record.derivedAction === 'predict'
@@ -51,7 +66,11 @@ const usageText = computed(() => {
 
 <template>
   <section class="derived-answer-message">
-    <div class="derived-answer-card" :class="{ loading, error: !!errorText }">
+    <div
+      class="derived-answer-card"
+      data-testid="sqlbot-derived-answer"
+      :class="{ loading, partial: isPartial, error: !!errorText, empty: !!emptyText }"
+    >
       <div class="derived-answer-head">
         <div>
           <div class="derived-answer-kicker">StarBI</div>
@@ -60,16 +79,32 @@ const usageText = computed(() => {
         <span v-if="usageText" class="derived-answer-usage">{{ usageText }}</span>
       </div>
 
-      <div v-if="loading && !content" class="derived-answer-loading">
+      <div
+        v-if="loading && !content"
+        class="derived-answer-loading"
+        data-testid="sqlbot-derived-answer-loading"
+      >
         <span class="derived-answer-dot"></span>
         <span class="derived-answer-dot"></span>
         <span class="derived-answer-dot"></span>
         <span>正在生成{{ title }}，请稍候</span>
       </div>
 
+      <div
+        v-if="isPartial"
+        class="derived-answer-partial"
+        data-testid="sqlbot-derived-answer-partial"
+      >
+        正在继续生成{{ title }}，以下内容会实时更新。
+      </div>
+
       <StarbiMarkdown v-if="content" :message="content" />
 
-      <div v-if="errorText" class="derived-answer-error">
+      <div v-if="emptyText" class="derived-answer-empty" data-testid="sqlbot-derived-answer-empty">
+        {{ emptyText }}
+      </div>
+
+      <div v-if="errorText" class="derived-answer-error" data-testid="sqlbot-derived-answer-error">
         {{ errorText }}
       </div>
     </div>
@@ -95,9 +130,18 @@ const usageText = computed(() => {
   border-color: rgba(59, 130, 246, 0.36);
 }
 
+.derived-answer-card.partial {
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
 .derived-answer-card.error {
   border-color: rgba(239, 68, 68, 0.3);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 247, 0.96));
+}
+
+.derived-answer-card.empty {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
 }
 
 .derived-answer-head {
@@ -158,6 +202,14 @@ const usageText = computed(() => {
 
 .derived-answer-dot:nth-child(3) {
   animation-delay: 0.28s;
+}
+
+.derived-answer-partial,
+.derived-answer-empty {
+  margin-bottom: 10px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 22px;
 }
 
 .derived-answer-error {
