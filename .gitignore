@@ -45,6 +45,8 @@ skills-lock.json
 
 # Runtime data, package artifacts, and large local exports
 data/
+!dataease/core/core-frontend/src/views/visualized/data/
+!dataease/core/core-frontend/src/views/visualized/data/**
 docker-images/
 releases/
 tmp/
@@ -78,3 +80,4 @@ output/
 /dataease/*login*.png
 /dataease/*encoded*.png
 /dataease/direct-login-*.png
+.gstack/

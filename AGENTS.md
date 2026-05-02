@@ -45,8 +45,10 @@ Do not commit secrets or machine-specific state. Treat `auth.json`, `history.jso
 For non-trivial feature work, default to the combined Superpowers + gstack workflow below, while keeping changes surgical and verifiable:
 
 - Start with `karpathy-guidelines`, then `superpowers:brainstorming` to clarify intent, assumptions, scope, and success criteria.
-- Use `gstack` `/autoplan` when a draft plan exists and multi-angle plan review would reduce risk.
-- Use `superpowers:writing-plans` to turn the reviewed idea into an executable implementation plan.
+- First produce a requirement/spec draft plan that captures product intent, user flows, non-goals, success criteria, risks, and acceptance tests. This draft is not an implementation plan.
+- Run `gstack` `/autoplan` against the requirement/spec draft plan before implementation planning. Autoplan review must happen before code changes.
+- After autoplan, use `superpowers:writing-plans` to turn the reviewed requirement/spec and review decisions into an executable implementation plan.
+- Keep requirement/spec drafts under `docs/superpowers/specs/` and executable implementation plans under `docs/superpowers/plans/`.
 - Use `superpowers:using-git-worktrees` for large or risky changes that need an isolated workspace.
 - Use `superpowers:subagent-driven-development` only when the user explicitly asks for subagents or parallel agent work.
 - Use `superpowers:test-driven-development` for feature and bugfix implementation whenever practical.

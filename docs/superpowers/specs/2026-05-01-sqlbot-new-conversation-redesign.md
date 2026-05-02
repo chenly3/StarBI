@@ -1,5 +1,7 @@
 # 智能问数对话消息流改造方案
 
+> 历史参考：本文是 2026-05-01 的早期方案，已被 `2026-05-02-sqlbot-quickbi-message-flow-draft-plan.md` 和对应 implementation plan 取代。本文中的 `localStorage` 历史快照恢复思路不再作为当前需求依据；当前方案要求历史恢复以真实后端保存内容为准，前端只做展示层兼容转换。
+
 ## 1. 问题
 
 当前对话一轮的所有内容（图表、解读、推理、推荐）全部塞在 `SqlbotNewConversationRecord` 一张大卡片里。点击历史对话需要重新请求生成，因为记录没有完整持久化。
