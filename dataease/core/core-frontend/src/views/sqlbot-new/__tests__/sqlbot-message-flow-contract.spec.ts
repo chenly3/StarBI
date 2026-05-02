@@ -105,11 +105,7 @@ const contractCases: ContractCase[] = [
         /SqlbotDerivedAction = 'analysis' \| 'predict'/,
         'derived action union'
       )
-      assertMatch(
-        messageFlowSource,
-        /derivedAction\?: SqlbotDerivedAction/,
-        'derived action field'
-      )
+      assertMatch(messageFlowSource, /derivedAction\?: SqlbotDerivedAction/, 'derived action field')
       assertMatch(messageFlowSource, /derivedQuestion\?: string/, 'derived question field')
       assertMatch(
         conversationSource,
@@ -185,9 +181,9 @@ const contractCases: ContractCase[] = [
         'legacy conversion helper'
       )
       assertMatch(
-        messageFlowSource,
-        /export const hasUnfinishedDerivedAnswer/,
-        'duplicate lock helper'
+        conversationSource,
+        /hasUnfinishedDerivedAnswer\(/,
+        'conversation uses duplicate lock helper'
       )
       assertMatch(
         restoreHistorySource,
@@ -217,11 +213,7 @@ const contractCases: ContractCase[] = [
   {
     name: 'derived records do not affect original title or normal turn counting',
     run() {
-      assertMatch(
-        messageFlowSource,
-        requiredContracts[6],
-        'latest original question helper exists'
-      )
+      assertMatch(messageFlowSource, requiredContracts[6], 'latest original question helper exists')
       assertMatch(messageFlowSource, requiredContracts[7], 'fact answer helper exists')
       assertMatch(
         indexSource,
