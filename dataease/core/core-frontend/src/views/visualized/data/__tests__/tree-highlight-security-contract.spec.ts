@@ -54,6 +54,14 @@ const assertSafeTreeHighlight = (source: string, label: string) => {
   assertMatch(source, /appendChild/, `${label} tree search DOM composition`)
 }
 
+const assertDatasourceTreeSelectFilterReturnsMatch = (source: string) => {
+  assertMatch(
+    source,
+    /const filterMethod = \(value, data\) => \{[\s\S]*if \(!data\) return false[\s\S]*return data\.name\.includes\(value\)[\s\S]*\}/,
+    'datasource tree-select filter returns match result'
+  )
+}
+
 const contractCases: ContractCase[] = [
   {
     name: 'dataset tree highlight does not inject resource names as HTML',
@@ -65,6 +73,12 @@ const contractCases: ContractCase[] = [
     name: 'datasource tree highlight does not inject resource names as HTML',
     run() {
       assertSafeTreeHighlight(datasourceGroupSource, 'datasource')
+    }
+  },
+  {
+    name: 'datasource tree-select filter returns matching datasource folders',
+    run() {
+      assertDatasourceTreeSelectFilterReturnsMatch(datasourceGroupSource)
     }
   }
 ]

@@ -136,7 +136,7 @@ const loading = ref(false)
 const createDataset = ref(false)
 const filterMethod = (value, data) => {
   if (!data) return false
-  data.name.includes(value)
+  return data.name.includes(value)
 }
 const resetForm = () => {
   createDataset.value = false

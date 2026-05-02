@@ -56,7 +56,7 @@ const contractCases: ContractCase[] = [
       assertMatch(starbiResultCardSource, /showPredictAction: false/, 'predict default off')
       assertMatch(
         starbiResultCardSource,
-        /v-if="showPredictAction && record\.finish && !record\.error && record\.id"/,
+        /v-if="showInsightActions && showPredictAction && record\.finish && !record\.error && record\.id"/,
         'predict action guard'
       )
       assertMatch(starbiResultCardSource, /emit\('predict'\)/, 'predict emit')
