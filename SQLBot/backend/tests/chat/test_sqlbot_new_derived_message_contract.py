@@ -68,6 +68,16 @@ class SqlbotNewDerivedMessageContractTest(unittest.TestCase):
         self.assertNotIn("event_typein", source)
         self.assertNotIn("event_typenotin", source)
 
+    def test_sqlbot_new_derived_events_are_not_special_cased_by_backend(self):
+        create_event = find_function(parse_source(CHAT_CRUD_PATH), "create_sqlbot_new_event")
+        source = normalized_source(create_event)
+
+        self.assertIn("**payload.model_dump()", source)
+        self.assertNotIn("ifpayload.event_type", source)
+        self.assertNotIn("elifpayload.event_type", source)
+        self.assertNotIn("derived_question", source)
+        self.assertNotIn("derived_answer", source)
+
 
 if __name__ == "__main__":
     unittest.main()
