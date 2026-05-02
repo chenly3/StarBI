@@ -1,4 +1,4 @@
-import router from './router'
+import router, { DATA_PREPARE_STATIC_ROUTE_NAME } from './router'
 import { useUserStoreWithOut } from '@/store/modules/user'
 import { useAppStoreWithOut } from '@/store/modules/app'
 import type { RouteRecordRaw } from 'vue-router_2'
@@ -282,6 +282,10 @@ router.beforeEach(async (to, from, next) => {
       routers.forEach(item => (item['top'] = true))
       await permissionStore.generateRoutes(routers as AppCustomRouteRecordRaw[])
 
+      const removedDataPrepareStaticRoute = router.hasRoute(DATA_PREPARE_STATIC_ROUTE_NAME)
+      if (removedDataPrepareStaticRoute) {
+        router.removeRoute(DATA_PREPARE_STATIC_ROUTE_NAME)
+      }
       permissionStore.getAddRouters.forEach(route => {
         router.addRoute(route as unknown as RouteRecordRaw) // 动态添加可访问路由表
       })
@@ -289,7 +293,9 @@ router.beforeEach(async (to, from, next) => {
 
       const redirect = normalizeRedirectPath(from.query.redirect || to.fullPath || to.path)
       const nextData =
-        to.fullPath === redirect ? { ...to, replace: true } : toRedirectLocation(redirect)
+        to.fullPath === redirect && !removedDataPrepareStaticRoute
+          ? { ...to, replace: true }
+          : { ...toRedirectLocation(redirect), replace: true }
 
       permissionStore.setIsAddRouters(true)
       await interactiveStore.initInteractive(true)

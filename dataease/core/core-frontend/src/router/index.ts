@@ -383,9 +383,39 @@ export const routes: AppRouteRecordRaw[] = [
   }
 ]
 
+export const DATA_PREPARE_STATIC_ROUTE_NAME = 'data-prepare-static-shell'
+
+// Keep matcher-only shells out of exported `routes`; the permission store uses `routes`
+// as part of its auth tree and must still validate data-preparation access dynamically.
+const routerMatcherRoutes: AppRouteRecordRaw[] = routes.concat([
+  {
+    path: '/data',
+    name: DATA_PREPARE_STATIC_ROUTE_NAME,
+    component: () => import('@/layout/index.vue'),
+    hidden: true,
+    meta: { hidden: true },
+    children: [
+      {
+        path: 'dataset',
+        name: 'data-prepare-dataset-static-page',
+        hidden: true,
+        component: () => import('@/views/visualized/data/dataset/index.vue'),
+        meta: { hidden: true }
+      },
+      {
+        path: 'datasource',
+        name: 'data-prepare-datasource-static-page',
+        hidden: true,
+        component: () => import('@/views/visualized/data/datasource/index.vue'),
+        meta: { hidden: true }
+      }
+    ]
+  }
+])
+
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: routes as RouteRecordRaw[]
+  routes: routerMatcherRoutes as RouteRecordRaw[]
 })
 
 ;(window as Window & { vueRouterDe?: typeof router }).vueRouterDe = router
