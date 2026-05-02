@@ -20,21 +20,29 @@ const emit = defineEmits<{
 }>()
 
 const questions = computed(() => props.record.recommendQuestions || [])
+const canCreateDerivedQuestion = computed(() => Boolean(props.record.id))
+const hasSuggestions = computed(() => canCreateDerivedQuestion.value || questions.value.length > 0)
 </script>
 
 <template>
-  <section class="action-suggestions-message" data-testid="sqlbot-action-suggestions">
+  <section
+    v-if="hasSuggestions"
+    class="action-suggestions-message"
+    data-testid="sqlbot-action-suggestions"
+  >
     <div class="action-suggestions-card">
       <div class="action-suggestions-head">
         <span class="action-suggestions-kicker">下一步可以这样分析</span>
-        <span class="action-suggestions-note">点击后会生成新的问题消息</span>
+        <span class="action-suggestions-note"
+          >点击解读/预测后会生成新的问题消息，推荐追问会先填入输入框</span
+        >
       </div>
 
-      <div class="action-suggestions-actions">
+      <div v-if="canCreateDerivedQuestion" class="action-suggestions-actions">
         <button
           class="action-suggestion-button primary"
           type="button"
-          :disabled="loading || !record.id"
+          :disabled="loading"
           data-testid="sqlbot-action-analysis"
           @click="emit('interpret', record)"
         >
@@ -43,7 +51,7 @@ const questions = computed(() => props.record.recommendQuestions || [])
         <button
           class="action-suggestion-button"
           type="button"
-          :disabled="loading || !record.id"
+          :disabled="loading"
           data-testid="sqlbot-action-predict"
           @click="emit('predict', record)"
         >

@@ -241,8 +241,13 @@ const contractCases: ContractCase[] = [
       )
       assertMatch(
         actionSuggestionsSource,
-        /点击后会生成新的问题消息/,
-        'action suggestions explains message creation'
+        /解读\/预测[\s\S]*生成新的问题消息/,
+        'derived action suggestions explain message creation'
+      )
+      assertMatch(
+        actionSuggestionsSource,
+        /推荐追问[\s\S]*填入输入框/,
+        'recommended questions explain composer prefill'
       )
       assertMatch(
         actionSuggestionsSource,
