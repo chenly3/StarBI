@@ -260,6 +260,22 @@ const contractCases: ContractCase[] = [
         'index wires action suggestions recommendations to prefill'
       )
     }
+  },
+  {
+    name: 'page-level recommended questions prefill composer instead of auto-submit',
+    run() {
+      const recommendedQuestionSource = extractFunctionSource(indexSource, 'handleRecommendedQuestion')
+      assertMatch(
+        recommendedQuestionSource,
+        /handlePrefillQuestion\(question\)/,
+        'recommended question handler delegates to composer prefill'
+      )
+      assertNotMatch(
+        recommendedQuestionSource,
+        /submitWithDatasetClarification/,
+        'recommended question handler must not submit a new chat request'
+      )
+    }
   }
 ]
 

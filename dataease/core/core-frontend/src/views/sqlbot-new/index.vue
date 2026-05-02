@@ -1249,8 +1249,8 @@ const ensureActiveThemeSelectionReady = async () => {
   return true
 }
 
-const handleRecommendedQuestion = async (question: string) => {
-  await submitWithDatasetClarification(question, 'recommend')
+const handleRecommendedQuestion = (question: string) => {
+  handlePrefillQuestion(question)
 }
 
 const handleRetryQuestion = (question: string) => {
