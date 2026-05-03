@@ -107,6 +107,9 @@ public class TrustedAnswerRuntimeContextService {
                 .filter(Objects::nonNull)
                 .mapToInt(List::size)
                 .sum());
+        if (context.getVisibleFieldCount() <= 0) {
+            return completeWithError(trace, TrustedAnswerErrorCode.NO_VISIBLE_FIELD);
+        }
         trace.getPermissionSteps().add("visible-schema-built");
 
         if (request.getDatasourceId() == null && datasourceIds.size() > 1) {

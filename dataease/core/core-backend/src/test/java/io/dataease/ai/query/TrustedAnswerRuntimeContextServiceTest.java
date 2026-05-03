@@ -120,6 +120,22 @@ class TrustedAnswerRuntimeContextServiceTest {
         assertNotNull(traceStore.get(trace.getTraceId()));
     }
 
+    @Test
+    void schemaWithNoVisibleFieldsShouldBeBlocked() {
+        TrustedAnswerRequest request = request(1001L, 21L);
+        AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
+        when(aiQueryThemeManage.getTheme(1001L)).thenReturn(theme);
+        when(datasetSQLBotManage.getDatasourceList(21L, null, "11"))
+                .thenReturn(List.of(datasourceWithoutFields(21L, 11L)));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.UNSAFE_BLOCKED, trace.getState());
+        assertEquals("NO_VISIBLE_FIELD", trace.getError().getCode());
+        assertEquals(0, trace.getContext().getVisibleFieldCount());
+        assertNotNull(traceStore.get(trace.getTraceId()));
+    }
+
     private static TrustedAnswerRequest request(Long themeId, Long datasourceId) {
         TrustedAnswerRequest request = new TrustedAnswerRequest();
         request.setQuestion("本月销售额");
@@ -149,6 +165,20 @@ class TrustedAnswerRuntimeContextServiceTest {
         table.setComment("sales_table");
         table.setDatasetGroupId(datasetGroupId);
         table.setFields(List.of(field));
+
+        DataSQLBotAssistantVO datasource = new DataSQLBotAssistantVO();
+        datasource.setId(datasourceId);
+        datasource.setName("ds-" + datasourceId);
+        datasource.setTables(List.of(table));
+        return datasource;
+    }
+
+    private static DataSQLBotAssistantVO datasourceWithoutFields(Long datasourceId, Long datasetGroupId) {
+        SQLBotAssistanTable table = new SQLBotAssistanTable();
+        table.setName("sales_table");
+        table.setComment("sales_table");
+        table.setDatasetGroupId(datasetGroupId);
+        table.setFields(List.of());
 
         DataSQLBotAssistantVO datasource = new DataSQLBotAssistantVO();
         datasource.setId(datasourceId);
