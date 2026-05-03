@@ -5,18 +5,33 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class TrustedAnswerTraceStore {
 
-    private final Map<String, TrustedAnswerTraceVO> traces = new ConcurrentHashMap<>();
+    private static final int MAX_TRACES = 50;
 
-    public void put(TrustedAnswerTraceVO trace) {
+    private final Map<String, TrustedAnswerTraceVO> traces = new ConcurrentHashMap<>();
+    private final Deque<String> insertionOrder = new ConcurrentLinkedDeque<>();
+
+    public synchronized void put(TrustedAnswerTraceVO trace) {
         if (trace != null && trace.getTraceId() != null) {
+            if (!traces.containsKey(trace.getTraceId())) {
+                insertionOrder.addLast(trace.getTraceId());
+            }
             traces.put(trace.getTraceId(), trace);
+            while (traces.size() > MAX_TRACES) {
+                String oldestTraceId = insertionOrder.pollFirst();
+                if (oldestTraceId == null) {
+                    break;
+                }
+                traces.remove(oldestTraceId);
+            }
         }
     }
 
@@ -33,5 +48,6 @@ public class TrustedAnswerTraceStore {
 
     public void clear() {
         traces.clear();
+        insertionOrder.clear();
     }
 }

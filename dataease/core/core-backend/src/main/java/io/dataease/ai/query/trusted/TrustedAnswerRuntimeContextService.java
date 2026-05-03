@@ -15,8 +15,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -87,6 +89,10 @@ public class TrustedAnswerRuntimeContextService {
         if (CollectionUtils.isEmpty(schema)) {
             return completeWithError(trace, TrustedAnswerErrorCode.NO_VISIBLE_FIELD);
         }
+        schema = filterAuthorizedSchema(schema, datasetIds);
+        if (CollectionUtils.isEmpty(schema)) {
+            return completeWithError(trace, TrustedAnswerErrorCode.NO_VISIBLE_FIELD);
+        }
 
         List<Long> datasourceIds = schema.stream()
                 .map(DataSQLBotAssistantVO::getId)
@@ -125,10 +131,30 @@ public class TrustedAnswerRuntimeContextService {
     }
 
     private TrustedAnswerTraceVO completeWithError(TrustedAnswerTraceVO trace, TrustedAnswerErrorCode errorCode) {
-        trace.setState(errorCode.toError().getState());
-        trace.setError(errorCode.toError());
+        var error = errorCode.toError();
+        trace.setState(error.getState());
+        trace.setError(error);
         traceStore.put(trace);
         return trace;
+    }
+
+    private static List<DataSQLBotAssistantVO> filterAuthorizedSchema(List<DataSQLBotAssistantVO> schema, List<Long> datasetIds) {
+        Set<Long> authorizedDatasetIds = new HashSet<>(datasetIds);
+        return schema.stream()
+                .filter(Objects::nonNull)
+                .peek(datasource -> datasource.setTables(filterAuthorizedTables(datasource.getTables(), authorizedDatasetIds)))
+                .filter(datasource -> CollectionUtils.isNotEmpty(datasource.getTables()))
+                .collect(Collectors.toList());
+    }
+
+    private static List<SQLBotAssistanTable> filterAuthorizedTables(List<SQLBotAssistanTable> tables, Set<Long> authorizedDatasetIds) {
+        if (CollectionUtils.isEmpty(tables)) {
+            return Collections.emptyList();
+        }
+        return tables.stream()
+                .filter(Objects::nonNull)
+                .filter(table -> authorizedDatasetIds.contains(table.getDatasetGroupId()))
+                .collect(Collectors.toList());
     }
 
     private static List<Long> distinctIds(List<Long> ids) {

@@ -121,6 +121,39 @@ class TrustedAnswerRuntimeContextServiceTest {
     }
 
     @Test
+    void schemaFallbackTablesOutsideAuthorizedDatasetsShouldBeFilteredBeforeCounting() {
+        TrustedAnswerRequest request = request(1001L, 21L);
+        AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
+        when(aiQueryThemeManage.getTheme(1001L)).thenReturn(theme);
+        when(datasetSQLBotManage.getDatasourceList(21L, null, "11"))
+                .thenReturn(List.of(datasource(21L,
+                        table(11L, "amount"),
+                        table(99L, "leaked_amount"))));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.TRUSTED, trace.getState());
+        assertEquals(1, trace.getContext().getSchemaTableCount());
+        assertEquals(1, trace.getContext().getVisibleFieldCount());
+    }
+
+    @Test
+    void schemaFallbackWithOnlyUnauthorizedTablesShouldFailClosed() {
+        TrustedAnswerRequest request = request(1001L, 21L);
+        AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
+        when(aiQueryThemeManage.getTheme(1001L)).thenReturn(theme);
+        when(datasetSQLBotManage.getDatasourceList(21L, null, "11"))
+                .thenReturn(List.of(datasource(21L, table(99L, "leaked_amount"))));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.UNSAFE_BLOCKED, trace.getState());
+        assertEquals("NO_VISIBLE_FIELD", trace.getError().getCode());
+        assertEquals(0, trace.getContext().getVisibleFieldCount());
+        assertEquals(0, trace.getContext().getSchemaTableCount());
+    }
+
+    @Test
     void schemaWithNoVisibleFieldsShouldBeBlocked() {
         TrustedAnswerRequest request = request(1001L, 21L);
         AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
@@ -171,6 +204,28 @@ class TrustedAnswerRuntimeContextServiceTest {
         datasource.setName("ds-" + datasourceId);
         datasource.setTables(List.of(table));
         return datasource;
+    }
+
+    private static DataSQLBotAssistantVO datasource(Long datasourceId, SQLBotAssistanTable... tables) {
+        DataSQLBotAssistantVO datasource = new DataSQLBotAssistantVO();
+        datasource.setId(datasourceId);
+        datasource.setName("ds-" + datasourceId);
+        datasource.setTables(List.of(tables));
+        return datasource;
+    }
+
+    private static SQLBotAssistanTable table(Long datasetGroupId, String fieldName) {
+        SQLBotAssistantField field = new SQLBotAssistantField();
+        field.setName(fieldName);
+        field.setComment(fieldName);
+        field.setType("NUMBER");
+
+        SQLBotAssistanTable table = new SQLBotAssistanTable();
+        table.setName("sales_table");
+        table.setComment("sales_table");
+        table.setDatasetGroupId(datasetGroupId);
+        table.setFields(List.of(field));
+        return table;
     }
 
     private static DataSQLBotAssistantVO datasourceWithoutFields(Long datasourceId, Long datasetGroupId) {
