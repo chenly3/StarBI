@@ -4,6 +4,7 @@ import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
 import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
 import io.dataease.ai.query.trusted.TrustedAnswerStubSqlBotProxy;
 import io.dataease.ai.query.trusted.TrustedAnswerTraceStore;
+import io.dataease.api.ai.query.request.AIQuerySqlBotRuntimeProxyRequest;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
 import io.dataease.api.ai.query.vo.TrustedAnswerRepairItemVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
@@ -50,6 +51,14 @@ public class AIQueryTrustedAnswerServer {
                 stubSqlBotProxy.streamError(response);
             }
         }
+    }
+
+    @PostMapping("/sqlbot-runtime")
+    public void sqlBotRuntime(
+            @RequestBody AIQuerySqlBotRuntimeProxyRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+        stubSqlBotProxy.proxyRuntime(request, response);
     }
 
     @GetMapping("/trace/{traceId}")

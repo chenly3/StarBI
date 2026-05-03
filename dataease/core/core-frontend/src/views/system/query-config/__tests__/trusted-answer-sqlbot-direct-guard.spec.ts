@@ -36,7 +36,7 @@ const assertNotMatch = (source: string, pattern: RegExp, label: string) => {
 }
 
 const extractFunctionSource = (source: string, functionName: string) => {
-  const declarationPattern = new RegExp(`export const ${functionName} = async`)
+  const declarationPattern = new RegExp(`(?:export\\s+)?const ${functionName} = async`)
   const declarationMatch = declarationPattern.exec(source)
   if (!declarationMatch) fail(`${functionName}: declaration not found`)
 
@@ -57,6 +57,7 @@ const extractFunctionSource = (source: string, functionName: string) => {
 
 const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
 const streamQuestionSource = extractFunctionSource(sqlbotDirectSource, 'streamSQLBotQuestion')
+const runtimeFetchSource = extractFunctionSource(sqlbotDirectSource, 'fetchSqlBotWithFallback')
 
 const contractCases: ContractCase[] = [
   {
@@ -72,6 +73,31 @@ const contractCases: ContractCase[] = [
         streamQuestionSource,
         /fetchSqlBotWithFallback|\/chat\/question|buildAssistantHeaders/,
         'question stream direct SQLBot calls'
+      )
+    }
+  },
+  {
+    name: 'sqlbot runtime helper delegates through DataEase backend proxy',
+    run() {
+      assertMatch(
+        sqlbotDirectSource,
+        /SQLBOT_RUNTIME_PROXY_URL = '\/ai\/query\/trusted-answer\/sqlbot-runtime'/,
+        'runtime proxy endpoint'
+      )
+      assertMatch(
+        runtimeFetchSource,
+        /fetch\(resolveDataEaseFetchUrl\(SQLBOT_RUNTIME_PROXY_URL\)/,
+        'runtime helper DataEase fetch'
+      )
+      assertNotMatch(
+        runtimeFetchSource,
+        /normalizeSqlBotDomain|getSqlBotApiBaseCandidates|127\.0\.0\.1|localhost.*8000|fetch\(requestUrl/,
+        'runtime helper direct SQLBot calls'
+      )
+      assertNotMatch(
+        sqlbotDirectSource,
+        /127\.0\.0\.1:8000|localhost:8000/,
+        'source should not hard-code SQLBot runtime origin'
       )
     }
   }

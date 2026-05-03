@@ -6,6 +6,7 @@ import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
 import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
 import io.dataease.ai.query.trusted.TrustedAnswerStubSqlBotProxy;
 import io.dataease.ai.query.trusted.TrustedAnswerTraceStore;
+import io.dataease.api.ai.query.request.AIQuerySqlBotRuntimeProxyRequest;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
 import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorCode;
@@ -127,7 +128,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
         trace.setState(TrustedAnswerState.NO_AUTHORIZED_CONTEXT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        new TrustedAnswerStubSqlBotProxy().stream(trace, response);
+        new TrustedAnswerStubSqlBotProxy(null).stream(trace, response);
 
         String body = response.getContentAsString();
         assertTrue(response.getContentType().startsWith("text/event-stream"));
@@ -148,7 +149,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
         };
         AIQueryTrustedAnswerServer server = new AIQueryTrustedAnswerServer(
                 runtimeContextService,
-                new TrustedAnswerStubSqlBotProxy(),
+                new TrustedAnswerStubSqlBotProxy(null),
                 traceStore,
                 new TrustedAnswerOpsService(traceStore)
         );
@@ -170,11 +171,17 @@ class AIQueryTrustedAnswerContractSmokeTest {
                 TrustedAnswerRequest.class,
                 HttpServletResponse.class
         );
+        Method sqlBotRuntimeMethod = AIQueryTrustedAnswerServer.class.getMethod(
+                "sqlBotRuntime",
+                AIQuerySqlBotRuntimeProxyRequest.class,
+                HttpServletResponse.class
+        );
         Method traceMethod = AIQueryTrustedAnswerServer.class.getMethod("trace", String.class);
         Method trustHealthMethod = AIQueryTrustedAnswerServer.class.getMethod("trustHealth");
         Method repairQueueMethod = AIQueryTrustedAnswerServer.class.getMethod("repairQueue");
 
         assertEquals(Void.TYPE, streamMethod.getReturnType());
+        assertEquals(Void.TYPE, sqlBotRuntimeMethod.getReturnType());
         assertEquals(TrustedAnswerTraceVO.class, traceMethod.getReturnType());
         assertNotNull(trustHealthMethod.getReturnType());
         assertEquals(List.class, repairQueueMethod.getReturnType());
