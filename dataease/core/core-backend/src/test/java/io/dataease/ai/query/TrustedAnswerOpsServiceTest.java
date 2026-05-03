@@ -21,14 +21,16 @@ class TrustedAnswerOpsServiceTest {
         TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
         traceStore.put(trace("ta-1", TrustedAnswerState.TRUSTED, null));
         traceStore.put(trace("ta-2", TrustedAnswerState.UNSAFE_BLOCKED, TrustedAnswerErrorCode.NO_VISIBLE_FIELD));
+        traceStore.put(trace("ta-3", TrustedAnswerState.NEEDS_CLARIFICATION, TrustedAnswerErrorCode.THEME_REQUIRED));
+        traceStore.put(trace("ta-4", TrustedAnswerState.PARTIAL, null));
 
         TrustedAnswerOpsService service = new TrustedAnswerOpsService(traceStore);
         TrustedAnswerTrustHealthVO health = service.trustHealth();
 
-        assertEquals(2, health.getTotalTraceCount());
+        assertEquals(4, health.getTotalTraceCount());
         assertEquals(1, health.getTrustedTraceCount());
         assertEquals(1, health.getBlockingIssueCount());
-        assertEquals(50, health.getTrustedRate());
+        assertEquals(25, health.getTrustedRate());
         assertEquals(Boolean.FALSE, health.getTrusted());
     }
 
@@ -37,6 +39,8 @@ class TrustedAnswerOpsServiceTest {
         TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
         traceStore.put(trace("ta-1", TrustedAnswerState.TRUSTED, null));
         traceStore.put(trace("ta-2", TrustedAnswerState.NO_AUTHORIZED_CONTEXT, TrustedAnswerErrorCode.NO_AUTHORIZED_DATASET));
+        traceStore.put(trace("ta-3", TrustedAnswerState.NEEDS_CLARIFICATION, TrustedAnswerErrorCode.MULTI_DATASOURCE_AMBIGUOUS));
+        traceStore.put(trace("ta-4", TrustedAnswerState.PARTIAL, null));
 
         TrustedAnswerOpsService service = new TrustedAnswerOpsService(traceStore);
         List<TrustedAnswerRepairItemVO> repairItems = service.repairQueue();

@@ -2,6 +2,10 @@ package io.dataease.ai.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.dataease.ai.query.server.AIQueryTrustedAnswerServer;
+import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
+import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
+import io.dataease.ai.query.trusted.TrustedAnswerStubSqlBotProxy;
+import io.dataease.ai.query.trusted.TrustedAnswerTraceStore;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
 import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorCode;
@@ -11,6 +15,7 @@ import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -101,6 +106,61 @@ class AIQueryTrustedAnswerContractSmokeTest {
         assertTrue(json.contains("\"state\":\"FAILED\""));
         assertTrue(json.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
         assertTrue(json.contains("\"done\":true"));
+    }
+
+    @Test
+    void sseEventShouldFallbackWhenErrorPayloadIsMissing() throws Exception {
+        TrustedAnswerSseEventVO event = TrustedAnswerSseEventVO.error("trace-1", null);
+
+        String json = objectMapper.writeValueAsString(event);
+
+        assertTrue(json.contains("\"event\":\"error\""));
+        assertTrue(json.contains("\"state\":\"FAILED\""));
+        assertTrue(json.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
+        assertTrue(json.contains("\"done\":true"));
+    }
+
+    @Test
+    void stubStreamShouldEmitErrorForNonTrustedTraceWithMissingError() throws Exception {
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setTraceId("trace-null-error");
+        trace.setState(TrustedAnswerState.NO_AUTHORIZED_CONTEXT);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        new TrustedAnswerStubSqlBotProxy().stream(trace, response);
+
+        String body = response.getContentAsString();
+        assertTrue(response.getContentType().startsWith("text/event-stream"));
+        assertTrue(body.contains("event: error"));
+        assertTrue(body.contains("\"trace_id\":\"trace-null-error\""));
+        assertTrue(body.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
+        assertTrue(body.contains("\"done\":true"));
+    }
+
+    @Test
+    void streamEndpointShouldEmitSseErrorWhenRuntimeContextFails() throws Exception {
+        TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
+        TrustedAnswerRuntimeContextService runtimeContextService = new TrustedAnswerRuntimeContextService(null, null, traceStore) {
+            @Override
+            public TrustedAnswerTraceVO buildTrace(TrustedAnswerRequest request) {
+                throw new IllegalStateException("boom");
+            }
+        };
+        AIQueryTrustedAnswerServer server = new AIQueryTrustedAnswerServer(
+                runtimeContextService,
+                new TrustedAnswerStubSqlBotProxy(),
+                traceStore,
+                new TrustedAnswerOpsService(traceStore)
+        );
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        server.stream(new TrustedAnswerRequest(), response);
+
+        String body = response.getContentAsString();
+        assertTrue(response.getContentType().startsWith("text/event-stream"));
+        assertTrue(body.contains("event: error"));
+        assertTrue(body.contains("\"state\":\"FAILED\""));
+        assertTrue(body.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
     }
 
     @Test

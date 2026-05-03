@@ -55,11 +55,12 @@ public class TrustedAnswerSseEventVO implements Serializable {
     }
 
     public static TrustedAnswerSseEventVO error(String traceId, TrustedAnswerErrorVO error) {
+        TrustedAnswerErrorVO safeError = error == null ? TrustedAnswerErrorCode.SQLBOT_UNAVAILABLE.toError() : error;
         TrustedAnswerSseEventVO event = new TrustedAnswerSseEventVO();
         event.setEvent("error");
         event.setTraceId(traceId);
-        event.setState(error.getState());
-        event.setError(error);
+        event.setState(safeError.getState());
+        event.setError(safeError);
         event.setDone(true);
         return event;
     }

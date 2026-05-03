@@ -25,7 +25,9 @@ public class TrustedAnswerOpsService {
         int trustedCount = (int) traces.stream()
                 .filter(trace -> trace.getState() == TrustedAnswerState.TRUSTED)
                 .count();
-        int blockingCount = totalCount - trustedCount;
+        int blockingCount = (int) traces.stream()
+                .filter(trace -> isRepairState(trace.getState()))
+                .count();
 
         TrustedAnswerTrustHealthVO health = new TrustedAnswerTrustHealthVO();
         health.setTotalTraceCount(totalCount);
@@ -38,9 +40,15 @@ public class TrustedAnswerOpsService {
 
     public List<TrustedAnswerRepairItemVO> repairQueue() {
         return traceStore.recent().stream()
-                .filter(trace -> trace.getState() != TrustedAnswerState.TRUSTED)
+                .filter(trace -> isRepairState(trace.getState()))
                 .map(this::toRepairItem)
                 .toList();
+    }
+
+    private boolean isRepairState(TrustedAnswerState state) {
+        return state == TrustedAnswerState.NO_AUTHORIZED_CONTEXT
+                || state == TrustedAnswerState.UNSAFE_BLOCKED
+                || state == TrustedAnswerState.FAILED;
     }
 
     private TrustedAnswerRepairItemVO toRepairItem(TrustedAnswerTraceVO trace) {

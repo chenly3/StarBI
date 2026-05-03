@@ -42,8 +42,14 @@ public class AIQueryTrustedAnswerServer {
 
     @PostMapping("/stream")
     public void stream(@RequestBody TrustedAnswerRequest request, HttpServletResponse response) throws IOException {
-        TrustedAnswerTraceVO trace = runtimeContextService.buildTrace(request);
-        stubSqlBotProxy.stream(trace, response);
+        try {
+            TrustedAnswerTraceVO trace = runtimeContextService.buildTrace(request);
+            stubSqlBotProxy.stream(trace, response);
+        } catch (Exception e) {
+            if (!response.isCommitted()) {
+                stubSqlBotProxy.streamError(response);
+            }
+        }
     }
 
     @GetMapping("/trace/{traceId}")
