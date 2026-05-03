@@ -23,6 +23,8 @@
         </div>
       </header>
 
+      <trusted-answer-overview />
+
       <section class="general-config-content">
         <query-resource-prototype v-if="currentTab.name === 'query_resources'" />
         <query-theme-page
@@ -43,6 +45,7 @@ import type { LocationQueryRaw } from 'vue-router_2'
 import { useI18n } from '@/hooks/web/useI18n'
 import QueryThemePage from '@/views/visualized/data/query-theme/index.vue'
 import QueryResourcePrototype from './QueryResourcePrototype.vue'
+import TrustedAnswerOverview from './components/TrustedAnswerOverview.vue'
 import '@/views/system/shared/system-setting-page.less'
 
 type QueryConfigTabName = 'query_resources' | 'query_themes'
