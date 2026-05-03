@@ -7,6 +7,7 @@ import {
   type AIQueryRuntimeModel,
   type AIQueryRuntimeModelsPayload
 } from '@/api/aiQueryTheme'
+import { streamTrustedAnswerQuestion } from '@/api/aiTrustedAnswer'
 import type {
   SQLBotNewContextSwitchCreatePayload,
   SQLBotNewPersistedContextEvent,
@@ -22,6 +23,11 @@ export interface SQLBotStreamEvent {
   [key: string]: any
 }
 
+interface SQLBotStreamOptions {
+  signal?: AbortSignal
+  onEvent: (event: SQLBotStreamEvent) => void
+}
+
 export interface SQLBotRequestContext {
   domain: string
   assistantId: string
@@ -29,6 +35,8 @@ export interface SQLBotRequestContext {
   certificate: string
   hostOrigin?: string
   locale?: string
+  themeId?: string | number
+  datasourceId?: string | number
 }
 
 interface SQLBotEnvelope<T = any> {
@@ -727,42 +735,9 @@ const readStreamChunk = (rawChunk: string, onEvent: (event: SQLBotStreamEvent) =
 export const streamSQLBotQuestion = async (
   context: SQLBotRequestContext,
   payload: Record<string, any>,
-  options: {
-    signal?: AbortSignal
-    onEvent: (event: SQLBotStreamEvent) => void
-  }
+  options: SQLBotStreamOptions
 ) => {
-  const response = await fetchSqlBotWithFallback(context.domain, base => `${base}/chat/question`, {
-    method: 'POST',
-    headers: buildAssistantHeaders(context),
-    body: JSON.stringify(payload),
-    signal: options.signal
-  })
-
-  if (!response.ok || !response.body) {
-    throw new Error(`SQLBot stream failed: ${response.status}`)
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      if (buffer.trim()) {
-        readStreamChunk(buffer, options.onEvent)
-      }
-      break
-    }
-
-    buffer += decoder.decode(value, { stream: true })
-    const segments = buffer.split('\n\n')
-    buffer = segments.pop() || ''
-    segments.forEach(segment => {
-      readStreamChunk(segment, options.onEvent)
-    })
-  }
+  await streamTrustedAnswerQuestion(context, payload, options)
 }
 
 export const streamSQLBotRecordAnalysis = async (

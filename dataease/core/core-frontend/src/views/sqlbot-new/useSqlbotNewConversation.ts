@@ -749,7 +749,9 @@ export const useSqlbotNewConversation = () => {
       assistantToken,
       certificate: buildCertificate(executionContext),
       hostOrigin: window.location.origin,
-      locale: String(wsCache.get('lang') || 'zh-CN')
+      locale: String(wsCache.get('lang') || 'zh-CN'),
+      themeId: executionContext.themeId || undefined,
+      datasourceId: executionContext.datasourceId || undefined
     }
   }
 
@@ -3225,6 +3227,7 @@ export const useSqlbotNewConversation = () => {
         {
           question: normalizedQuestion,
           chat_id: chatSession.id,
+          theme_id: executionContext.themeId || undefined,
           datasource_id: executionContext.datasourceId || undefined,
           ai_modal_id: executionContext.modelId || undefined
         },
