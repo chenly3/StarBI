@@ -1,6 +1,7 @@
 package io.dataease.ai.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dataease.ai.query.server.AIQueryTrustedAnswerServer;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
 import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorCode;
@@ -8,8 +9,10 @@ import io.dataease.api.ai.query.vo.TrustedAnswerErrorVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerSseEventVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -98,5 +101,22 @@ class AIQueryTrustedAnswerContractSmokeTest {
         assertTrue(json.contains("\"state\":\"FAILED\""));
         assertTrue(json.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
         assertTrue(json.contains("\"done\":true"));
+    }
+
+    @Test
+    void trustedAnswerServerShouldExposeTypedEndpoints() throws Exception {
+        Method streamMethod = AIQueryTrustedAnswerServer.class.getMethod(
+                "stream",
+                TrustedAnswerRequest.class,
+                HttpServletResponse.class
+        );
+        Method traceMethod = AIQueryTrustedAnswerServer.class.getMethod("trace", String.class);
+        Method trustHealthMethod = AIQueryTrustedAnswerServer.class.getMethod("trustHealth");
+        Method repairQueueMethod = AIQueryTrustedAnswerServer.class.getMethod("repairQueue");
+
+        assertEquals(Void.TYPE, streamMethod.getReturnType());
+        assertEquals(TrustedAnswerTraceVO.class, traceMethod.getReturnType());
+        assertNotNull(trustHealthMethod.getReturnType());
+        assertEquals(List.class, repairQueueMethod.getReturnType());
     }
 }
