@@ -82,6 +82,14 @@ const sqlbotDirectSource = readSource('src/views/sqlbot/sqlbotDirect.ts')
 const starbiResultCardSource = readSource('src/views/sqlbot/StarbiResultCard.vue')
 const messageFlowSource = readSource('src/views/sqlbot-new/sqlbotMessageFlow.ts')
 const restoreHistorySource = extractFunctionSource(conversationSource, 'restoreHistorySession')
+const submitWithDatasetClarificationSource = extractFunctionSource(
+  indexSource,
+  'submitWithDatasetClarification'
+)
+const resolveTrustedAnswerThemeContextSource = extractFunctionSource(
+  indexSource,
+  'resolveTrustedAnswerThemeContext'
+)
 
 const requiredContracts = [
   /SqlbotNewConversationRecordKind =[\s\S]*'answer'[\s\S]*'fact-answer'[\s\S]*'derived-question'[\s\S]*'derived-answer'/,
@@ -294,7 +302,10 @@ const contractCases: ContractCase[] = [
   {
     name: 'page-level recommended questions prefill composer instead of auto-submit',
     run() {
-      const recommendedQuestionSource = extractFunctionSource(indexSource, 'handleRecommendedQuestion')
+      const recommendedQuestionSource = extractFunctionSource(
+        indexSource,
+        'handleRecommendedQuestion'
+      )
       assertMatch(
         recommendedQuestionSource,
         /handlePrefillQuestion\(question\)/,
@@ -304,6 +315,46 @@ const contractCases: ContractCase[] = [
         recommendedQuestionSource,
         /submitWithDatasetClarification/,
         'recommended question handler must not submit a new chat request'
+      )
+    }
+  },
+  {
+    name: 'dataset submit resolves a trusted analysis theme before streaming',
+    run() {
+      assertMatch(
+        resolveTrustedAnswerThemeContextSource,
+        /context\.themeId \|\| context\.queryMode !== 'dataset'/,
+        'theme resolver preserves already scoped contexts'
+      )
+      assertMatch(
+        resolveTrustedAnswerThemeContextSource,
+        /themeTabs\.value[\s\S]*filter\(theme => theme\.id\)[\s\S]*sourceIds\.every/,
+        'theme resolver matches selected datasets to configured analysis themes'
+      )
+      assertMatch(
+        resolveTrustedAnswerThemeContextSource,
+        /matchedThemes\.length !== 1[\s\S]*const reason =[\s\S]*ElMessage\.warning\(reason\)/,
+        'theme resolver blocks ambiguous or unbound dataset submits with a reason'
+      )
+      assertMatch(
+        submitWithDatasetClarificationSource,
+        /const trustedThemeContext = resolveTrustedAnswerThemeContext\(resolved\.executionContext\)/,
+        'submit flow resolves trusted theme context'
+      )
+      assertMatch(
+        submitWithDatasetClarificationSource,
+        /if \(!trustedThemeContext\.ready\) \{[\s\S]*appendAssistantReply\([\s\S]*trustedThemeContext\.reason[\s\S]*return false/,
+        'submit flow shows a visible assistant message before stopping'
+      )
+      assertMatch(
+        submitWithDatasetClarificationSource,
+        /executionContext: trustedThemeContext\.executionContext/,
+        'submit flow streams with resolved theme context'
+      )
+      assertNotMatch(
+        submitWithDatasetClarificationSource,
+        /executionContext: resolved\.executionContext/,
+        'submit flow must not stream an unresolved theme context'
       )
     }
   }
