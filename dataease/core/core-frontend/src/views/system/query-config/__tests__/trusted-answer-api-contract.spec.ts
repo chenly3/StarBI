@@ -68,23 +68,12 @@ const contractCases: ContractCase[] = [
       assertMatch(source, /export const streamTrustedAnswer = /, 'stream function')
       assertMatch(source, /export const streamTrustedAnswerQuestion = /, 'sqlbot adapter')
       assertMatch(source, /callbacks\.onMessage\?\.\(event\.data, event\)/, 'message callback')
-      assertMatch(source, /const toSqlBotCompatibleEvent = /, 'legacy adapter mapper')
+      assertMatch(source, /from '@\/api\/aiTrustedAnswerEventAdapter'/, 'legacy adapter import')
       assertMatch(
         source,
-        /trustedEvent\.event === 'answer'[\s\S]*type: 'chart-result'/,
-        'answer event mapping'
+        /options\.onEvent\(toSqlBotCompatibleEvent\(trustedEvent\)\)/,
+        'legacy adapter usage'
       )
-      assertMatch(
-        source,
-        /trustedEvent\.event === 'done'[\s\S]*type: 'finish'/,
-        'done event mapping'
-      )
-      assertMatch(
-        source,
-        /trustedEvent\.event === 'error'[\s\S]*type: 'error'/,
-        'error event mapping'
-      )
-      assertMatch(source, /normalizeTrustedAnswerErrorText/, 'trusted error message mapping')
     }
   }
 ]

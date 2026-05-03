@@ -1,6 +1,10 @@
 import request from '@/config/axios'
 import { PATH_URL } from '@/config/axios/service'
 import { configHandler } from '@/config/axios/refresh'
+import {
+  toSqlBotCompatibleEvent,
+  type SQLBotStreamEventLike
+} from '@/api/aiTrustedAnswerEventAdapter'
 
 export type TrustedAnswerState =
   | 'TRUSTED'
@@ -73,11 +77,6 @@ export interface SQLBotRequestContextLike {
   datasource_id?: string | number
 }
 
-export interface SQLBotStreamEventLike {
-  type?: string
-  [key: string]: any
-}
-
 const resolveFetchUrl = (url: string) => {
   const base = PATH_URL.endsWith('/') ? PATH_URL.slice(0, -1) : PATH_URL
   return `${base}${url}`
@@ -95,63 +94,6 @@ const firstPresent = (...values: unknown[]) => {
 const normalizeOptionalString = (...values: unknown[]) => {
   const value = firstPresent(...values)
   return value === undefined ? undefined : String(value)
-}
-
-const normalizeTrustedAnswerText = (data: any) => {
-  if (typeof data === 'string') {
-    return data
-  }
-  return String(data?.text || data?.answer || data?.content || '')
-}
-
-const normalizeTrustedAnswerErrorText = (event: TrustedAnswerSseEvent) => {
-  return String(
-    event.error?.user_visible_message ||
-      event.error?.message ||
-      event.error?.admin_visible_detail ||
-      '可信问数执行失败'
-  )
-}
-
-const toSqlBotCompatibleEvent = (trustedEvent: TrustedAnswerSseEvent): SQLBotStreamEventLike => {
-  const baseEvent = {
-    state: trustedEvent.state,
-    trace_id: trustedEvent.trace_id,
-    trusted_answer_event: trustedEvent.event,
-    trusted_answer_done: trustedEvent.done,
-    error: trustedEvent.error
-  }
-
-  if (trustedEvent.event === 'answer') {
-    return {
-      ...baseEvent,
-      type: 'chart-result',
-      content: normalizeTrustedAnswerText(trustedEvent.data),
-      reasoning_content: normalizeTrustedAnswerText(trustedEvent.data)
-    }
-  }
-
-  if (trustedEvent.event === 'done') {
-    return {
-      ...baseEvent,
-      type: 'finish',
-      content: trustedEvent.data
-    }
-  }
-
-  if (trustedEvent.event === 'error') {
-    return {
-      ...baseEvent,
-      type: 'error',
-      content: normalizeTrustedAnswerErrorText(trustedEvent)
-    }
-  }
-
-  return {
-    ...baseEvent,
-    type: trustedEvent.event,
-    content: trustedEvent.data
-  }
 }
 
 const parseTrustedAnswerSseMessage = (message: string): TrustedAnswerSseEvent | null => {
