@@ -3,7 +3,7 @@ import { useEmbedded } from '@/store/modules/embedded'
 import { loadDistributedFlag } from './distributed'
 const { wsCache } = useCache()
 const embeddedStore = useEmbedded()
-const basePath = import.meta.env.VITE_API_BASEPATH
+const basePath = import.meta.env.VITE_API_BASEPATH || '/api'
 const embeddedBasePath =
   basePath.startsWith('./') && basePath.length > 2 ? basePath.substring(2) : basePath
 export const PATH_URL = embeddedStore.baseUrl ? embeddedStore?.baseUrl + embeddedBasePath : basePath

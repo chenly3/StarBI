@@ -44,7 +44,7 @@ import { useCache } from '@/hooks/web/useCache'
 const { wsCache } = useCache()
 const requestStore = useRequestStoreWithOut()
 const embeddedStore = useEmbedded()
-const basePath = import.meta.env.VITE_API_BASEPATH
+const basePath = import.meta.env.VITE_API_BASEPATH || '/api'
 
 const embeddedBasePath =
   basePath.startsWith('./') && basePath.length > 2 ? basePath.substring(2) : basePath
