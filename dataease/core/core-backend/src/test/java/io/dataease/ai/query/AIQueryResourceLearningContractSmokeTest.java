@@ -1,6 +1,7 @@
 package io.dataease.ai.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dataease.ai.query.manage.AIQueryThemeManage;
 import io.dataease.api.ai.query.request.AIQueryLearningFeedbackRequest;
 import io.dataease.api.ai.query.request.AIQueryLearningPatchDisableRequest;
 import io.dataease.api.ai.query.vo.AIQueryLearningFeedbackEventVO;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -161,6 +163,22 @@ class AIQueryResourceLearningContractSmokeTest {
         assertEquals(AIQueryLearningResourceVO.class, firstGenericArgument(resourcesMethod));
         assertEquals(AIQueryLearningPatchVO.class, firstGenericArgument(patchesMethod));
         assertEquals(AIQueryLearningReplayVO.class, firstGenericArgument(feedbackEventsMethod));
+    }
+
+    @Test
+    void feedbackReplayContractsShouldCarryTrustedAnswerTraceLineage() {
+        AIQueryLearningFeedbackRequest request = new AIQueryLearningFeedbackRequest();
+        request.setSourceTraceId("ta-lineage");
+
+        AIQueryLearningReplayVO replay = AIQueryThemeManage.toLearningReplayVO(Map.of(
+                "event_no", "evt-1",
+                "resource_id", "resource-1",
+                "source_trace_id", "ta-lineage"
+        ));
+
+        assertEquals("ta-lineage", request.getSourceTraceId());
+        assertNotNull(replay);
+        assertEquals("ta-lineage", replay.getSourceTraceId());
     }
 
     private static Class<?> firstGenericArgument(Method method) {

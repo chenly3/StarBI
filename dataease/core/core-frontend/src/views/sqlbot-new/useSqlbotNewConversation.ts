@@ -101,6 +101,7 @@ export interface SqlbotNewConversationRecord extends SqlbotMessageFlowRecord {
   finishTime?: string | number
   duration?: number
   totalTokens?: number
+  trustedTraceId?: string
   display?: SqlbotNewConversationRecordDisplayState
 }
 
@@ -749,7 +750,9 @@ export const useSqlbotNewConversation = () => {
       assistantToken,
       certificate: buildCertificate(executionContext),
       hostOrigin: window.location.origin,
-      locale: String(wsCache.get('lang') || 'zh-CN')
+      locale: String(wsCache.get('lang') || 'zh-CN'),
+      themeId: executionContext.themeId || undefined,
+      datasourceId: executionContext.datasourceId || undefined
     }
   }
 
@@ -2480,6 +2483,7 @@ export const useSqlbotNewConversation = () => {
     event: SQLBotStreamEvent,
     executionContext: SqlbotNewExecutionContext
   ) => {
+    record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
     switch (event.type) {
       case 'id':
         record.id = Number(event.id)
@@ -2869,6 +2873,7 @@ export const useSqlbotNewConversation = () => {
         activeExecutionContextRef.value = null
         restoredHistoryContext.value = null
         currentScopeKey.value = ''
+        writeActiveSessionId('')
         return false
       }
 
@@ -3065,6 +3070,7 @@ export const useSqlbotNewConversation = () => {
       activeExecutionContextRef.value = null
       restoredHistoryContext.value = null
       currentScopeKey.value = ''
+      writeActiveSessionId('')
       return false
     } finally {
       conversationLoading.value = false
@@ -3225,6 +3231,7 @@ export const useSqlbotNewConversation = () => {
         {
           question: normalizedQuestion,
           chat_id: chatSession.id,
+          theme_id: executionContext.themeId || undefined,
           datasource_id: executionContext.datasourceId || undefined,
           ai_modal_id: executionContext.modelId || undefined
         },

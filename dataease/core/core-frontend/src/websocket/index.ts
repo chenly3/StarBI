@@ -6,7 +6,7 @@ const { wsCache } = useCache()
 let stompClient: Stomp.Client
 import dev from '../../config/dev'
 const env = import.meta.env
-const basePath = env.VITE_API_BASEPATH
+const basePath = env.VITE_API_BASEPATH || '/api'
 
 export default {
   install() {

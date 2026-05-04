@@ -36,6 +36,16 @@ const readActiveSessionId = () => {
   }
 }
 
+const clearActiveSessionId = () => {
+  const { wsCache } = useCache('localStorage')
+  try {
+    wsCache.delete(ACTIVE_SESSION_STORAGE_KEY)
+    window.localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+  } catch (error) {
+    console.error('clear sqlbot-new active history id failed', error)
+  }
+}
+
 export const useSqlbotNewHistory = ({
   pageMode,
   fetchHistoryEntries,
@@ -99,6 +109,9 @@ export const useSqlbotNewHistory = ({
         : undefined
 
       activeHistoryId.value = restoreActive && targetItem ? targetItem.id : ''
+      if (restoreActive && activeSessionId && !targetItem) {
+        clearActiveSessionId()
+      }
 
       if (targetItem && restoreActive) {
         historyTreeExpanded.value = true

@@ -1150,6 +1150,57 @@ const maybeResolveDatasetClarification = async (question: string) => {
   return { handled: true }
 }
 
+const resolveTrustedAnswerThemeContext = (context: SqlbotNewExecutionContext) => {
+  if (context.themeId || context.queryMode !== 'dataset') {
+    return {
+      ready: true,
+      executionContext: context
+    }
+  }
+
+  const sourceIds = [
+    ...new Set(
+      [context.sourceId, ...(context.sourceIds || [])].map(item => normalizeOptionalId(item))
+    )
+  ].filter(Boolean)
+
+  if (!sourceIds.length) {
+    return {
+      ready: true,
+      executionContext: context
+    }
+  }
+
+  const matchedThemes = themeTabs.value
+    .filter(theme => theme.id)
+    .filter(theme => {
+      const scopedDatasetIds = new Set((theme.datasetIds || []).map(item => String(item)))
+      return sourceIds.every(datasetId => scopedDatasetIds.has(datasetId))
+    })
+
+  if (matchedThemes.length !== 1) {
+    const reason = matchedThemes.length
+      ? '当前数据集属于多个分析主题，请先选择一个分析主题后再问数'
+      : '当前数据集未绑定分析主题，请先在问数配置中绑定后再问数'
+    ElMessage.warning(reason)
+    return {
+      ready: false,
+      executionContext: context,
+      reason
+    }
+  }
+
+  const theme = matchedThemes[0]
+  return {
+    ready: true,
+    executionContext: {
+      ...context,
+      themeId: theme.id,
+      themeName: theme.name || context.themeName
+    }
+  }
+}
+
 const submitWithDatasetClarification = async (
   question: string,
   reason: 'submit' | 'recommend' = 'submit'
@@ -1183,8 +1234,31 @@ const submitWithDatasetClarification = async (
     return false
   }
 
+  const trustedThemeContext = resolveTrustedAnswerThemeContext(resolved.executionContext)
+  if (!trustedThemeContext.ready) {
+    appendAssistantReply({
+      executionContext: trustedThemeContext.executionContext,
+      question: normalizedQuestion,
+      answer: [
+        '我已经收到你的问题，但可信问数需要先确定分析主题后才能继续。',
+        '',
+        `当前卡住的原因是：${trustedThemeContext.reason || '缺少分析主题上下文'}。`,
+        '',
+        '你可以在上方切换一个已绑定数据集的分析主题，或到「系统设置 > 问数配置 > 分析主题配置」为当前数据集绑定主题后再试。'
+      ].join('\n'),
+      selectionTitle: resolved.selectionTitle,
+      selectionMeta: resolved.selectionMeta,
+      recommendQuestions: [
+        '先切换到一个分析主题后继续问数',
+        '查看当前数据集适合绑定到哪个分析主题',
+        '为当前数据集配置默认分析主题'
+      ]
+    })
+    return false
+  }
+
   const success = await submitQuestion({
-    executionContext: resolved.executionContext,
+    executionContext: trustedThemeContext.executionContext,
     question,
     reason,
     selectionTitle: resolved.selectionTitle,
@@ -1411,6 +1485,7 @@ const handleSubmitLearningFix = async (payload: SqlbotNewLearningFixSubmitPayloa
       eventType: 'manual_fix_submit',
       sourceChatId: record.chatId,
       sourceChatRecordId: record.id,
+      sourceTraceId: record.trustedTraceId,
       questionText: payload.questionText || record.question,
       matchedSql: payload.matchedSql || String(record.sql || ''),
       beforeSnapshot: payload.beforeSnapshot,

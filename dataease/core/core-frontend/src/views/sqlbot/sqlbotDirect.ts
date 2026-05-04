@@ -1,12 +1,12 @@
-// DEPRECATED: use @/api/aiQuery.ts instead. Will be removed after migrate config pages.
-
-import { normalizeSqlBotDomain } from '@/views/sqlbot/queryContext'
 import { useCache } from '@/hooks/web/useCache'
+import { PATH_URL } from '@/config/axios/service'
+import { configHandler } from '@/config/axios/refresh'
 import {
   getAIQueryRuntimeModels,
   type AIQueryRuntimeModel,
   type AIQueryRuntimeModelsPayload
 } from '@/api/aiQueryTheme'
+import { streamTrustedAnswerQuestion } from '@/api/aiTrustedAnswer'
 import type {
   SQLBotNewContextSwitchCreatePayload,
   SQLBotNewPersistedContextEvent,
@@ -22,6 +22,11 @@ export interface SQLBotStreamEvent {
   [key: string]: any
 }
 
+interface SQLBotStreamOptions {
+  signal?: AbortSignal
+  onEvent: (event: SQLBotStreamEvent) => void
+}
+
 export interface SQLBotRequestContext {
   domain: string
   assistantId: string
@@ -29,6 +34,8 @@ export interface SQLBotRequestContext {
   certificate: string
   hostOrigin?: string
   locale?: string
+  themeId?: string | number
+  datasourceId?: string | number
 }
 
 interface SQLBotEnvelope<T = any> {
@@ -73,6 +80,16 @@ export interface SQLBotChatDetail {
 
 const { wsCache } = useCache('localStorage')
 const SQLBOT_ASSISTANT_VIRTUAL_USER_KEY_PREFIX = 'STARBI-SQLBOT-ASSISTANT-VIRTUAL-USER'
+const SQLBOT_API_PREFIX = '/api/v1'
+const SQLBOT_RUNTIME_PROXY_URL = '/ai/query/trusted-answer/sqlbot-runtime'
+const SQLBOT_RUNTIME_PROXY_HEADER_ALLOWLIST = new Set([
+  'accept',
+  'accept-language',
+  'content-type',
+  'x-sqlbot-assistant-token',
+  'x-sqlbot-assistant-certificate',
+  'x-sqlbot-host-origin'
+])
 
 const unwrapSqlBotResponse = async <T = any>(response: Response): Promise<T> => {
   if (!response.ok) {
@@ -309,66 +326,64 @@ const serializeSQLBotNewSnapshotPayload = (payload: SQLBotNewSnapshotUpsertPaylo
   latest_question: payload.latestQuestion
 })
 
-const getSqlBotApiBaseCandidates = (domain: string) => {
-  const normalizedDomain = normalizeSqlBotDomain(domain)
-  if (!normalizedDomain) {
-    return ['/api/v1']
-  }
-
-  try {
-    const url = new URL(normalizedDomain)
-
-    // In local integration we often store the SQLBot frontend dev URL (5173) in config,
-    // while the real FastAPI service still listens on 8000.
-    if ((url.hostname === 'localhost' || url.hostname === '127.0.0.1') && url.port === '5173') {
-      url.port = '8000'
-    }
-    const primaryOrigin = url.origin
-    const candidates = [`${primaryOrigin}/api/v1`]
-
-    // Some local environments expose SQLBot only on one loopback alias.
-    // Keep the configured host first, then retry the sibling alias if network fetch fails.
-    if (url.hostname === 'localhost') {
-      candidates.push(`${url.protocol}//127.0.0.1${url.port ? `:${url.port}` : ''}/api/v1`)
-    } else if (url.hostname === '127.0.0.1') {
-      candidates.push(`${url.protocol}//localhost${url.port ? `:${url.port}` : ''}/api/v1`)
-    }
-
-    return [...new Set(candidates)]
-  } catch (error) {
-    console.error('resolve SQLBot api base failed', error)
-    return [`${normalizedDomain}/api/v1`]
-  }
+const resolveDataEaseFetchUrl = (url: string) => {
+  const base = PATH_URL.endsWith('/') ? PATH_URL.slice(0, -1) : PATH_URL
+  return `${base}${url}`
 }
 
-const isNetworkFetchError = (error: unknown) => {
-  return error instanceof TypeError || String(error).includes('Failed to fetch')
+const normalizeSqlBotProxyPath = (requestUrl: string) => {
+  const url = new URL(requestUrl, window.location.origin)
+  const prefixIndex = url.pathname.indexOf(SQLBOT_API_PREFIX)
+  const path =
+    prefixIndex >= 0
+      ? url.pathname.slice(prefixIndex + SQLBOT_API_PREFIX.length) || '/'
+      : url.pathname
+  return `${path}${url.search}`
+}
+
+const serializeSqlBotProxyHeaders = (headers?: HeadersInit) => {
+  const result: Record<string, string> = {}
+  if (!headers) {
+    return result
+  }
+  const normalizedHeaders = new Headers(headers)
+  normalizedHeaders.forEach((value, key) => {
+    if (SQLBOT_RUNTIME_PROXY_HEADER_ALLOWLIST.has(key.toLowerCase())) {
+      result[key] = value
+    }
+  })
+  return result
 }
 
 const fetchSqlBotWithFallback = async (
-  domain: string,
+  _domain: string,
   buildUrl: (base: string) => string,
   init: RequestInit
 ) => {
-  const bases = getSqlBotApiBaseCandidates(domain)
-  let lastError: unknown = null
-
-  for (let index = 0; index < bases.length; index += 1) {
-    const base = bases[index]
-    const requestUrl = buildUrl(base)
-    try {
-      return await fetch(requestUrl, init)
-    } catch (error) {
-      lastError = error
-      const canRetry = index < bases.length - 1 && isNetworkFetchError(error)
-      if (!canRetry) {
-        throw error
-      }
-      console.warn(`SQLBot fetch failed for ${requestUrl}, retrying with fallback host`, error)
-    }
+  const requestUrl = buildUrl(`${window.location.origin}${SQLBOT_API_PREFIX}`)
+  const proxyPayload = {
+    method: String(init.method || 'GET').toUpperCase(),
+    path: normalizeSqlBotProxyPath(requestUrl),
+    headers: serializeSqlBotProxyHeaders(init.headers),
+    body: typeof init.body === 'string' ? init.body : undefined
   }
+  const config = await configHandler({
+    url: SQLBOT_RUNTIME_PROXY_URL,
+    method: 'post',
+    headers: {},
+    data: proxyPayload
+  })
 
-  throw lastError instanceof Error ? lastError : new Error('SQLBot request failed')
+  return fetch(resolveDataEaseFetchUrl(SQLBOT_RUNTIME_PROXY_URL), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
+      ...(config.headers as Record<string, string>)
+    },
+    body: JSON.stringify(proxyPayload),
+    signal: init.signal
+  })
 }
 
 const buildAssistantHeaders = (context: SQLBotRequestContext, contentType = 'application/json') => {
@@ -727,42 +742,9 @@ const readStreamChunk = (rawChunk: string, onEvent: (event: SQLBotStreamEvent) =
 export const streamSQLBotQuestion = async (
   context: SQLBotRequestContext,
   payload: Record<string, any>,
-  options: {
-    signal?: AbortSignal
-    onEvent: (event: SQLBotStreamEvent) => void
-  }
+  options: SQLBotStreamOptions
 ) => {
-  const response = await fetchSqlBotWithFallback(context.domain, base => `${base}/chat/question`, {
-    method: 'POST',
-    headers: buildAssistantHeaders(context),
-    body: JSON.stringify(payload),
-    signal: options.signal
-  })
-
-  if (!response.ok || !response.body) {
-    throw new Error(`SQLBot stream failed: ${response.status}`)
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      if (buffer.trim()) {
-        readStreamChunk(buffer, options.onEvent)
-      }
-      break
-    }
-
-    buffer += decoder.decode(value, { stream: true })
-    const segments = buffer.split('\n\n')
-    buffer = segments.pop() || ''
-    segments.forEach(segment => {
-      readStreamChunk(segment, options.onEvent)
-    })
-  }
+  await streamTrustedAnswerQuestion(context, payload, options)
 }
 
 export const streamSQLBotRecordAnalysis = async (

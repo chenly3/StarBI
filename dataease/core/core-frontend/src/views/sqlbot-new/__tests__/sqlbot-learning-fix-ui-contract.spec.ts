@@ -81,6 +81,22 @@ const contractCases: ContractCase[] = [
     }
   },
   {
+    name: 'learning fix replay keeps trusted-answer trace as source lineage',
+    run() {
+      assertMatch(conversationSource, /trustedTraceId\?: string/, 'record trace id field')
+      assertMatch(
+        conversationSource,
+        /record\.trustedTraceId = String\(event\.trace_id \|\| record\.trustedTraceId \|\| ''\)/,
+        'stream events should retain trusted trace id on record'
+      )
+      assertMatch(
+        indexSource,
+        /sourceTraceId:\s*record\.trustedTraceId/,
+        'learning feedback should submit source trace id for replay'
+      )
+    }
+  },
+  {
     name: 'index page keeps smart query sidebar focused on q&a and history',
     run() {
       assertMatch(indexSource, /label:\s*'小星问数'/, 'smart query nav copy')
@@ -150,6 +166,26 @@ const contractCases: ContractCase[] = [
         historySource,
         /if \(restored\) \{[\s\S]*await refreshHistory\(false\)\s*activeHistoryId\.value = id/,
         'clicked history should become active after successful restore'
+      )
+    }
+  },
+  {
+    name: 'stale active history id is cleared when backend restore cannot use it',
+    run() {
+      assertMatch(
+        historySource,
+        /const clearActiveSessionId = \(\) => \{/,
+        'active id clear helper'
+      )
+      assertMatch(
+        historySource,
+        /if \(restoreActive && activeSessionId && !targetItem\) \{[\s\S]*clearActiveSessionId\(\)/,
+        'missing active history target should clear stale active id'
+      )
+      assertMatch(
+        conversationSource,
+        /restoreHistorySession[\s\S]*catch \(error\) \{[\s\S]*writeActiveSessionId\(''\)/,
+        'failed history restore should clear stale active id'
       )
     }
   }
