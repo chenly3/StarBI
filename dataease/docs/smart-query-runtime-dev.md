@@ -114,12 +114,15 @@ Expected:
 
 After the backend is running:
 
+The Spring controller mapping is `/ai/query/trusted-answer/stream`. In the local
+DataEase dev runtime, call it through the DataEase context path:
+
 ```bash
 curl -N \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
   -X POST \
-  http://127.0.0.1:8100/ai/query/trusted-answer/stream \
+  http://127.0.0.1:8100/de2api/ai/query/trusted-answer/stream \
   -d '{"question":"本月销售额是多少","theme_id":"1001","datasource_id":"2002"}'
 ```
 
