@@ -1,6 +1,7 @@
 package io.dataease.ai.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.ai.query.server.AIQueryTrustedAnswerServer;
 import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
 import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
@@ -14,11 +15,19 @@ import io.dataease.api.ai.query.vo.TrustedAnswerErrorVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerSseEventVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
+import io.dataease.utils.AuthUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import io.dataease.substitute.permissions.dataset.SubstituteDatasetExampleStore;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.apache.http.client.methods.HttpGet;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -128,7 +137,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
         trace.setState(TrustedAnswerState.NO_AUTHORIZED_CONTEXT);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        new TrustedAnswerStubSqlBotProxy(null).stream(trace, response);
+        new TrustedAnswerStubSqlBotProxy(null).stream(trace, new TrustedAnswerRequest(), null, response);
 
         String body = response.getContentAsString();
         assertTrue(response.getContentType().startsWith("text/event-stream"));
@@ -141,7 +150,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
     @Test
     void streamEndpointShouldEmitSseErrorWhenRuntimeContextFails() throws Exception {
         TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
-        TrustedAnswerRuntimeContextService runtimeContextService = new TrustedAnswerRuntimeContextService(null, null, traceStore) {
+        TrustedAnswerRuntimeContextService runtimeContextService = new TrustedAnswerRuntimeContextService(null, null, traceStore, null) {
             @Override
             public TrustedAnswerTraceVO buildTrace(TrustedAnswerRequest request) {
                 throw new IllegalStateException("boom");
@@ -155,7 +164,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
         );
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        server.stream(new TrustedAnswerRequest(), response);
+        server.stream(new TrustedAnswerRequest(), null, response);
 
         String body = response.getContentAsString();
         assertTrue(response.getContentType().startsWith("text/event-stream"));
@@ -165,15 +174,57 @@ class AIQueryTrustedAnswerContractSmokeTest {
     }
 
     @Test
+    void sqlbotEventShouldCarryRawRuntimePayloadThroughTrustedAnswerWrapper() throws Exception {
+        TrustedAnswerSseEventVO event = new TrustedAnswerSseEventVO();
+        event.setEvent("sqlbot");
+        event.setTraceId("trace-real");
+        event.setState(TrustedAnswerState.TRUSTED);
+        event.setData(java.util.Map.of("sqlbot_event", java.util.Map.of(
+                "type", "sql",
+                "content", "select 1"
+        )));
+        event.setDone(false);
+
+        String json = objectMapper.writeValueAsString(event);
+
+        assertTrue(json.contains("\"event\":\"sqlbot\""));
+        assertTrue(json.contains("\"trace_id\":\"trace-real\""));
+        assertTrue(json.contains("\"type\":\"sql\""));
+        assertTrue(json.contains("\"content\":\"select 1\""));
+    }
+
+    @Test
+    void wrappedSqlbotStreamEventsShouldPreserveTrustedTraceForFrontendLineage() throws Exception {
+        TrustedAnswerSseEventVO event = new TrustedAnswerSseEventVO();
+        event.setEvent("sqlbot");
+        event.setTraceId("ta-lineage");
+        event.setState(TrustedAnswerState.TRUSTED);
+        event.setData(Map.of("sqlbot_event", Map.of(
+                "type", "id",
+                "id", 68
+        )));
+        event.setDone(false);
+
+        String json = objectMapper.writeValueAsString(event);
+
+        assertTrue(json.contains("\"trace_id\":\"ta-lineage\""));
+        assertTrue(json.contains("\"trusted_answer_done\":false")
+                || json.contains("\"done\":false"));
+        assertTrue(json.contains("\"type\":\"id\""));
+    }
+
+    @Test
     void trustedAnswerServerShouldExposeTypedEndpoints() throws Exception {
         Method streamMethod = AIQueryTrustedAnswerServer.class.getMethod(
                 "stream",
                 TrustedAnswerRequest.class,
+                HttpServletRequest.class,
                 HttpServletResponse.class
         );
         Method sqlBotRuntimeMethod = AIQueryTrustedAnswerServer.class.getMethod(
                 "sqlBotRuntime",
                 AIQuerySqlBotRuntimeProxyRequest.class,
+                HttpServletRequest.class,
                 HttpServletResponse.class
         );
         Method traceMethod = AIQueryTrustedAnswerServer.class.getMethod("trace", String.class);
@@ -185,5 +236,141 @@ class AIQueryTrustedAnswerContractSmokeTest {
         assertEquals(TrustedAnswerTraceVO.class, traceMethod.getReturnType());
         assertNotNull(trustHealthMethod.getReturnType());
         assertEquals(List.class, repairQueueMethod.getReturnType());
+    }
+
+    @Test
+    void assistantCertificateShouldCarryCurrentDataEaseTokenAsHeader() throws Exception {
+        TrustedAnswerContextVO context = new TrustedAnswerContextVO();
+        context.setThemeId(1001L);
+        context.setThemeName("销售分析");
+        context.setDatasourceId(2002L);
+        context.setDatasetIds(List.of(11L, 12L));
+
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setContext(context);
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "encodeAssistantCertificate",
+                TrustedAnswerTraceVO.class,
+                String.class
+        );
+        method.setAccessible(true);
+        String encoded = String.valueOf(method.invoke(new TrustedAnswerStubSqlBotProxy(null), trace, "de-token-qa"));
+        String raw = URLDecoder.decode(
+                new String(java.util.Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8),
+                StandardCharsets.UTF_8
+        );
+
+        assertTrue(raw.contains("\"target\":\"header\""));
+        assertTrue(raw.contains("\"key\":\"X-DE-TOKEN\""));
+        assertTrue(raw.contains("\"value\":\"de-token-qa\""));
+        assertTrue(raw.contains("\"key\":\"datasetIds\""));
+        assertTrue(raw.contains("\"value\":\"11,12\""));
+    }
+
+    @Test
+    void runtimeProxyShouldForwardDataEaseUserHeadersFromCurrentToken() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-DE-TOKEN", "header." + java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"uid\":1,\"oid\":2}".getBytes(StandardCharsets.UTF_8)) + ".signature");
+        HttpGet proxyRequest = new HttpGet("http://127.0.0.1:8000/api/v1/chat/36/with_data");
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "appendDataEaseUserHeaders",
+                org.apache.http.client.methods.HttpRequestBase.class,
+                HttpServletRequest.class
+        );
+        method.setAccessible(true);
+        method.invoke(new TrustedAnswerStubSqlBotProxy(null), proxyRequest, request);
+
+        assertEquals("1", proxyRequest.getFirstHeader("X-DE-USER-ID").getValue());
+        assertEquals("2", proxyRequest.getFirstHeader("X-DE-ORG-ID").getValue());
+    }
+
+    @Test
+    void runtimeProxyShouldFallbackOrgHeaderFromTokenWhenAuthUserHasNoOrg() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-DE-TOKEN", "header." + java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"uid\":4,\"oid\":44}".getBytes(StandardCharsets.UTF_8)) + ".signature");
+        HttpGet proxyRequest = new HttpGet("http://127.0.0.1:8000/api/v1/chat/36/with_data");
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "appendDataEaseUserHeaders",
+                org.apache.http.client.methods.HttpRequestBase.class,
+                HttpServletRequest.class
+        );
+        method.setAccessible(true);
+
+        try {
+            AuthUtils.setUser(new TokenUserBO(4L, null));
+            method.invoke(new TrustedAnswerStubSqlBotProxy(null), proxyRequest, request);
+        } finally {
+            AuthUtils.remove();
+        }
+
+        assertEquals("4", proxyRequest.getFirstHeader("X-DE-USER-ID").getValue());
+        assertEquals("44", proxyRequest.getFirstHeader("X-DE-ORG-ID").getValue());
+    }
+
+    @Test
+    void wrappedSqlbotSseShouldPreserveMultiLineDataBlocks() throws Exception {
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setTraceId("ta-multiline");
+        trace.setState(TrustedAnswerState.TRUSTED);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "forwardSqlBotSseBlock",
+                TrustedAnswerTraceVO.class,
+                String.class,
+                HttpServletResponse.class
+        );
+        method.setAccessible(true);
+        method.invoke(
+                new TrustedAnswerStubSqlBotProxy(null),
+                trace,
+                "event: message\n"
+                        + "data: {\"type\":\"sql\",\n"
+                        + "data: \"content\":\"select 1\"}",
+                response
+        );
+
+        String body = response.getContentAsString();
+
+        assertTrue(body.contains("event: sqlbot"));
+        assertTrue(body.contains("\"trace_id\":\"ta-multiline\""));
+        assertTrue(body.contains("\"type\":\"sql\""));
+        assertTrue(body.contains("\"content\":\"select 1\""));
+    }
+
+    @Test
+    void sqlbotRuntimeFailureShouldAttachActionableDetailToTraceError() throws Exception {
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setTraceId("ta-sqlbot-403");
+        trace.setState(TrustedAnswerState.TRUSTED);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "writeSqlBotError",
+                HttpServletResponse.class,
+                TrustedAnswerTraceVO.class,
+                String.class
+        );
+        method.setAccessible(true);
+        method.invoke(
+                new TrustedAnswerStubSqlBotProxy(null),
+                response,
+                trace,
+                "SQLBot /chat/question returned HTTP 403: permission denied"
+        );
+
+        String body = response.getContentAsString();
+
+        assertEquals(TrustedAnswerState.FAILED, trace.getState());
+        assertEquals("SQLBOT_UNAVAILABLE", trace.getError().getCode());
+        assertTrue(trace.getError().getAdminVisibleDetail().contains("HTTP 403"));
+        assertTrue(trace.getPermissionSteps().contains("sqlbot-runtime-failed"));
+        assertTrue(body.contains("\"code\":\"SQLBOT_UNAVAILABLE\""));
+        assertTrue(body.contains("HTTP 403"));
     }
 }

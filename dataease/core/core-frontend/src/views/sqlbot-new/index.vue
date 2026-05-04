@@ -1485,6 +1485,7 @@ const handleSubmitLearningFix = async (payload: SqlbotNewLearningFixSubmitPayloa
       eventType: 'manual_fix_submit',
       sourceChatId: record.chatId,
       sourceChatRecordId: record.id,
+      sourceTraceId: record.trustedTraceId,
       questionText: payload.questionText || record.question,
       matchedSql: payload.matchedSql || String(record.sql || ''),
       beforeSnapshot: payload.beforeSnapshot,

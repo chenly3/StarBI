@@ -12,6 +12,7 @@ import io.dataease.api.dataset.vo.DataSQLBotAssistantVO;
 import io.dataease.api.dataset.vo.SQLBotAssistanTable;
 import io.dataease.api.dataset.vo.SQLBotAssistantField;
 import io.dataease.dataset.manage.DatasetSQLBotManage;
+import io.dataease.substitute.permissions.dataset.SubstituteDatasetExampleStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,13 +35,16 @@ class TrustedAnswerRuntimeContextServiceTest {
     @Mock
     private DatasetSQLBotManage datasetSQLBotManage;
 
+    @Mock
+    private SubstituteDatasetExampleStore substituteDatasetExampleStore;
+
     private TrustedAnswerTraceStore traceStore;
     private TrustedAnswerRuntimeContextService service;
 
     @BeforeEach
     void setUp() {
         traceStore = new TrustedAnswerTraceStore();
-        service = new TrustedAnswerRuntimeContextService(aiQueryThemeManage, datasetSQLBotManage, traceStore);
+        service = new TrustedAnswerRuntimeContextService(aiQueryThemeManage, datasetSQLBotManage, traceStore, substituteDatasetExampleStore);
     }
 
     @Test
@@ -118,6 +122,43 @@ class TrustedAnswerRuntimeContextServiceTest {
         assertEquals(1, context.getVisibleFieldCount());
         assertEquals(1, context.getSchemaTableCount());
         assertNotNull(traceStore.get(trace.getTraceId()));
+    }
+
+    @Test
+    void virtualPermissionDatasourceShouldUseDatasetScopedSchemaLookup() {
+        TrustedAnswerRequest request = request(9001001L, 9001L);
+        AIQueryThemeVO theme = theme(true, List.of(9001L), List.of(9001L));
+        theme.setId(9001001L);
+        theme.setName("权限验证账单分析");
+        when(aiQueryThemeManage.getTheme(9001001L)).thenReturn(theme);
+        when(substituteDatasetExampleStore.sqlBotDatasource())
+                .thenReturn(List.of(datasource(9001L, 9001L, "payable_amount")));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.TRUSTED, trace.getState());
+        assertEquals(9001001L, trace.getContext().getThemeId());
+        assertEquals(9001L, trace.getContext().getDatasourceId());
+        assertEquals(List.of(9001L), trace.getContext().getDatasetIds());
+        assertEquals(1, trace.getContext().getVisibleFieldCount());
+        assertTrue(trace.getPermissionSteps().contains("visible-schema-built"));
+    }
+
+    @Test
+    void virtualPermissionDatasourceShouldFallbackToVirtualSchemaWhenDatasourceIdMatchesDatasetId() {
+        TrustedAnswerRequest request = request(9001001L, 9001L);
+        AIQueryThemeVO theme = theme(true, List.of(9001L), List.of(9001L));
+        theme.setId(9001001L);
+        theme.setName("权限验证账单分析");
+        when(aiQueryThemeManage.getTheme(9001001L)).thenReturn(theme);
+        when(substituteDatasetExampleStore.sqlBotDatasource())
+                .thenReturn(List.of(datasource(9001L, 9001L, "payable_amount")));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.TRUSTED, trace.getState());
+        assertEquals(9001L, trace.getContext().getDatasourceId());
+        assertEquals(1, trace.getContext().getVisibleFieldCount());
     }
 
     @Test

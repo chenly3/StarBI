@@ -63,6 +63,52 @@ const contractCases: ContractCase[] = [
     }
   },
   {
+    name: 'passes real SQLBot stream events through trusted-answer proxy wrappers',
+    run() {
+      const mapped = toSqlBotCompatibleEvent({
+        event: 'sqlbot',
+        trace_id: 'ta-real',
+        state: 'TRUSTED',
+        data: {
+          sqlbot_event: {
+            type: 'sql',
+            content: 'select sum(sales_amount) from codex_qa_retail_sales'
+          }
+        },
+        done: false
+      })
+
+      assertEqual(mapped.type, 'sql', 'sqlbot passthrough type')
+      assertEqual(
+        mapped.content,
+        'select sum(sales_amount) from codex_qa_retail_sales',
+        'sqlbot passthrough content'
+      )
+      assertEqual(mapped.trace_id, 'ta-real', 'trace id')
+    }
+  },
+  {
+    name: 'preserves trace id on wrapped SQLBot record id events for replay lineage',
+    run() {
+      const mapped = toSqlBotCompatibleEvent({
+        event: 'sqlbot',
+        trace_id: 'ta-lineage',
+        state: 'TRUSTED',
+        data: {
+          sqlbot_event: {
+            type: 'id',
+            id: 68
+          }
+        },
+        done: false
+      })
+
+      assertEqual(mapped.type, 'id', 'record id event type')
+      assertEqual(mapped.id, 68, 'record id')
+      assertEqual(mapped.trace_id, 'ta-lineage', 'lineage trace id')
+    }
+  },
+  {
     name: 'maps trusted errors to user visible SQLBot error content',
     run() {
       const mapped = toSqlBotCompatibleEvent({

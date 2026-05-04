@@ -21,6 +21,9 @@ from common.utils.utils import SQLBotLogUtil, get_origin_from_referer
 from common.utils.whitelist import whiteUtils
 from fastapi.security.utils import get_authorization_scheme_param
 from common.core.deps import get_i18n
+from apps.system.middleware.internal_user import build_internal_user
+
+
 class InternalUserMiddleware(BaseHTTPMiddleware):
     """For requests from DataEase backend (127.0.0.1 only), extract user identity
     from X-DE-USER-ID header instead of verifying JWT tokens."""
@@ -30,17 +33,27 @@ class InternalUserMiddleware(BaseHTTPMiddleware):
         if de_user_id:
             client_host = request.client.host if request.client else None
             if client_host in ("127.0.0.1", "::1", "localhost"):
+                internal_user = build_internal_user(de_user_id, request.headers.get("X-DE-ORG-ID"))
+                if not internal_user:
+                    return JSONResponse(
+                        "Invalid internal DataEase user headers",
+                        status_code=401,
+                        headers={"Access-Control-Allow-Origin": "*"},
+                    )
                 request.scope["is_internal"] = True
-                request.state.current_user = UserInfoDTO(
-                    id=int(de_user_id),
-                    name=f"internal-{de_user_id}",
-                    account=f"internal-{de_user_id}",
-                    oid=1,
-                    email=f"internal-{de_user_id}@dataease",
-                    language="zh-CN",
-                    weight=0,
-                    isAdmin=True,
-                )
+                assistant_token = request.headers.get(settings.ASSISTANT_TOKEN_KEY)
+                if assistant_token:
+                    trans = await get_i18n(request)
+                    validator: tuple[any] = await TokenMiddleware(request.app).validateAssistant(
+                        assistant_token,
+                        trans,
+                    )
+                    if validator[0]:
+                        request.state.assistant = validator[2]
+                        origin = request.headers.get("X-SQLBOT-HOST-ORIGIN") or get_origin_from_referer(request)
+                        if origin and validator[2]:
+                            request.state.assistant.request_origin = origin
+                request.state.current_user = internal_user
                 return await call_next(request)
         return await call_next(request)
 

@@ -101,6 +101,7 @@ export interface SqlbotNewConversationRecord extends SqlbotMessageFlowRecord {
   finishTime?: string | number
   duration?: number
   totalTokens?: number
+  trustedTraceId?: string
   display?: SqlbotNewConversationRecordDisplayState
 }
 
@@ -2482,6 +2483,7 @@ export const useSqlbotNewConversation = () => {
     event: SQLBotStreamEvent,
     executionContext: SqlbotNewExecutionContext
   ) => {
+    record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
     switch (event.type) {
       case 'id':
         record.id = Number(event.id)
@@ -2871,6 +2873,7 @@ export const useSqlbotNewConversation = () => {
         activeExecutionContextRef.value = null
         restoredHistoryContext.value = null
         currentScopeKey.value = ''
+        writeActiveSessionId('')
         return false
       }
 
@@ -3067,6 +3070,7 @@ export const useSqlbotNewConversation = () => {
       activeExecutionContextRef.value = null
       restoredHistoryContext.value = null
       currentScopeKey.value = ''
+      writeActiveSessionId('')
       return false
     } finally {
       conversationLoading.value = false

@@ -10,6 +10,7 @@ import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import io.dataease.api.dataset.vo.DataSQLBotAssistantVO;
 import io.dataease.api.dataset.vo.SQLBotAssistanTable;
 import io.dataease.dataset.manage.DatasetSQLBotManage;
+import io.dataease.substitute.permissions.dataset.SubstituteDatasetExampleStore;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -28,15 +29,18 @@ public class TrustedAnswerRuntimeContextService {
     private final AIQueryThemeManage aiQueryThemeManage;
     private final DatasetSQLBotManage datasetSQLBotManage;
     private final TrustedAnswerTraceStore traceStore;
+    private final SubstituteDatasetExampleStore substituteDatasetExampleStore;
 
     public TrustedAnswerRuntimeContextService(
             AIQueryThemeManage aiQueryThemeManage,
             DatasetSQLBotManage datasetSQLBotManage,
-            TrustedAnswerTraceStore traceStore
+            TrustedAnswerTraceStore traceStore,
+            SubstituteDatasetExampleStore substituteDatasetExampleStore
     ) {
         this.aiQueryThemeManage = aiQueryThemeManage;
         this.datasetSQLBotManage = datasetSQLBotManage;
         this.traceStore = traceStore;
+        this.substituteDatasetExampleStore = substituteDatasetExampleStore;
     }
 
     public TrustedAnswerTraceVO buildTrace(TrustedAnswerRequest request) {
@@ -81,11 +85,8 @@ public class TrustedAnswerRuntimeContextService {
             return completeWithError(trace, TrustedAnswerErrorCode.NO_AUTHORIZED_DATASET);
         }
 
-        List<DataSQLBotAssistantVO> schema = datasetSQLBotManage.getDatasourceList(
-                request.getDatasourceId(),
-                null,
-                datasetIds.stream().map(String::valueOf).collect(Collectors.joining(","))
-        );
+        String datasetIdCsv = datasetIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        List<DataSQLBotAssistantVO> schema = loadSchema(request.getDatasourceId(), datasetIds, datasetIdCsv);
         if (CollectionUtils.isEmpty(schema)) {
             return completeWithError(trace, TrustedAnswerErrorCode.NO_VISIBLE_FIELD);
         }
@@ -165,5 +166,16 @@ public class TrustedAnswerRuntimeContextService {
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private List<DataSQLBotAssistantVO> loadSchema(Long datasourceId, List<Long> datasetIds, String datasetIdCsv) {
+        if (Objects.equals(datasourceId, SubstituteDatasetExampleStore.DATASET_ID)
+                && CollectionUtils.isNotEmpty(datasetIds)
+                && datasetIds.stream().allMatch(id -> Objects.equals(id, SubstituteDatasetExampleStore.DATASET_ID))) {
+            return substituteDatasetExampleStore == null
+                    ? datasetSQLBotManage.getDatasourceList(null, null, datasetIdCsv)
+                    : substituteDatasetExampleStore.sqlBotDatasource();
+        }
+        return datasetSQLBotManage.getDatasourceList(datasourceId, null, datasetIdCsv);
     }
 }

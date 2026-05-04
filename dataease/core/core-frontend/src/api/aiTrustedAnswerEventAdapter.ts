@@ -55,6 +55,14 @@ export const toSqlBotCompatibleEvent = (
     }
   }
 
+  if (trustedEvent.event === 'sqlbot') {
+    const sqlbotEvent = trustedEvent.data?.sqlbot_event || trustedEvent.data
+    return {
+      ...baseEvent,
+      ...(sqlbotEvent && typeof sqlbotEvent === 'object' ? sqlbotEvent : { content: sqlbotEvent })
+    }
+  }
+
   if (trustedEvent.event === 'done') {
     return {
       ...baseEvent,

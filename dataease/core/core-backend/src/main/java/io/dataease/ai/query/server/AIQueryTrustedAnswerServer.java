@@ -9,6 +9,7 @@ import io.dataease.api.ai.query.request.TrustedAnswerRequest;
 import io.dataease.api.ai.query.vo.TrustedAnswerRepairItemVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerTrustHealthVO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,10 +43,14 @@ public class AIQueryTrustedAnswerServer {
     }
 
     @PostMapping("/stream")
-    public void stream(@RequestBody TrustedAnswerRequest request, HttpServletResponse response) throws IOException {
+    public void stream(
+            @RequestBody TrustedAnswerRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) throws IOException {
         try {
             TrustedAnswerTraceVO trace = runtimeContextService.buildTrace(request);
-            stubSqlBotProxy.stream(trace, response);
+            stubSqlBotProxy.stream(trace, request, httpRequest, response);
         } catch (Exception e) {
             if (!response.isCommitted()) {
                 stubSqlBotProxy.streamError(response);
@@ -56,9 +61,10 @@ public class AIQueryTrustedAnswerServer {
     @PostMapping("/sqlbot-runtime")
     public void sqlBotRuntime(
             @RequestBody AIQuerySqlBotRuntimeProxyRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) throws IOException {
-        stubSqlBotProxy.proxyRuntime(request, response);
+        stubSqlBotProxy.proxyRuntime(request, httpRequest, response);
     }
 
     @GetMapping("/trace/{traceId}")
