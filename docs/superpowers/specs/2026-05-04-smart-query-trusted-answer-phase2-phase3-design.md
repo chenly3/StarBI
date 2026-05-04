@@ -46,6 +46,8 @@ snapshot, and be restorable without re-running SQLBot.
 - Trend prediction.
 - Continued question after history restore.
 - Historical result restore.
+- Dataset/file smart-query entry.
+- Dashboard/report/embedded smart-query entry.
 - Learning correction submission.
 - Feedback events.
 - Replay validation.
@@ -92,6 +94,8 @@ behavior, and permission recheck behavior.
 | Trend prediction | Treat prediction as an answer-generating action with its own trace event | Save prediction text/config and source result reference | Recheck snapshot visibility before generating prediction |
 | Continued question after history restore | Use restored context only after current-permission restore succeeds | Save new trace linked to restored trace | Recheck current permissions before execution |
 | Historical result restore | Read stored snapshot and apply restore policy | Do not create a new SQLBot execution snapshot | Recheck current permissions using metadata only |
+| Dataset/file smart-query entry | Normalize file or dataset context into the same trusted runtime contract | Save trace/result or unsupported trusted-route trace | Current user file/dataset, row, and column permissions when applicable |
+| Dashboard/report/embedded smart-query entry | Bind dashboard/report context, inherited filters, and embedding actor before execution | Save trace/result or unsupported trusted-route trace | Current actor permissions plus embedded context permission |
 | Feedback event | Bind praise/complaint to source trace | Save feedback event | Verify user can still see the source trace summary |
 | Learning correction submission | Create scoped learning patch candidate from source trace | Save correction draft and source evidence | Verify user can submit correction for that trace |
 | Replay validation | Run deterministic replay against selected samples | Save replay result and compared outputs | Use admin/operator permission |
@@ -99,6 +103,20 @@ behavior, and permission recheck behavior.
 
 Source guard tests must fail the build when answer-runtime frontend code imports
 or calls SQLBot directly outside DataEase trusted-answer APIs.
+
+Backend route guard rules:
+
+- DataEase backend must maintain an allowlist of answer-runtime endpoints that
+  are allowed to call SQLBot. In Phase 2, that allowlist should point to Trusted
+  Gateway handlers only.
+- Legacy DataEase SQLBot proxy endpoints that can generate answers must be
+  migrated, blocked, or wrapped by Trusted Gateway. They must not stay as
+  alternate answer-runtime paths.
+- Backend contract tests must prove direct calls to legacy answer-runtime proxy
+  endpoints either route through Trusted Gateway and create a trace, or return a
+  structured unsupported/blocked response.
+- SQLBot admin/configuration proxy endpoints remain outside answer-runtime trace
+  scope, but they must be clearly separated from answer-generating endpoints.
 
 ### 2. Runtime Context Builder
 
@@ -114,6 +132,9 @@ Inputs:
 - Column permission rules.
 - Terminology and SQL examples relevant to the selected resource/theme.
 - Active learning patches relevant to the selected resource/theme.
+- Global smart-query configuration: interpretation switch, prediction switch,
+  model selection policy, sample dataset strategy, follow-up focus strategy,
+  default theme/resource strategy, and unsupported-entry behavior.
 - Available Quick BI-style knowledge rules when implemented: business logic,
   regular expression matching, dataset selection, and smart table selection.
 
@@ -125,6 +146,8 @@ Outputs:
 - Matched terms and SQL examples.
 - Traceable configuration snapshot.
 - Knowledge-context snapshot with matched rules and patch versions.
+- Runtime policy snapshot with global smart-query switches and selected model
+  policy.
 
 ### 3. Permission Safety Gate
 
@@ -202,6 +225,11 @@ Persisted content:
 - Recommended questions.
 - Error details.
 - Timing and SQLBot call status.
+- Snapshot schema version.
+- Payload hash.
+- Redaction policy version.
+- Permission snapshot version.
+- Configuration snapshot version.
 
 Historical restore must read the saved snapshot. It must not re-run SQLBot,
 re-run data interpretation, or re-query data just to restore the previous answer.
@@ -224,6 +252,18 @@ Snapshot security policy:
   and degrade or block as needed.
 - Trace export is audit-only and must write an audit log with actor, trace id,
   export time, export scope, and reason.
+- Each snapshot must store `schema_version`, `payload_hash`,
+  `redaction_version`, `permission_snapshot_version`, and
+  `config_snapshot_version`.
+- Snapshot integrity must be checked before restore, replay, export, and audit
+  display. Hash mismatch, unknown schema version, or unsupported migration state
+  must produce `RESTORE_BLOCKED` for normal restore and an administrator-visible
+  integrity error.
+- Redaction rule changes must create a new redaction version. Existing snapshots
+  keep their original redaction version and may be re-redacted only through an
+  audited maintenance job.
+- Snapshot schema migrations must be explicit and versioned. The system must not
+  silently coerce old payloads when required fields are missing.
 
 ### 5. Current Permission Restore Policy
 
@@ -252,11 +292,21 @@ Restore states:
 
 | State | User-visible behavior | Data access rule |
 | --- | --- | --- |
-| `FULL_RESTORE` | Restore chart, table, SQL evidence, interpretation, prediction, and recommended questions | Current permissions still cover the stored resources and fields |
+| `FULL_RESTORE` | Restore chart, table, interpretation, prediction, recommended questions, and safe execution summary. Do not show raw SQL, physical table names, hidden field names, row permission expressions, or SQLBot raw events to normal users | Current permissions still cover the stored resources and fields |
 | `FIELD_REDUCED` | Show question, time, safe summary, and hidden-field notice. Hide table detail, sensitive chart fields, SQL field names, and text that references hidden fields | Some stored fields are no longer visible |
 | `RESOURCE_REVOKED` | Show historical question, time, and unavailable reason only | Theme/resource/dataset is no longer visible |
 | `ADMIN_AUDIT` | Show original snapshot and original permission evidence | Actor has administrator audit permission |
 | `RESTORE_BLOCKED` | Show restore failure state and trace id | Permission metadata is unavailable, field mapping is invalid, or snapshot integrity check fails |
+
+SQL visibility rule:
+
+- Normal users never see raw SQL, physical table names, row permission
+  expressions, SQLBot raw events, datasource identifiers, or hidden field names.
+- Normal users may see a safe execution summary: selected theme, business
+  resource name, authorized field count, whether row/column permission was
+  applied, execution status, and data update time when available.
+- Admin audit users may see generated SQL and original permission evidence only
+  through audit mode, and every view/export must be logged.
 
 ### 6. Learning Patch And Replay Engine
 
@@ -305,6 +355,27 @@ Patch lifecycle:
 Every patch must keep source trace id, creator, scope, version, replay evidence,
 activation actor, activation time, and rollback reason when rolled back.
 
+Replay pass/fail rules:
+
+- Permission safety is a hard gate. Any unauthorized resource, field, row
+  permission omission, unsafe restore visibility, or SQLBot bypass fails replay.
+- SQL comparison should use normalized SQL when possible. Equivalent predicate
+  ordering, alias naming, whitespace, and case differences do not fail replay.
+- Result comparison is required for deterministic samples. Dimensions, metrics,
+  row counts, and aggregate values must match the expected sample result within
+  the configured numeric tolerance.
+- Chart comparison checks chart type, dimension binding, metric binding, filter
+  binding, and unauthorized field absence. Cosmetic chart differences do not fail
+  replay in Phase 2.
+- Interpretation and prediction text must not contradict the result, expose
+  hidden fields, or invent unsupported business conclusions. Wording differences
+  are recorded as non-blocking differences unless they change meaning.
+- Recommended questions are recorded for drift analysis. They fail replay only
+  when they reference unauthorized fields/resources or conflict with the source
+  result context.
+- Replay output must store compared trace ids, compared patch/config versions,
+  pass/fail reason, safety gate result, and human-readable diff summary.
+
 ### 7. Trace Visibility Layer
 
 Normal users see understandable trust evidence:
@@ -335,9 +406,12 @@ permission expressions, datasource secrets, or model configuration details.
 - No answer-runtime frontend flow calls SQLBot directly.
 - Source guard tests prove answer-runtime frontend code cannot import or call
   SQLBot clients directly outside DataEase trusted-answer APIs.
+- Backend route guard tests prove legacy DataEase answer-runtime proxy endpoints
+  cannot bypass Trusted Gateway.
 - First question, recommended follow-up, interpretation, prediction, history
-  continuation, learning correction, feedback, replay, and repair closure all
-  route through Trusted Gateway.
+  continuation, dataset/file smart query, dashboard/report/embedded smart query,
+  learning correction, feedback, replay, and repair closure all route through
+  Trusted Gateway or return a structured unsupported trusted-route response.
 - Every answer-runtime action gets a persistent `trace_id`.
 - The answer-runtime action matrix is implemented and covered by backend or
   frontend contract tests.
@@ -348,8 +422,13 @@ permission expressions, datasource secrets, or model configuration details.
   `RESOURCE_REVOKED`, `ADMIN_AUDIT`, and `RESTORE_BLOCKED` states.
 - Snapshot persistence redacts SQLBot raw events, applies retention policy, and
   gates export behind administrator audit permission.
+- Snapshots include schema version, payload hash, redaction version, permission
+  snapshot version, configuration snapshot version, and integrity checks before
+  restore/replay/export.
 - Admin audit mode can inspect original snapshot and original permission
   evidence.
+- Normal users never see raw SQL, physical table names, hidden field names, row
+  permission expressions, datasource identifiers, or SQLBot raw events.
 - Column permissions trim runtime schema before SQLBot and validate returned
   SQL/chart/table payload after SQLBot.
 - Row permissions cover single-dataset and common `WHERE` rewrite/validation
@@ -358,8 +437,14 @@ permission expressions, datasource secrets, or model configuration details.
   errors.
 - Learning correction generates scoped patches and only replay-passed patches
   can become active.
+- Replay pass/fail criteria cover permission safety, normalized SQL, result
+  samples, chart bindings, interpretation/prediction safety, and recommended
+  question drift.
 - Global learning patches require administrator approval, and every active patch
   can be disabled or rolled back with audit evidence.
+- Global smart-query configuration is consumed by Runtime Context Builder, so
+  disabled interpretation/prediction or unsupported entry types cannot be invoked
+  through old paths.
 - Repair Queue items can be moved toward closure through replay evidence.
 
 ## Phase 3 Goal
