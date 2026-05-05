@@ -105,6 +105,7 @@ class Settings(BaseSettings):
     TOKEN_KEY: str = "X-SQLBOT-TOKEN"
     DEFAULT_PWD: str = "SQLBot@123456"
     ASSISTANT_TOKEN_KEY: str = "X-SQLBOT-ASSISTANT-TOKEN"
+    STARBI_SQLBOT_ASSISTANT_SECRET: str = ""
 
     CACHE_TYPE: Literal["redis", "memory", "None"] = "memory"
     CACHE_REDIS_URL: str | None = None  # Redis URL, e.g., "redis://[[username]:[password]]@localhost:6379/0"

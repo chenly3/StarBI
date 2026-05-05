@@ -107,7 +107,7 @@ TRUSTED_ANSWER_OVERVIEW_UI_CONTRACTS=1 node tmp/trusted-answer-overview-ui/trust
 Expected:
 
 - `[trusted-answer-api] 3 contract checks passed`.
-- `[trusted-answer-sqlbot-direct-guard] 1 contract checks passed`.
+- `[trusted-answer-sqlbot-direct-guard] 2 contract checks passed`.
 - `[trusted-answer-overview-ui] 2 contract checks passed`.
 
 ### 3. Run a Local SSE Request
@@ -152,6 +152,57 @@ If the theme or datasource fixture does not exist in the running database, the s
 | chart/history/usage helpers | Existing behavior retained in this slice. |
 
 The next slice should migrate recommendations and follow-up insight streams after this question-stream boundary is stable.
+
+## Accuracy Operations Loop Verification
+
+The smart-query accuracy loop adds these backend-owned contracts:
+
+| Area | Verification |
+| --- | --- |
+| Global switches | `ask_enabled=false` blocks `/ai/query/trusted-answer/stream` before SQLBot. |
+| Action matrix | `/ai/query/trusted-answer/contracts` lists every user-visible action. |
+| SQLBot proxy guard | Unmapped SQLBot runtime paths return a structured DataEase denial. |
+| ResourceReadiness | Resource readiness is computed from learning status, field count, recommendations, score, and 30-day quality rates. |
+| AuthorizedAskability | Current user permissions decide per-request askability without mutating resource readiness. |
+| CorrectionTodo | User feedback is redacted, fingerprinted by tenant/workspace/theme/resource/diagnosis, and aggregated. |
+| Semantic patch | Draft, publish, disable, unpublish, and rollback are role-gated and audited. |
+| UI density | Query resource and theme pages use real learning data and stable table/card layout. |
+
+### Backend Accuracy Loop Tests
+
+```bash
+cd dataease/core/core-backend
+JAVA_HOME=/Users/chenliyong/Library/Java/JavaVirtualMachines/ms-21.0.9/Contents/Home \
+PATH="$JAVA_HOME/bin:$PATH" \
+mvn \
+  -DskipTests=false \
+  -Dmaven.test.skip=false \
+  -DfailIfNoTests=false \
+  -Dtest=io.dataease.ai.query.AIQueryTrustedAnswerContractSmokeTest,io.dataease.ai.query.TrustedAnswerRuntimeContextServiceTest,io.dataease.ai.query.TrustedAnswerActionContractServiceTest,io.dataease.ai.query.TrustedAnswerResourceReadinessServiceTest,io.dataease.ai.query.TrustedAnswerSensitivePayloadServiceTest,io.dataease.ai.query.TrustedAnswerCorrectionTodoServiceTest,io.dataease.ai.query.TrustedAnswerSemanticPatchServiceTest,io.dataease.ai.query.TrustedAnswerOpsServiceTest,io.dataease.ai.query.AIQueryResourceLearningContractSmokeTest \
+  -Dmaven.antrun.skip=true \
+  test
+```
+
+Expected: all named accuracy loop tests pass.
+
+### Frontend Accuracy Loop Contracts
+
+```bash
+cd dataease/core/core-frontend
+mkdir -p tmp/smart-query-accuracy-loop-contract
+node_modules/.bin/esbuild \
+  src/views/system/query-config/__tests__/smart-query-accuracy-loop-contract.spec.ts \
+  --bundle \
+  --platform=node \
+  --outfile=tmp/smart-query-accuracy-loop-contract/smart-query-accuracy-loop-contract.spec.js
+SMART_QUERY_ACCURACY_LOOP_CONTRACTS=1 node tmp/smart-query-accuracy-loop-contract/smart-query-accuracy-loop-contract.spec.js
+```
+
+Expected:
+
+```text
+[smart-query-accuracy-loop] 9 contract checks passed
+```
 
 ## Developer Acceptance
 

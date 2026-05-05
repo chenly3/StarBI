@@ -24,6 +24,7 @@ import {
   type AIQueryThemeSaveRequest,
   updateAIQueryTheme
 } from '@/api/aiQueryTheme'
+import { listQueryLearningResources, type QueryLearningResource } from '@/api/queryResourceLearning'
 
 interface DatasetTreeNode {
   id: string
@@ -73,6 +74,8 @@ const loading = ref(false)
 const saving = ref(false)
 const themeList = ref<AIQueryTheme[]>([])
 const datasetTree = ref<DatasetTreeNode[]>([])
+const learningResources = ref<QueryLearningResource[]>([])
+const learningResourceLoadError = ref(false)
 const manageMode = ref<ManageMode>(props.modeLocked || 'themes')
 const selectedThemeId = ref('')
 const themeKeyword = ref('')
@@ -184,18 +187,53 @@ const filteredResourceOptions = computed(() => {
   })
 })
 
+const learningResourceMap = computed(() => {
+  return new Map(learningResources.value.map(item => [String(item.id), item]))
+})
+
+const formatLearningStatusLabel = (status?: string, resourceKnown = true) => {
+  if (learningResourceLoadError.value) {
+    return '学习状态加载失败'
+  }
+  if (!resourceKnown) {
+    return '资源未纳入学习'
+  }
+  if (!status) {
+    return '未学习'
+  }
+  const normalized = String(status).trim().toLowerCase()
+  if (['succeeded', 'success', '学习成功'].includes(normalized)) {
+    return '学习成功'
+  }
+  if (['running', 'learning', '学习中'].includes(normalized)) {
+    return '学习中'
+  }
+  if (['failed', 'failure', '学习失败'].includes(normalized)) {
+    return '学习失败'
+  }
+  return String(status)
+}
+
 const themeResources = computed(() => {
   const datasetMap = new Map(datasetOptions.value.map(item => [item.id, item.name]))
-  return (selectedTheme.value?.datasetIds || []).map((datasetId, index) => ({
-    id: datasetId,
-    name:
-      selectedTheme.value?.datasets?.find(item => item.id === datasetId)?.name ||
-      datasetMap.get(datasetId) ||
-      datasetId,
-    updateTime: selectedTheme.value?.updateTime,
-    statusLabel: '学习成功',
-    sort: index
-  }))
+  return (selectedTheme.value?.datasetIds || []).map((datasetId, index) => {
+    const learningResource = learningResourceMap.value.get(String(datasetId))
+    return {
+      id: datasetId,
+      name:
+        selectedTheme.value?.datasets?.find(item => item.id === datasetId)?.name ||
+        datasetMap.get(datasetId) ||
+        datasetId,
+      lastLearningTime: learningResource?.lastLearningTime,
+      statusLabel: formatLearningStatusLabel(
+        learningResource?.learningStatus,
+        Boolean(learningResource)
+      ),
+      readinessState: learningResource?.readinessState,
+      qualityScore: learningResource?.qualityScore,
+      sort: index
+    }
+  })
 })
 
 const resourceRows = computed(() => {
@@ -203,17 +241,19 @@ const resourceRows = computed(() => {
     const matchedThemes = themeList.value.filter(theme =>
       (theme.datasetIds || []).includes(item.id)
     )
-    const latestUpdateTime = matchedThemes
-      .map(theme => theme.updateTime || 0)
-      .sort((left, right) => right - left)[0]
-
+    const learningResource = learningResourceMap.value.get(String(item.id))
     return {
       id: item.id,
       name: item.name,
       creator: '-',
       themeNames: matchedThemes.map(theme => theme.name),
-      latestUpdateTime: latestUpdateTime || undefined,
-      statusLabel: '学习成功'
+      lastLearningTime: learningResource?.lastLearningTime,
+      statusLabel: formatLearningStatusLabel(
+        learningResource?.learningStatus,
+        Boolean(learningResource)
+      ),
+      readinessState: learningResource?.readinessState,
+      qualityScore: learningResource?.qualityScore
     }
   })
 })
@@ -294,9 +334,13 @@ const previewRowValues = computed(() => {
   })
 })
 
-const formatTime = (timestamp?: number) => {
-  if (!timestamp) {
+const formatDateTimeText = (value?: string) => {
+  if (!value) {
     return '-'
+  }
+  const timestamp = Date.parse(value)
+  if (Number.isNaN(timestamp)) {
+    return value
   }
   return new Date(timestamp).toLocaleString()
 }
@@ -360,6 +404,17 @@ const loadThemes = async () => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const loadLearningResources = async () => {
+  try {
+    learningResources.value = await listQueryLearningResources()
+    learningResourceLoadError.value = false
+  } catch (error) {
+    learningResources.value = []
+    learningResourceLoadError.value = true
+    ElMessage.warning('问数资源学习状态加载失败，请稍后刷新重试')
   }
 }
 
@@ -462,7 +517,7 @@ const saveThemeResources = async () => {
       datasetIds: nextDatasetIds
     })
   )
-  ElMessage.success('已将数据集分配到当前分析主题')
+  ElMessage.success('已将问数资源分配到当前分析主题')
   closeResourceDialog()
   await loadThemes()
 }
@@ -512,7 +567,7 @@ const saveResourceThemeAssignments = async () => {
     await updateAIQueryTheme(buildExistingThemePayload(theme, nextDatasetIds))
   }
 
-  ElMessage.success('已更新数据集归属主题')
+  ElMessage.success('已更新问数资源归属主题')
   closeResourceThemeDialog()
   await loadThemes()
 }
@@ -524,7 +579,7 @@ const removeThemeResource = async (datasetId: string) => {
 
   const nextDatasetIds = (selectedTheme.value.datasetIds || []).filter(id => id !== datasetId)
   await updateAIQueryTheme(buildExistingThemePayload(selectedTheme.value, nextDatasetIds))
-  ElMessage.success('已从当前分析主题移除数据集')
+  ElMessage.success('已从当前分析主题移除问数资源')
   await loadThemes()
 }
 
@@ -573,7 +628,7 @@ watch(
 )
 
 onMounted(async () => {
-  await loadDatasetTree()
+  await Promise.all([loadDatasetTree(), loadLearningResources()])
   await loadThemes()
   await nextTick()
 })
@@ -668,7 +723,7 @@ onMounted(async () => {
       <main class="theme-main-page-content query-theme-panel query-theme-panel--workspace">
         <header class="theme-main-page-header">
           <div class="theme-main-page-copy">
-            <div class="theme-main-page-title">已分配数据集</div>
+            <div class="theme-main-page-title">已分配问数资源</div>
           </div>
 
           <div class="theme-main-page-actions">
@@ -680,24 +735,30 @@ onMounted(async () => {
                 v-model="themeResourceKeyword"
                 class="theme-main-page-search-input"
                 type="text"
-                placeholder="搜索已分配数据集"
+                placeholder="搜索已分配问数资源"
               />
             </div>
             <button class="theme-main-page-cta" type="button" @click="openResourceDialog">
               <span class="theme-main-page-cta-plus">＋</span>
-              <span>分配数据集</span>
+              <span>分配问数资源</span>
             </button>
           </div>
         </header>
+
+        <div v-if="learningResourceLoadError" class="theme-main-page-warning">
+          问数资源学习状态加载失败，当前列表仅展示资源分配关系，请刷新后再判断资源是否可问。
+        </div>
 
         <div v-if="selectedTheme" class="theme-main-page-table">
           <div class="theme-main-page-table-row theme-main-page-table-head">
             <div class="theme-main-page-table-cell theme-main-page-table-cell-checkbox"></div>
             <div class="theme-main-page-table-cell theme-main-page-table-cell-name">名称</div>
             <div class="theme-main-page-table-cell theme-main-page-table-cell-time">
-              最后学习时间
+              资源最后学习时间
             </div>
-            <div class="theme-main-page-table-cell theme-main-page-table-cell-status">学习状态</div>
+            <div class="theme-main-page-table-cell theme-main-page-table-cell-status">
+              资源学习状态
+            </div>
             <div class="theme-main-page-table-cell theme-main-page-table-cell-action">操作</div>
           </div>
 
@@ -731,7 +792,7 @@ onMounted(async () => {
               </div>
             </div>
             <div class="theme-main-page-table-cell theme-main-page-table-cell-time">
-              {{ formatTime(item.updateTime) }}
+              {{ formatDateTimeText(item.lastLearningTime) }}
             </div>
             <div class="theme-main-page-table-cell theme-main-page-table-cell-status">
               <span class="theme-main-page-status-dot"></span>
@@ -741,7 +802,7 @@ onMounted(async () => {
               <button
                 class="theme-main-page-action-button"
                 type="button"
-                title="移除数据集"
+                title="移除问数资源"
                 @click="removeThemeResource(item.id)"
               >
                 <Icon name="icon_delete-trash_outlined">
@@ -752,7 +813,7 @@ onMounted(async () => {
           </div>
 
           <div v-if="!themeResources.length" class="theme-main-page-resource-empty">
-            <empty-background description="当前分析主题暂未分配数据集" img-type="none" />
+            <empty-background description="当前分析主题暂未分配问数资源" img-type="none" />
           </div>
         </div>
 
@@ -767,7 +828,7 @@ onMounted(async () => {
         <div class="resource-manage-copy">
           <div class="resource-manage-title">问数资源管理</div>
           <div class="resource-manage-subtitle">
-            统一查看数据集当前归属的分析主题，并支持调整数据集分配关系。
+            统一查看问数资源当前归属的分析主题，并支持调整资源分配关系。
           </div>
         </div>
         <div class="resource-manage-actions">
@@ -779,12 +840,16 @@ onMounted(async () => {
               v-model="resourceKeyword"
               class="resource-manage-search-input"
               type="text"
-              placeholder="搜索数据集"
+              placeholder="搜索问数资源"
             />
           </div>
           <button class="secondary-button" type="button" @click="loadThemes">刷新列表</button>
         </div>
       </header>
+
+      <div v-if="learningResourceLoadError" class="resource-manage-warning">
+        问数资源学习状态加载失败，当前列表仅展示资源分配关系，请刷新后再判断资源是否可问。
+      </div>
 
       <div class="resource-manage-table">
         <div class="resource-manage-table-head resource-manage-table-row resource-manage-grid">
@@ -832,7 +897,7 @@ onMounted(async () => {
               <span v-else class="muted-text">未分配分析主题</span>
             </div>
           </div>
-          <div class="resource-cell time">{{ formatTime(item.latestUpdateTime) }}</div>
+          <div class="resource-cell time">{{ formatDateTimeText(item.lastLearningTime) }}</div>
           <div class="resource-cell status">
             <span class="resource-manage-status-dot success"></span>
             <span>{{ item.statusLabel }}</span>
@@ -871,7 +936,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="!filteredResourceRows.length" class="resource-manage-empty">
-          <empty-background description="暂无可管理数据集" img-type="none" />
+          <empty-background description="暂无可管理问数资源" img-type="none" />
         </div>
       </div>
     </section>
@@ -893,7 +958,7 @@ onMounted(async () => {
         </div>
       </template>
 
-      <div class="theme-dialog-tip">创建分析主题后，可继续为该主题分配现有数据集</div>
+      <div class="theme-dialog-tip">创建分析主题后，可继续为该主题分配现有问数资源</div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="theme-form">
         <el-form-item label="分析主题名称" prop="name" required class="theme-form-item">
@@ -930,12 +995,12 @@ onMounted(async () => {
     >
       <template #header>
         <div class="theme-dialog-header">
-          <div class="theme-dialog-title">分配数据集</div>
+          <div class="theme-dialog-title">分配问数资源</div>
         </div>
       </template>
 
       <div class="theme-dialog-tip theme-assign-dialog-tip">
-        选择现有数据集，并分配到当前分析主题
+        选择现有问数资源，并分配到当前分析主题
       </div>
 
       <div class="theme-dialog-search-bar theme-assign-dialog-search-bar">
@@ -949,14 +1014,14 @@ onMounted(async () => {
           v-model="resourceKeyword"
           class="theme-dialog-search-input theme-assign-dialog-search-input"
           type="text"
-          placeholder="搜索数据集"
+          placeholder="搜索问数资源"
         />
       </div>
 
       <div class="resource-picker-card theme-assign-dialog-card">
         <div class="resource-picker-head theme-assign-dialog-list-head">
           <div class="resource-picker-cell checkbox"></div>
-          <div class="resource-picker-cell name">可分配数据集</div>
+          <div class="resource-picker-cell name">可分配问数资源</div>
         </div>
 
         <div class="resource-select-list theme-assign-dialog-list">
@@ -983,7 +1048,7 @@ onMounted(async () => {
               </span>
             </label>
           </template>
-          <div v-else class="dialog-empty-text theme-assign-dialog-empty">暂无可分配数据集</div>
+          <div v-else class="dialog-empty-text theme-assign-dialog-empty">暂无可分配问数资源</div>
         </div>
       </div>
 
@@ -1014,7 +1079,7 @@ onMounted(async () => {
         </div>
       </template>
 
-      <div class="theme-dialog-tip">勾选当前数据集需要归属的分析主题</div>
+      <div class="theme-dialog-tip">勾选当前问数资源需要归属的分析主题</div>
       <div class="dialog-resource-title">{{ editingResourceTitle }}</div>
       <div class="resource-picker-card simple">
         <div class="resource-picker-head">
@@ -1281,6 +1346,18 @@ onMounted(async () => {
   background: transparent;
   color: #1f2329;
   font-size: 13px;
+}
+
+.resource-manage-warning,
+.theme-main-page-warning {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 170, 0, 0.28);
+  border-radius: 10px;
+  background: #fff8e6;
+  color: #8a5a00;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .resource-manage-table {

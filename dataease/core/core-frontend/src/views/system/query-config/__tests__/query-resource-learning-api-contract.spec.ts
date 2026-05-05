@@ -101,7 +101,7 @@ const contractCases: ContractCase[] = [
       )
       assertDeepEqual(
         requestMock.getCalls,
-        [{ url: '/query-resource-learning/resources' }],
+        [{ url: '/ai/query/resource-learning/resources' }],
         'listQueryLearningResources request contract'
       )
     }
@@ -191,10 +191,18 @@ const contractCases: ContractCase[] = [
 
       assertDeepEqual(
         requestMock.postCalls,
-        [{ url: '/query-resource-learning/resources/42/learn' }],
+        [{ url: '/ai/query/resource-learning/resources/42/learn' }],
         'triggerQueryLearning request contract'
       )
-      assertDeepEqual(result, triggerResponse, 'triggerQueryLearning response passthrough')
+      assertDeepEqual(
+        result,
+        {
+          taskId: 'task-1',
+          resourceId: '42',
+          taskStatus: ''
+        },
+        'triggerQueryLearning normalized response'
+      )
     }
   }
 ]

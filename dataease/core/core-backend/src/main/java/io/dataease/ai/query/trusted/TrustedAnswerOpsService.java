@@ -6,6 +6,7 @@ import io.dataease.api.ai.query.vo.TrustedAnswerRepairItemVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerTrustHealthVO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,9 +15,19 @@ import java.util.List;
 public class TrustedAnswerOpsService {
 
     private final TrustedAnswerTraceStore traceStore;
+    private final TrustedAnswerCorrectionTodoService correctionTodoService;
 
     public TrustedAnswerOpsService(TrustedAnswerTraceStore traceStore) {
+        this(traceStore, null);
+    }
+
+    @Autowired
+    public TrustedAnswerOpsService(
+            TrustedAnswerTraceStore traceStore,
+            TrustedAnswerCorrectionTodoService correctionTodoService
+    ) {
         this.traceStore = traceStore;
+        this.correctionTodoService = correctionTodoService;
     }
 
     public TrustedAnswerTrustHealthVO trustHealth() {

@@ -983,6 +983,8 @@ import { getById, getDsTree, listDatasourceTables, previewData } from '@/api/dat
 import {
   getSQLBotEmbedConfig,
   getRuntimeDatasources,
+  listAIQueryThemes,
+  type AIQueryTheme,
   type RuntimeDatasource
 } from '@/api/aiQueryTheme'
 import { buildSqlBotCertificate } from '@/views/sqlbot/queryContext'
@@ -1034,6 +1036,8 @@ type IconName =
 interface DatasetTreeItem {
   id: string
   name: string
+  themeId?: string
+  themeName?: string
   leaf?: boolean
   children?: DatasetTreeItem[]
 }
@@ -1147,6 +1151,7 @@ interface SQLBotChatRecord {
   finishTime?: string | number
   duration?: number
   totalTokens?: number
+  trustedTraceId?: string
   regenerateRecordId?: number
   recommendQuestions?: string[]
   display?: SQLBotChatRecordDisplayState
@@ -1178,6 +1183,7 @@ const conversationListRef = ref<HTMLDivElement | null>(null)
 const conversationDockRef = ref<HTMLDivElement | null>(null)
 const pageLoading = ref(true)
 const datasetTree = ref<DatasetTreeItem[]>([])
+const queryThemes = ref<AIQueryTheme[]>([])
 const datasourceTree = ref<any[]>([])
 const datasetDatasourceOptions = ref<RuntimeDatasource[]>([])
 const historyEntries = ref<HistoryEntry[]>([])
@@ -1510,17 +1516,34 @@ const normalizeDatasetTree = (nodes: any[] = []): DatasetTreeItem[] => {
   return normalizeTree(nodes).map(node => ({
     id: String(node.id),
     name: node.name,
+    ...resolveDatasetThemeMeta(String(node.id)),
     leaf: Boolean(node.leaf),
     children: node.children?.length ? normalizeDatasetTree(node.children) : []
   }))
 }
 
+const resolveDatasetThemeMeta = (datasetId: string) => {
+  const theme = queryThemes.value.find(item => item.datasetIds.includes(datasetId))
+  return {
+    themeId: theme?.id,
+    themeName: theme?.name
+  }
+}
+
 const datasetLookup = computed(() => {
-  const lookup = new Map<string, { id: string; name: string }>()
+  const lookup = new Map<
+    string,
+    { id: string; name: string; themeId?: string; themeName?: string }
+  >()
   const walk = (nodes: DatasetTreeItem[] = []) => {
     nodes.forEach(node => {
       if (node.leaf) {
-        lookup.set(node.id, { id: node.id, name: node.name })
+        lookup.set(node.id, {
+          id: node.id,
+          name: node.name,
+          themeId: node.themeId,
+          themeName: node.themeName
+        })
       }
       if (node.children?.length) {
         walk(node.children)
@@ -1643,7 +1666,17 @@ const getDatasetDecor = (item: DatasetCardItem, index: number) => inferDatasetDe
 const selectedDatasets = computed(() => {
   return state.datasetIds
     .map(id => datasetLookup.value.get(id))
-    .filter((item): item is { id: string; name: string } => Boolean(item))
+    .filter((item): item is { id: string; name: string; themeId?: string; themeName?: string } =>
+      Boolean(item)
+    )
+})
+
+const currentQueryTheme = computed(() => {
+  const selectedDatasetId = state.datasetIds[0]
+  if (!selectedDatasetId) {
+    return null
+  }
+  return queryThemes.value.find(theme => theme.datasetIds.includes(selectedDatasetId)) || null
 })
 
 const currentFileDatasource = computed(() => {
@@ -2133,14 +2166,16 @@ const queueLatestResultScroll = async () => {
   })
 }
 
-const buildSQLBotRequestContext = (): SQLBotRequestContext => {
+const buildSQLBotRequestContext = (sourceTraceId?: string): SQLBotRequestContext => {
   return {
     domain: state.domain,
     assistantId: String(state.id),
     assistantToken: sqlbotAssistantToken.value,
     certificate: buildEmbeddedCertificate(),
     hostOrigin: window.location.origin,
-    locale: String(wsCache.get('lang') || 'zh-CN')
+    locale: String(wsCache.get('lang') || 'zh-CN'),
+    themeId: currentQueryTheme.value?.id,
+    sourceTraceId
   }
 }
 
@@ -2242,7 +2277,10 @@ const hydrateSQLBotUsage = async (record: SQLBotChatRecord) => {
     return
   }
   try {
-    const usage = await getSQLBotRecordUsage(buildSQLBotRequestContext(), record.id)
+    const usage = await getSQLBotRecordUsage(
+      buildSQLBotRequestContext(record.trustedTraceId),
+      record.id
+    )
     record.finishTime = usage?.finish_time
     record.duration = usage?.duration
     record.totalTokens = usage?.total_tokens
@@ -2256,7 +2294,10 @@ const hydrateSQLBotAnalysisUsage = async (record: SQLBotChatRecord) => {
     return
   }
   try {
-    const usage = await getSQLBotRecordUsage(buildSQLBotRequestContext(), record.analysisRecordId)
+    const usage = await getSQLBotRecordUsage(
+      buildSQLBotRequestContext(record.trustedTraceId),
+      record.analysisRecordId
+    )
     record.analysisDuration = usage?.duration
     record.analysisTotalTokens = usage?.total_tokens
   } catch (error) {
@@ -2269,7 +2310,10 @@ const hydrateSQLBotChartData = async (record: SQLBotChatRecord) => {
     return
   }
   try {
-    record.data = await getSQLBotChartData(buildSQLBotRequestContext(), record.id)
+    record.data = await getSQLBotChartData(
+      buildSQLBotRequestContext(record.trustedTraceId),
+      record.id
+    )
     await queueLatestResultScroll()
   } catch (error) {
     console.error('load SQLBot chart data failed', error)
@@ -2283,7 +2327,7 @@ const loadSQLBotRecommendQuestions = async (record: SQLBotChatRecord) => {
 
   try {
     record.recommendQuestions = await getSQLBotRecommendQuestions(
-      buildSQLBotRequestContext(),
+      buildSQLBotRequestContext(record.trustedTraceId),
       record.id
     )
     persistCurrentSQLBotSession()
@@ -2293,6 +2337,7 @@ const loadSQLBotRecommendQuestions = async (record: SQLBotChatRecord) => {
 }
 
 const applySQLBotStreamEvent = async (record: SQLBotChatRecord, event: SQLBotStreamEvent) => {
+  record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
   switch (event.type) {
     case 'id':
       record.id = Number(event.id)
@@ -2351,6 +2396,7 @@ const applySQLBotStreamEvent = async (record: SQLBotChatRecord, event: SQLBotStr
 }
 
 const applySQLBotAnalysisEvent = async (record: SQLBotChatRecord, event: SQLBotStreamEvent) => {
+  record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
   if (event.code && event.code !== 200 && event.code !== 0) {
     record.analysisError = String(event.msg || event.message || '数据解读失败')
     record.analysisLoading = false
@@ -2430,6 +2476,8 @@ const sendQuestionToSQLBot = async (question: string) => {
       {
         question: normalizedQuestion,
         chat_id: chat.id,
+        theme_id: currentQueryTheme.value?.id,
+        theme_name: currentQueryTheme.value?.name,
         datasource_id: currentQuestionDatasourceId.value
           ? Number(currentQuestionDatasourceId.value)
           : undefined,
@@ -2475,7 +2523,7 @@ const requestRecordAnalysis = async (record: SQLBotChatRecord) => {
   let requestContext: SQLBotRequestContext
   try {
     await ensureSQLBotAssistantToken()
-    requestContext = buildSQLBotRequestContext()
+    requestContext = buildSQLBotRequestContext(record.trustedTraceId)
   } catch (error) {
     console.error('prepare SQLBot analysis failed', error)
     ElMessage.error(error instanceof Error ? error.message : '数据解读准备失败')
@@ -2931,16 +2979,18 @@ const restoreSelectionState = async () => {
 const loadPageData = async () => {
   pageLoading.value = true
   try {
-    const [embedConfig, rawDatasetTree, rawDatasourceTree] = await Promise.all([
+    const [embedConfig, rawDatasetTree, rawDatasourceTree, themes] = await Promise.all([
       getSQLBotEmbedConfig(),
       getDatasetTree({}),
-      getDsTree({})
+      getDsTree({}),
+      listAIQueryThemes()
     ])
 
     state.domain = embedConfig?.domain || ''
     state.id = String(embedConfig?.id || '')
     state.enabled = embedConfig?.enabled !== false
     state.valid = embedConfig?.valid !== false
+    queryThemes.value = themes
     datasetTree.value = normalizeDatasetTree(
       Array.isArray(rawDatasetTree) ? rawDatasetTree : rawDatasetTree?.data || []
     )

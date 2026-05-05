@@ -742,7 +742,8 @@ export const useSqlbotNewConversation = () => {
 
   const buildRequestContext = (
     executionContext: SqlbotNewExecutionContext,
-    assistantToken: string
+    assistantToken: string,
+    sourceTraceId?: string
   ): SQLBotRequestContext => {
     return {
       domain: embedState.value.domain,
@@ -752,11 +753,16 @@ export const useSqlbotNewConversation = () => {
       hostOrigin: window.location.origin,
       locale: String(wsCache.get('lang') || 'zh-CN'),
       themeId: executionContext.themeId || undefined,
-      datasourceId: executionContext.datasourceId || undefined
+      datasourceId: executionContext.datasourceId || undefined,
+      sourceTraceId
     }
   }
 
   const buildHistoryRequestContext = (assistantToken: string): SQLBotRequestContext => {
+    const sourceTraceId = [...(conversationSession.value?.records || [])]
+      .reverse()
+      .map(record => record.trustedTraceId)
+      .find(Boolean)
     return {
       domain: embedState.value.domain,
       assistantId: String(embedState.value.id),
@@ -768,7 +774,8 @@ export const useSqlbotNewConversation = () => {
         themeName: activeExecutionContext.value?.themeName
       }),
       hostOrigin: window.location.origin,
-      locale: String(wsCache.get('lang') || 'zh-CN')
+      locale: String(wsCache.get('lang') || 'zh-CN'),
+      sourceTraceId
     }
   }
 
@@ -1009,6 +1016,7 @@ export const useSqlbotNewConversation = () => {
       predictLoading: false,
       predictError: String(record?.predictError || ''),
       predictRecordId: normalizeNumericValue(record?.predictRecordId, record?.predict_record_id),
+      trustedTraceId: String(record?.trustedTraceId || record?.trusted_trace_id || ''),
       predictDuration: normalizeNumericValue(record?.predictDuration),
       predictTotalTokens: normalizeNumericValue(record?.predictTotalTokens),
       clarification: record?.clarification
@@ -2368,7 +2376,7 @@ export const useSqlbotNewConversation = () => {
     try {
       const assistantToken = await ensureAssistantToken(executionContext)
       const usage = await getSQLBotRecordUsage(
-        buildRequestContext(executionContext, assistantToken),
+        buildRequestContext(executionContext, assistantToken, record.trustedTraceId),
         record.id
       )
       if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
@@ -2393,7 +2401,7 @@ export const useSqlbotNewConversation = () => {
     try {
       const assistantToken = await ensureAssistantToken(executionContext)
       const usage = await getSQLBotRecordUsage(
-        buildRequestContext(executionContext, assistantToken),
+        buildRequestContext(executionContext, assistantToken, record.trustedTraceId),
         record.analysisRecordId
       )
       if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
@@ -2417,7 +2425,7 @@ export const useSqlbotNewConversation = () => {
     try {
       const assistantToken = await ensureAssistantToken(executionContext)
       const usage = await getSQLBotRecordUsage(
-        buildRequestContext(executionContext, assistantToken),
+        buildRequestContext(executionContext, assistantToken, record.trustedTraceId),
         record.predictRecordId
       )
       if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
@@ -2442,7 +2450,7 @@ export const useSqlbotNewConversation = () => {
     try {
       const assistantToken = await ensureAssistantToken(executionContext)
       record.data = await getSQLBotChartData(
-        buildRequestContext(executionContext, assistantToken),
+        buildRequestContext(executionContext, assistantToken, record.trustedTraceId),
         record.id
       )
       if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
@@ -2466,7 +2474,7 @@ export const useSqlbotNewConversation = () => {
     try {
       const assistantToken = await ensureAssistantToken(executionContext)
       const recommendQuestions = await getSQLBotRecommendQuestions(
-        buildRequestContext(executionContext, assistantToken),
+        buildRequestContext(executionContext, assistantToken, record.trustedTraceId),
         record.id
       )
       if (!conversationSession.value?.records.some(item => item.localId === record.localId)) {
@@ -2625,6 +2633,7 @@ export const useSqlbotNewConversation = () => {
     event: SQLBotStreamEvent,
     executionContext: SqlbotNewExecutionContext
   ) => {
+    record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
     switch (event.type) {
       case 'id':
         if (event.id) {
@@ -2655,6 +2664,7 @@ export const useSqlbotNewConversation = () => {
     event: SQLBotStreamEvent,
     executionContext: SqlbotNewExecutionContext
   ) => {
+    record.trustedTraceId = String(event.trace_id || record.trustedTraceId || '')
     switch (event.type) {
       case 'id':
         if (event.id) {
@@ -3316,7 +3326,11 @@ export const useSqlbotNewConversation = () => {
         throw new Error('当前记录缺少执行上下文，暂时不能解读')
       }
       const assistantToken = await ensureAssistantToken(effectiveExecutionContext)
-      requestContext = buildRequestContext(effectiveExecutionContext, assistantToken)
+      requestContext = buildRequestContext(
+        effectiveExecutionContext,
+        assistantToken,
+        sourceRecord.trustedTraceId
+      )
     } catch (error) {
       console.error('prepare sqlbot-new analysis failed', error)
       ElMessage.error(error instanceof Error ? error.message : '数据解读准备失败')
@@ -3335,6 +3349,7 @@ export const useSqlbotNewConversation = () => {
       sourceRecord,
       question
     })
+    answerRecord.trustedTraceId = sourceRecord.trustedTraceId
     session.records.push(questionRecord, answerRecord)
     const actionKey = getDerivedActionKey(sourceRecord, 'analysis')
     pendingDerivedActionKeys.add(actionKey)
@@ -3410,7 +3425,11 @@ export const useSqlbotNewConversation = () => {
         throw new Error('当前记录缺少执行上下文，暂时不能预测')
       }
       const assistantToken = await ensureAssistantToken(effectiveExecutionContext)
-      requestContext = buildRequestContext(effectiveExecutionContext, assistantToken)
+      requestContext = buildRequestContext(
+        effectiveExecutionContext,
+        assistantToken,
+        sourceRecord.trustedTraceId
+      )
     } catch (error) {
       console.error('prepare sqlbot-new predict failed', error)
       ElMessage.error(error instanceof Error ? error.message : '趋势预测准备失败')
@@ -3429,6 +3448,7 @@ export const useSqlbotNewConversation = () => {
       sourceRecord,
       question
     })
+    answerRecord.trustedTraceId = sourceRecord.trustedTraceId
     session.records.push(questionRecord, answerRecord)
     const actionKey = getDerivedActionKey(sourceRecord, 'predict')
     pendingDerivedActionKeys.add(actionKey)

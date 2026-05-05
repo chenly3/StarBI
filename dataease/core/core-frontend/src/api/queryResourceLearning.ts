@@ -69,6 +69,18 @@ type RawQueryLearningResource = {
   last_learning_at?: Nullable<QueryLearningPrimitive>
   lastLearningTime?: Nullable<QueryLearningPrimitive>
   lastLearningAt?: Nullable<QueryLearningPrimitive>
+  readiness_state?: Nullable<QueryLearningPrimitive>
+  readinessState?: Nullable<QueryLearningPrimitive>
+  askability_state?: Nullable<QueryLearningPrimitive>
+  askabilityState?: Nullable<QueryLearningPrimitive>
+  recommendation_count?: Nullable<QueryLearningPrimitive>
+  recommendationCount?: Nullable<QueryLearningPrimitive>
+  failure_rate_30d?: Nullable<QueryLearningPrimitive>
+  failureRate30d?: Nullable<QueryLearningPrimitive>
+  negative_feedback_rate_30d?: Nullable<QueryLearningPrimitive>
+  negativeFeedbackRate30d?: Nullable<QueryLearningPrimitive>
+  ambiguity_rate_30d?: Nullable<QueryLearningPrimitive>
+  ambiguityRate30d?: Nullable<QueryLearningPrimitive>
 }
 
 type QueryLearningResourceListResponse =
@@ -214,6 +226,12 @@ export interface QueryLearningResource {
   lastLearningTime?: string
   qualitySummary?: QueryLearningQualitySummary
   feedbackSummary?: QueryLearningFeedbackSummary
+  readinessState?: string
+  askabilityState?: string
+  recommendationCount?: number
+  failureRate30d?: number
+  negativeFeedbackRate30d?: number
+  ambiguityRate30d?: number
 }
 
 export interface QueryLearningQualitySummary {
@@ -545,7 +563,17 @@ const normalizeLearningResource = (payload: RawQueryLearningResource): QueryLear
     ),
     feedbackSummary: normalizeFeedbackSummary(
       payload.feedback_summary ?? payload.feedbackSummary ?? payload['feedback-summary']
-    )
+    ),
+    readinessState: toOptionalString(payload.readiness_state ?? payload.readinessState),
+    askabilityState: toOptionalString(payload.askability_state ?? payload.askabilityState),
+    recommendationCount: toOptionalNumber(
+      payload.recommendation_count ?? payload.recommendationCount
+    ),
+    failureRate30d: toOptionalNumber(payload.failure_rate_30d ?? payload.failureRate30d),
+    negativeFeedbackRate30d: toOptionalNumber(
+      payload.negative_feedback_rate_30d ?? payload.negativeFeedbackRate30d
+    ),
+    ambiguityRate30d: toOptionalNumber(payload.ambiguity_rate_30d ?? payload.ambiguityRate30d)
   }
 }
 

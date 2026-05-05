@@ -8,7 +8,9 @@ import lombok.Data;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class TrustedAnswerContextVO implements Serializable {
@@ -51,4 +53,38 @@ public class TrustedAnswerContextVO implements Serializable {
 
     @JsonProperty("schema_table_count")
     private Integer schemaTableCount = 0;
+
+    @JsonProperty("action_type")
+    private TrustedAnswerActionType actionType;
+
+    @JsonProperty("entry_scene")
+    private String entryScene;
+
+    @JsonProperty("resource_kind")
+    private String resourceKind;
+
+    @JsonProperty("resource_id")
+    private String resourceId;
+
+    @JsonProperty("chat_id")
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long chatId;
+
+    @JsonProperty("readiness_state")
+    private ResourceReadinessState readinessState;
+
+    @JsonProperty("askability_state")
+    private AuthorizedAskabilityState askabilityState;
+
+    @JsonProperty("runtime_policy")
+    private TrustedAnswerRuntimePolicyVO runtimePolicy;
+
+    @JsonProperty("active_semantic_patch_count")
+    private Integer activeSemanticPatchCount = 0;
+
+    @JsonProperty("active_semantic_patch_summary")
+    private List<String> activeSemanticPatchSummary = new ArrayList<>();
+
+    @JsonProperty("semantic_patch_context")
+    private Map<String, String> semanticPatchContext = new LinkedHashMap<>();
 }

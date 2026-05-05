@@ -140,7 +140,7 @@ const contractCases: ContractCase[] = [
     run() {
       assertMatch(
         queryResourcePrototypeSource,
-        /const nextRows = resources\.map\(buildResourceRow\)\s*rows\.value = nextRows/,
+        /const nextRows = resources\.map\(buildResourceRow\)[\s\S]*rows\.value = nextRows/,
         'page binds real resource list'
       )
       if (
@@ -150,6 +150,35 @@ const contractCases: ContractCase[] = [
       ) {
         fail('empty resource lists should not fall back to demo rows')
       }
+    }
+  },
+  {
+    name: 'shows a resource learning error state instead of masking service failures as empty data',
+    run() {
+      assertMatch(queryResourcePrototypeSource, /resourceLoadError/, 'resource error state')
+      assertMatch(queryResourcePrototypeSource, /hasResourceLoadError/, 'resource error computed')
+      assertMatch(queryResourcePrototypeSource, /prototype-page__error/, 'resource error banner')
+      assertMatch(queryResourcePrototypeSource, /问数资源加载失败/, 'resource error title copy')
+      assertMatch(
+        queryResourcePrototypeSource,
+        /resourceLoadError\.value = error instanceof Error \? error\.message : String\(error \|\| '未知错误'\)/,
+        'resource error capture'
+      )
+      assertMatch(
+        queryResourcePrototypeSource,
+        /filteredRows\.value\.length === 0 && !hasResourceLoadError\.value/,
+        'resource error is not masked by empty state'
+      )
+      assertMatch(
+        queryResourcePrototypeSource,
+        /min-height:\s*220px/,
+        'resource table visible floor'
+      )
+      assertMatch(
+        queryResourcePrototypeSource,
+        /prototype-table\.is-empty[\s\S]*min-height:\s*166px/,
+        'resource empty state visible floor'
+      )
     }
   },
   {

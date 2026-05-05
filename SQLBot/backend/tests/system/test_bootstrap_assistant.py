@@ -32,6 +32,12 @@ class BootstrapAssistantTests(unittest.TestCase):
         self.assertEqual(assistant.app_secret, "starbi-secret")
         self.assertEqual(assistant.oid, 1)
 
+    def test_default_starbi_assistant_has_no_public_fallback_secret(self):
+        with patch.dict(os.environ, {}, clear=True):
+            assistant = build_default_starbi_assistant()
+
+        self.assertEqual(assistant.app_secret, "")
+
     def test_existing_default_assistant_syncs_explicit_secret_and_domain(self):
         existing = build_default_starbi_assistant()
         existing.app_secret = "old-secret"

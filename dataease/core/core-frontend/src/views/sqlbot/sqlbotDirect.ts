@@ -6,7 +6,7 @@ import {
   type AIQueryRuntimeModel,
   type AIQueryRuntimeModelsPayload
 } from '@/api/aiQueryTheme'
-import { streamTrustedAnswerQuestion } from '@/api/aiTrustedAnswer'
+import { streamTrustedAnswerQuestion, type TrustedAnswerActionType } from '@/api/aiTrustedAnswer'
 import type {
   SQLBotNewContextSwitchCreatePayload,
   SQLBotNewPersistedContextEvent,
@@ -36,6 +36,13 @@ export interface SQLBotRequestContext {
   locale?: string
   themeId?: string | number
   datasourceId?: string | number
+  sourceTraceId?: string
+}
+
+interface SQLBotProxyRequestInit extends RequestInit {
+  actionType?: TrustedAnswerActionType
+  sourceTraceId?: string
+  recordId?: string | number
 }
 
 interface SQLBotEnvelope<T = any> {
@@ -358,14 +365,17 @@ const serializeSqlBotProxyHeaders = (headers?: HeadersInit) => {
 const fetchSqlBotWithFallback = async (
   _domain: string,
   buildUrl: (base: string) => string,
-  init: RequestInit
+  init: SQLBotProxyRequestInit
 ) => {
   const requestUrl = buildUrl(`${window.location.origin}${SQLBOT_API_PREFIX}`)
   const proxyPayload = {
     method: String(init.method || 'GET').toUpperCase(),
     path: normalizeSqlBotProxyPath(requestUrl),
     headers: serializeSqlBotProxyHeaders(init.headers),
-    body: typeof init.body === 'string' ? init.body : undefined
+    body: typeof init.body === 'string' ? init.body : undefined,
+    action_type: init.actionType,
+    source_trace_id: init.sourceTraceId,
+    record_id: init.recordId === undefined ? undefined : String(init.recordId)
   }
   const config = await configHandler({
     url: SQLBOT_RUNTIME_PROXY_URL,
@@ -424,6 +434,7 @@ export const validateSQLBotAssistant = async (domain: string, assistantId: strin
     },
     {
       method: 'GET',
+      actionType: 'ASSISTANT_VALIDATE',
       credentials: 'omit'
     }
   )
@@ -439,6 +450,7 @@ export const startSQLBotAssistantChat = async (
     base => `${base}/chat/assistant/start`,
     {
       method: 'POST',
+      actionType: 'ASSISTANT_START',
       headers: buildAssistantHeaders(context),
       body: JSON.stringify(payload)
     }
@@ -452,6 +464,9 @@ export const getSQLBotChartData = async (context: SQLBotRequestContext, recordId
     base => `${base}/chat/record/${recordId}/data`,
     {
       method: 'GET',
+      actionType: 'CHART_DATA',
+      sourceTraceId: context.sourceTraceId,
+      recordId,
       headers: buildAssistantHeaders(context, 'text/plain')
     }
   )
@@ -464,6 +479,9 @@ export const getSQLBotRecordUsage = async (context: SQLBotRequestContext, record
     base => `${base}/chat/record/${recordId}/usage`,
     {
       method: 'GET',
+      actionType: 'USAGE',
+      sourceTraceId: context.sourceTraceId,
+      recordId,
       headers: buildAssistantHeaders(context, 'text/plain')
     }
   )
@@ -482,6 +500,7 @@ export const getSQLBotRecentQuestions = async (
     base => `${base}/chat/recent_questions/${datasourceId}`,
     {
       method: 'GET',
+      actionType: 'HISTORY_LIST',
       headers: buildAssistantHeaders(context, 'text/plain')
     }
   )
@@ -502,6 +521,8 @@ export const getSQLBotChatWithData = async (context: SQLBotRequestContext, chatI
     base => `${base}/chat/${chatId}/with_data`,
     {
       method: 'GET',
+      actionType: 'HISTORY_RESTORE',
+      sourceTraceId: context.sourceTraceId,
       headers: buildAssistantHeaders(context, 'text/plain')
     }
   )
@@ -529,6 +550,8 @@ export const getSQLBotNewHistoryContext = async (context: SQLBotRequestContext, 
     base => `${base}/chat/${chatId}/sqlbot-new/context`,
     {
       method: 'GET',
+      actionType: 'HISTORY_RESTORE',
+      sourceTraceId: context.sourceTraceId,
       headers: buildAssistantHeaders(context, 'text/plain')
     }
   )
@@ -546,6 +569,8 @@ export const createSQLBotNewContextSwitch = async (
     base => `${base}/chat/${chatId}/sqlbot-new/context-switch`,
     {
       method: 'POST',
+      actionType: 'CONTEXT_SWITCH',
+      sourceTraceId: context.sourceTraceId,
       headers: buildAssistantHeaders(context),
       body: JSON.stringify(serializeSQLBotNewContextSwitchPayload(payload))
     }
@@ -564,6 +589,8 @@ export const upsertSQLBotNewSnapshot = async (
     base => `${base}/chat/${chatId}/sqlbot-new/snapshot`,
     {
       method: 'POST',
+      actionType: 'SNAPSHOT',
+      sourceTraceId: context.sourceTraceId,
       headers: buildAssistantHeaders(context),
       body: JSON.stringify(serializeSQLBotNewSnapshotPayload(payload))
     }
@@ -654,6 +681,9 @@ export const getSQLBotRecommendQuestions = async (
     },
     {
       method: 'POST',
+      actionType: 'RECOMMENDATION_ASK',
+      sourceTraceId: context.sourceTraceId,
+      recordId,
       headers: buildAssistantHeaders(context),
       body: JSON.stringify({})
     }
@@ -760,6 +790,9 @@ export const streamSQLBotRecordAnalysis = async (
     base => `${base}/chat/record/${recordId}/analysis`,
     {
       method: 'POST',
+      actionType: 'DATA_INTERPRETATION',
+      sourceTraceId: context.sourceTraceId,
+      recordId,
       headers: buildAssistantHeaders(context),
       body: JSON.stringify({}),
       signal: options.signal
@@ -805,6 +838,9 @@ export const streamSQLBotRecordPredict = async (
     base => `${base}/chat/record/${recordId}/predict`,
     {
       method: 'POST',
+      actionType: 'FORECAST',
+      sourceTraceId: context.sourceTraceId,
+      recordId,
       headers: buildAssistantHeaders(context),
       body: JSON.stringify({}),
       signal: options.signal

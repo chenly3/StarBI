@@ -21,7 +21,7 @@ from common.utils.utils import SQLBotLogUtil, get_origin_from_referer
 from common.utils.whitelist import whiteUtils
 from fastapi.security.utils import get_authorization_scheme_param
 from common.core.deps import get_i18n
-from apps.system.middleware.internal_user import build_internal_user
+from apps.system.middleware.internal_user import build_internal_user, verify_internal_signature
 
 
 class InternalUserMiddleware(BaseHTTPMiddleware):
@@ -32,7 +32,12 @@ class InternalUserMiddleware(BaseHTTPMiddleware):
         de_user_id = request.headers.get("X-DE-USER-ID")
         if de_user_id:
             client_host = request.client.host if request.client else None
-            if client_host in ("127.0.0.1", "::1", "localhost"):
+            if client_host in ("127.0.0.1", "::1", "localhost") and verify_internal_signature(
+                de_user_id,
+                request.headers.get("X-DE-ORG-ID"),
+                request.headers.get("X-DE-INTERNAL-TIMESTAMP"),
+                request.headers.get("X-DE-INTERNAL-SIGNATURE"),
+            ):
                 internal_user = build_internal_user(de_user_id, request.headers.get("X-DE-ORG-ID"))
                 if not internal_user:
                     return JSONResponse(

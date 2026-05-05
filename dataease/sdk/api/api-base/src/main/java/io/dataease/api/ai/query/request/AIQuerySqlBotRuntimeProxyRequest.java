@@ -1,5 +1,7 @@
 package io.dataease.api.ai.query.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.dataease.api.ai.query.vo.TrustedAnswerActionType;
 import lombok.Data;
 
 import java.io.Serial;
@@ -20,4 +22,13 @@ public class AIQuerySqlBotRuntimeProxyRequest implements Serializable {
     private Map<String, String> headers = new LinkedHashMap<>();
 
     private String body;
+
+    @JsonProperty("action_type")
+    private TrustedAnswerActionType actionType;
+
+    @JsonProperty("source_trace_id")
+    private String sourceTraceId;
+
+    @JsonProperty("record_id")
+    private String recordId;
 }

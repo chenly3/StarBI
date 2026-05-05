@@ -31,4 +31,19 @@ public class TrustedAnswerTraceVO implements Serializable {
 
     @JsonProperty("permission_steps")
     private List<String> permissionSteps = new ArrayList<>();
+
+    @JsonProperty("authorized_record_ids")
+    private List<String> authorizedRecordIds = new ArrayList<>();
+
+    @JsonProperty("source_trace_id")
+    private String sourceTraceId;
+
+    @JsonProperty("parent_trace_id")
+    private String parentTraceId;
+
+    @JsonProperty("user_safe_evidence_summary")
+    private String userSafeEvidenceSummary;
+
+    @JsonProperty("blocked_reason")
+    private String blockedReason;
 }

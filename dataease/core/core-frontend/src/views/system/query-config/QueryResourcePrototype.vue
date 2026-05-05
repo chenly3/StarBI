@@ -27,6 +27,21 @@
         </button>
       </header>
 
+      <div v-if="hasResourceLoadError" class="prototype-page__error">
+        <div class="prototype-page__error-copy">
+          <strong>问数资源加载失败</strong>
+          <span>{{ resourceLoadError }}</span>
+        </div>
+        <button
+          class="ghost-button"
+          type="button"
+          :disabled="loadingResources"
+          @click="handleRefreshList"
+        >
+          {{ loadingResources ? '刷新中...' : '重新加载' }}
+        </button>
+      </div>
+
       <section class="prototype-table" :class="{ 'is-empty': showResourceEmptyState }">
         <div class="prototype-table__header-row">
           <div class="cell cell--select">
@@ -110,7 +125,7 @@
           <div
             v-if="showResourceEmptyState"
             class="prototype-table__empty"
-            :class="{ 'is-search-empty': hasKeyword }"
+            :class="{ 'is-search-empty': hasKeyword, 'is-error': hasResourceLoadError }"
           >
             <div class="prototype-table__empty-card">
               <div class="prototype-table__empty-icon" aria-hidden="true">
@@ -525,6 +540,12 @@ interface ResourceRow {
   learningSuggestions?: string[]
   failureReason?: string
   feedbackSummary?: QueryLearningFeedbackSummary | null
+  readinessState?: string
+  askabilityState?: string
+  recommendationCount?: number
+  failureRate30d?: number
+  negativeFeedbackRate30d?: number
+  ambiguityRate30d?: number
 }
 
 const route = useRoute()
@@ -586,6 +607,7 @@ const previewRows = ref([
 const keyword = ref('')
 const selectedIds = ref<string[]>(isPrototypeRoute.value ? ['1'] : [])
 const loadingResources = ref(false)
+const resourceLoadError = ref('')
 const quickDialogVisible = ref(false)
 const quickMode = ref<QuickMode>('system')
 const expertQuestions = ref<string[]>([])
@@ -643,16 +665,26 @@ const filteredRows = computed(() => {
 const hasKeyword = computed(() => keyword.value.trim().length > 0)
 
 const showResourceEmptyState = computed(
-  () => !loadingResources.value && filteredRows.value.length === 0
+  () => !loadingResources.value && filteredRows.value.length === 0 && !hasResourceLoadError.value
 )
 
-const emptyStateTitle = computed(() => (hasKeyword.value ? '没有匹配的问数资源' : '暂无问数资源'))
+const hasResourceLoadError = computed(() => resourceLoadError.value.trim().length > 0)
 
-const emptyStateCopy = computed(() =>
-  hasKeyword.value
+const emptyStateTitle = computed(() => {
+  if (hasResourceLoadError.value) {
+    return '问数资源加载失败'
+  }
+  return hasKeyword.value ? '没有匹配的问数资源' : '暂无问数资源'
+})
+
+const emptyStateCopy = computed(() => {
+  if (hasResourceLoadError.value) {
+    return `资源学习服务暂不可用：${resourceLoadError.value}。请确认 SQLBot 上游服务已启动后刷新。`
+  }
+  return hasKeyword.value
     ? '当前搜索条件下没有资源，请调整关键词后重试。'
     : '当前接口没有返回可学习资源。请先完成分析主题或数据集资源接入，再刷新同步最新资源。'
-)
+})
 
 const filteredUsers = computed(() => {
   if (route.query.panel === 'user') {
@@ -855,7 +887,13 @@ const buildResourceRow = (resource: QueryLearningResource): ResourceRow => {
     learningSuggestions: qualitySummary?.suggestions || fallbackRow?.learningSuggestions || [],
     failureReason:
       resolvedFailureReason || (isFailure ? '学习任务执行失败，请查看任务详情后重试。' : ''),
-    feedbackSummary: resource.feedbackSummary || fallbackRow?.feedbackSummary || null
+    feedbackSummary: resource.feedbackSummary || fallbackRow?.feedbackSummary || null,
+    readinessState: resource.readinessState,
+    askabilityState: resource.askabilityState,
+    recommendationCount: resource.recommendationCount,
+    failureRate30d: resource.failureRate30d,
+    negativeFeedbackRate30d: resource.negativeFeedbackRate30d,
+    ambiguityRate30d: resource.ambiguityRate30d
   }
 }
 
@@ -936,6 +974,7 @@ const loadLearningResources = async (options?: { silent?: boolean }) => {
   try {
     const resources = await listQueryLearningResources()
     const nextRows = resources.map(buildResourceRow)
+    resourceLoadError.value = ''
     rows.value = nextRows
     syncSelectedIds()
     void syncResolvedResourceNames(nextRows)
@@ -943,6 +982,7 @@ const loadLearningResources = async (options?: { silent?: boolean }) => {
       loadLearningDrawerSummaries(selectedLearningTaskId.value)
     }
   } catch (error) {
+    resourceLoadError.value = error instanceof Error ? error.message : String(error || '未知错误')
     rows.value = isPrototypeRoute.value ? fallbackRows.map(row => ({ ...row })) : []
     syncSelectedIds()
     if (!options?.silent) {
@@ -1281,6 +1321,42 @@ onMounted(() => {
   background: #f8fbff;
 }
 
+.prototype-page__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px 10px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #fed7d7;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #fff5f5 0%, #fffafa 100%);
+  color: #b42318;
+  box-sizing: border-box;
+}
+
+.prototype-page__error-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.prototype-page__error-copy strong {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.prototype-page__error-copy span {
+  overflow: hidden;
+  color: #912018;
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-box {
   display: inline-flex;
   align-items: center;
@@ -1354,7 +1430,7 @@ onMounted(() => {
 
 .prototype-table {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1372,6 +1448,7 @@ onMounted(() => {
   column-gap: 14px;
   padding: 0 16px;
   box-sizing: border-box;
+  font-size: 14px;
 }
 
 .prototype-table__header-row {
@@ -1392,6 +1469,7 @@ onMounted(() => {
 .prototype-table.is-empty .prototype-table__body {
   display: flex;
   flex: 1 1 auto;
+  min-height: 166px;
 }
 
 .prototype-table__data-row {
@@ -1421,6 +1499,20 @@ onMounted(() => {
 
 .prototype-table__empty.is-search-empty {
   min-height: 238px;
+}
+
+.prototype-table__empty.is-error {
+  background: radial-gradient(circle at 50% 0%, rgba(245, 101, 101, 0.1), transparent 34%),
+    linear-gradient(180deg, #fff 0%, #fffafa 100%);
+}
+
+.prototype-table__empty.is-error .prototype-table__empty-icon {
+  border-color: #fed7d7;
+  background: #fff5f5;
+}
+
+.prototype-table__empty.is-error .prototype-table__empty-title {
+  color: #b42318;
 }
 
 .prototype-table__empty-card {
@@ -2289,8 +2381,11 @@ onMounted(() => {
 @media (max-width: 1280px) {
   .prototype-page__tools,
   .prototype-footer {
-    align-items: flex-start;
-    flex-direction: column;
+    gap: 10px;
+  }
+
+  .search-box {
+    width: 260px;
   }
 
   .prototype-footer__right {

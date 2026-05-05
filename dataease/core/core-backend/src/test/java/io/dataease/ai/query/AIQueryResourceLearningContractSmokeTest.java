@@ -25,6 +25,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static java.util.Map.entry;
 
 class AIQueryResourceLearningContractSmokeTest {
 
@@ -179,6 +180,58 @@ class AIQueryResourceLearningContractSmokeTest {
         assertEquals("ta-lineage", request.getSourceTraceId());
         assertNotNull(replay);
         assertEquals("ta-lineage", replay.getSourceTraceId());
+    }
+
+    @Test
+    void learningResourceMapperShouldCarryReadinessInputsFromSqlBotPayload() {
+        AIQueryLearningResourceVO snakeCase = AIQueryThemeManage.toLearningResourceVO(Map.ofEntries(
+                entry("resource_id", "resource-1"),
+                entry("name", "销售数据集"),
+                entry("learning_status", "succeeded"),
+                entry("enabled", false),
+                entry("theme_bound", true),
+                entry("field_count", 12),
+                entry("recommendation_count", 3),
+                entry("failure_rate_30d", 4),
+                entry("negative_feedback_rate_30d", 5),
+                entry("ambiguity_rate_30d", 6),
+                entry("readiness_state", "FORMAL_ASKABLE"),
+                entry("askability_state", "ASK_ALLOWED")
+        ));
+        AIQueryLearningResourceVO camelCase = AIQueryThemeManage.toLearningResourceVO(Map.ofEntries(
+                entry("resourceId", "resource-2"),
+                entry("learningStatus", "succeeded"),
+                entry("enabled", true),
+                entry("themeBound", false),
+                entry("fieldCount", 8),
+                entry("recommendationCount", 2),
+                entry("failureRate30d", 7),
+                entry("negativeFeedbackRate30d", 9),
+                entry("ambiguityRate30d", 11),
+                entry("readinessState", "TRIAL_ASKABLE"),
+                entry("askabilityState", "ASK_PARTIAL")
+        ));
+
+        assertNotNull(snakeCase);
+        assertEquals(Boolean.FALSE, snakeCase.getEnabled());
+        assertEquals(Boolean.TRUE, snakeCase.getThemeBound());
+        assertEquals(12, snakeCase.getFieldCount());
+        assertEquals(3, snakeCase.getRecommendationCount());
+        assertEquals(4, snakeCase.getFailureRate30d());
+        assertEquals(5, snakeCase.getNegativeFeedbackRate30d());
+        assertEquals(6, snakeCase.getAmbiguityRate30d());
+        assertEquals("FORMAL_ASKABLE", String.valueOf(snakeCase.getReadinessState()));
+        assertEquals("ASK_ALLOWED", String.valueOf(snakeCase.getAskabilityState()));
+        assertNotNull(camelCase);
+        assertEquals(Boolean.TRUE, camelCase.getEnabled());
+        assertEquals(Boolean.FALSE, camelCase.getThemeBound());
+        assertEquals(8, camelCase.getFieldCount());
+        assertEquals(2, camelCase.getRecommendationCount());
+        assertEquals(7, camelCase.getFailureRate30d());
+        assertEquals(9, camelCase.getNegativeFeedbackRate30d());
+        assertEquals(11, camelCase.getAmbiguityRate30d());
+        assertEquals("TRIAL_ASKABLE", String.valueOf(camelCase.getReadinessState()));
+        assertEquals("ASK_PARTIAL", String.valueOf(camelCase.getAskabilityState()));
     }
 
     private static Class<?> firstGenericArgument(Method method) {

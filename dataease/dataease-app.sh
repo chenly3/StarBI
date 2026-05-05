@@ -83,7 +83,7 @@ starbi:
   sqlbot:
     domain: \${STARBI_SQLBOT_DOMAIN:http://127.0.0.1:8000}
     assistant-id: \${STARBI_SQLBOT_ASSISTANT_ID:1}
-    assistant-secret: \${STARBI_SQLBOT_ASSISTANT_SECRET:starbi-inner-assistant-secret}
+    assistant-secret: \${STARBI_SQLBOT_ASSISTANT_SECRET:}
     enabled: \${STARBI_SQLBOT_ENABLED:true}
 EOF
 cp "$DE_CONFIG_DIR/application.yml" "$SPRING_CONFIG_DIR/application.yml"

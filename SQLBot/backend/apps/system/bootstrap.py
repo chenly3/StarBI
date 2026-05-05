@@ -4,12 +4,9 @@ from typing import Optional
 from sqlmodel import Session
 
 from apps.system.models.system_model import AssistantModel
-from common.core.db import engine
 from common.utils.time import get_timestamp
-from common.utils.utils import SQLBotLogUtil
 
 DEFAULT_STARBI_ASSISTANT_ID = 1
-DEFAULT_STARBI_ASSISTANT_SECRET = "starbi-inner-assistant-secret"
 
 
 def _env(name: str, default: str = "") -> str:
@@ -30,7 +27,7 @@ def build_default_starbi_assistant() -> AssistantModel:
         description="StarBI default assistant",
         create_time=get_timestamp(),
         app_id=_env("STARBI_SQLBOT_ASSISTANT_APP_ID", "starbi"),
-        app_secret=_env("STARBI_SQLBOT_ASSISTANT_SECRET", DEFAULT_STARBI_ASSISTANT_SECRET),
+        app_secret=_env("STARBI_SQLBOT_ASSISTANT_SECRET"),
         oid=1,
     )
 
@@ -71,6 +68,9 @@ def ensure_default_starbi_assistant(session: Optional[Session] = None) -> Assist
 
     if session is not None:
         return _ensure(session)
+
+    from common.core.db import engine
+    from common.utils.utils import SQLBotLogUtil
 
     with Session(engine) as current_session:
         ensured = _ensure(current_session)

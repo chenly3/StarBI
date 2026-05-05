@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.api.ai.query.request.AIQuerySqlBotRuntimeProxyRequest;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
+import io.dataease.api.ai.query.vo.TrustedAnswerActionType;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorCode;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerSseEventVO;
@@ -25,21 +26,12 @@ import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.config.Registry;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.conn.HttpClientConnectionManager;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -49,11 +41,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Component
 public class TrustedAnswerStubSqlBotProxy {
@@ -71,9 +64,48 @@ public class TrustedAnswerStubSqlBotProxy {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SysParameterManage sysParameterManage;
+    private final TrustedAnswerActionContractService actionContractService;
+    private final TrustedAnswerRuntimePolicyService runtimePolicyService;
+    private final TrustedAnswerFactBoundaryService factBoundaryService;
+    private final TrustedAnswerTraceStore traceStore;
 
     public TrustedAnswerStubSqlBotProxy(SysParameterManage sysParameterManage) {
+        this(
+                sysParameterManage,
+                new TrustedAnswerActionContractService(),
+                new TrustedAnswerRuntimePolicyService(sysParameterManage),
+                new TrustedAnswerTraceStore()
+        );
+    }
+
+    @Autowired
+    public TrustedAnswerStubSqlBotProxy(
+            SysParameterManage sysParameterManage,
+            TrustedAnswerActionContractService actionContractService,
+            TrustedAnswerRuntimePolicyService runtimePolicyService,
+            TrustedAnswerTraceStore traceStore
+    ) {
         this.sysParameterManage = sysParameterManage;
+        this.actionContractService = actionContractService == null
+                ? new TrustedAnswerActionContractService()
+                : actionContractService;
+        this.runtimePolicyService = runtimePolicyService == null
+                ? new TrustedAnswerRuntimePolicyService(sysParameterManage)
+                : runtimePolicyService;
+        this.factBoundaryService = new TrustedAnswerFactBoundaryService();
+        this.traceStore = traceStore == null ? new TrustedAnswerTraceStore() : traceStore;
+    }
+
+    public TrustedAnswerStubSqlBotProxy(
+            SysParameterManage sysParameterManage,
+            TrustedAnswerActionContractService actionContractService
+    ) {
+        this(
+                sysParameterManage,
+                actionContractService,
+                new TrustedAnswerRuntimePolicyService(sysParameterManage),
+                new TrustedAnswerTraceStore()
+        );
     }
 
     public void stream(
@@ -118,12 +150,18 @@ public class TrustedAnswerStubSqlBotProxy {
         }
         String method = StringUtils.upperCase(StringUtils.defaultIfBlank(request.getMethod(), "GET"));
         String path = normalizeRuntimeProxyPath(request.getPath());
-        if (!RUNTIME_ALLOWED_METHODS.contains(method) || !isAllowedRuntimeProxyPath(path)) {
-            DEException.throwException("unsupported sqlbot runtime proxy request");
+        var contract = actionContractService.resolveSqlBotRuntime(method, path);
+        if (!RUNTIME_ALLOWED_METHODS.contains(method) || contract.isEmpty()) {
+            DEException.throwException(TrustedAnswerErrorCode.UNMAPPED_SQLBOT_PROXY_PATH.toError().getMessage());
         }
+        var disabledError = actionContractService.disabledError(contract.get().getActionType(), runtimePolicyService.load());
+        if (disabledError.isPresent()) {
+            DEException.throwException(disabledError.get().toError().getMessage());
+        }
+        validateTrustedRuntimeScope(request, contract.get().getActionType(), path);
 
         HttpRequestBase proxyRequest = buildRuntimeProxyRequest(method, buildSqlBotApiUrl(config.getDomain(), path), request);
-        appendDataEaseUserHeaders(proxyRequest, httpRequest);
+        appendDataEaseUserHeaders(proxyRequest, httpRequest, config);
         try (CloseableHttpClient client = buildRuntimeHttpClient(config.getDomain());
              CloseableHttpResponse proxyResponse = client.execute(proxyRequest)) {
             response.setStatus(proxyResponse.getStatusLine().getStatusCode());
@@ -230,7 +268,7 @@ public class TrustedAnswerStubSqlBotProxy {
                 buildSqlBotApiUrl(config.getDomain(), "/chat/question"),
                 proxyRequest
         );
-        appendDataEaseUserHeaders(sqlBotRequest, httpRequest);
+        appendDataEaseUserHeaders(sqlBotRequest, httpRequest, config);
 
         try (CloseableHttpClient client = buildRuntimeHttpClient(config.getDomain());
              CloseableHttpResponse sqlBotResponse = client.execute(sqlBotRequest)) {
@@ -398,7 +436,17 @@ public class TrustedAnswerStubSqlBotProxy {
             return;
         }
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("sqlbot_event", objectMapper.readValue(dataLine, Object.class));
+        Object sqlbotEvent = objectMapper.readValue(dataLine, Object.class);
+        sqlbotEvent = factBoundaryService.authorizeTrustedFactPayload(
+                sqlbotEvent,
+                trace != null && trace.getState() == TrustedAnswerState.TRUSTED
+        );
+        if (!factBoundaryService.isFactPayloadAllowed(sqlbotEvent)) {
+            writeSqlBotError(response, trace, TrustedAnswerErrorCode.FACT_RESULT_REQUIRED.toError().getMessage());
+            return;
+        }
+        rememberTrustedRecordId(trace, sqlbotEvent);
+        data.put("sqlbot_event", sqlbotEvent);
         TrustedAnswerSseEventVO event = new TrustedAnswerSseEventVO();
         event.setEvent("sqlbot");
         event.setTraceId(trace.getTraceId());
@@ -462,14 +510,96 @@ public class TrustedAnswerStubSqlBotProxy {
         return proxyRequest;
     }
 
-    private void appendDataEaseUserHeaders(HttpRequestBase proxyRequest, HttpServletRequest httpRequest) {
+    private void validateTrustedRuntimeScope(
+            AIQuerySqlBotRuntimeProxyRequest request,
+            TrustedAnswerActionType actionType,
+            String path
+    ) {
+        if (!requiresTrustedTrace(actionType)) {
+            return;
+        }
+        String sourceTraceId = StringUtils.trimToEmpty(request.getSourceTraceId());
+        TrustedAnswerTraceVO sourceTrace = traceStore.get(sourceTraceId);
+        if (sourceTrace == null || sourceTrace.getState() != TrustedAnswerState.TRUSTED) {
+            DEException.throwException(TrustedAnswerErrorCode.TRUSTED_TRACE_REQUIRED.toError().getMessage());
+        }
+        if (requiresTrustedRecordScope(actionType)) {
+            String recordId = StringUtils.defaultIfBlank(request.getRecordId(), extractRecordId(path));
+            if (StringUtils.isBlank(recordId)
+                    || sourceTrace.getAuthorizedRecordIds().stream().noneMatch(recordId::equals)) {
+                DEException.throwException(TrustedAnswerErrorCode.TRUSTED_TRACE_REQUIRED.toError().getMessage());
+            }
+        }
+    }
+
+    private boolean requiresTrustedTrace(TrustedAnswerActionType actionType) {
+        return actionType == TrustedAnswerActionType.RECOMMENDATION_ASK
+                || actionType == TrustedAnswerActionType.DATA_INTERPRETATION
+                || actionType == TrustedAnswerActionType.FORECAST
+                || actionType == TrustedAnswerActionType.CHART_DATA
+                || actionType == TrustedAnswerActionType.USAGE
+                || actionType == TrustedAnswerActionType.HISTORY_RESTORE
+                || actionType == TrustedAnswerActionType.CONTEXT_SWITCH
+                || actionType == TrustedAnswerActionType.SNAPSHOT;
+    }
+
+    private boolean requiresTrustedRecordScope(TrustedAnswerActionType actionType) {
+        return actionType == TrustedAnswerActionType.RECOMMENDATION_ASK
+                || actionType == TrustedAnswerActionType.DATA_INTERPRETATION
+                || actionType == TrustedAnswerActionType.FORECAST
+                || actionType == TrustedAnswerActionType.CHART_DATA
+                || actionType == TrustedAnswerActionType.USAGE;
+    }
+
+    private String extractRecordId(String path) {
+        String normalizedPath = StringUtils.substringBefore(StringUtils.defaultString(path), "?");
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("^/chat/(?:record|recommend_questions)/([^/]+)")
+                .matcher(normalizedPath);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private void rememberTrustedRecordId(TrustedAnswerTraceVO trace, Object sqlbotEvent) {
+        if (trace == null || sqlbotEvent == null) {
+            return;
+        }
+        String recordId = extractEventRecordId(sqlbotEvent);
+        if (StringUtils.isBlank(recordId) || trace.getAuthorizedRecordIds().contains(recordId)) {
+            return;
+        }
+        trace.getAuthorizedRecordIds().add(recordId);
+        traceStore.put(trace);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractEventRecordId(Object sqlbotEvent) {
+        if (!(sqlbotEvent instanceof Map<?, ?> event)) {
+            return "";
+        }
+        Object type = event.get("type");
+        if (!StringUtils.equals("id", String.valueOf(type))) {
+            return "";
+        }
+        Object id = event.get("id");
+        return id == null ? "" : StringUtils.trimToEmpty(String.valueOf(id));
+    }
+
+    private void appendDataEaseUserHeaders(
+            HttpRequestBase proxyRequest,
+            HttpServletRequest httpRequest,
+            SQLBotConfigVO config
+    ) {
         TokenUserBO user = AuthUtils.getUser();
         if (user != null && user.getUserId() != null) {
-            proxyRequest.setHeader("X-DE-USER-ID", String.valueOf(user.getUserId()));
+            String userId = String.valueOf(user.getUserId());
+            proxyRequest.setHeader("X-DE-USER-ID", userId);
             if (user.getDefaultOid() != null) {
-                proxyRequest.setHeader("X-DE-ORG-ID", String.valueOf(user.getDefaultOid()));
+                String orgId = String.valueOf(user.getDefaultOid());
+                proxyRequest.setHeader("X-DE-ORG-ID", orgId);
+                appendInternalSignature(proxyRequest, config, userId, orgId);
             } else {
-                appendDataEaseOrgHeaderFromToken(proxyRequest, httpRequest);
+                String orgId = appendDataEaseOrgHeaderFromToken(proxyRequest, httpRequest);
+                appendInternalSignature(proxyRequest, config, userId, orgId);
             }
             return;
         }
@@ -490,39 +620,76 @@ public class TrustedAnswerStubSqlBotProxy {
             byte[] decodedPayload = java.util.Base64.getUrlDecoder().decode(parts[1]);
             Map<?, ?> payload = objectMapper.readValue(decodedPayload, Map.class);
             Object uid = payload.get("uid");
+            String userId = "";
             if (uid != null && StringUtils.isNotBlank(String.valueOf(uid))) {
-                proxyRequest.setHeader("X-DE-USER-ID", String.valueOf(uid));
+                userId = String.valueOf(uid);
+                proxyRequest.setHeader("X-DE-USER-ID", userId);
             }
             Object oid = payload.get("oid");
+            String orgId = "";
             if (oid != null && StringUtils.isNotBlank(String.valueOf(oid))) {
-                proxyRequest.setHeader("X-DE-ORG-ID", String.valueOf(oid));
+                orgId = String.valueOf(oid);
+                proxyRequest.setHeader("X-DE-ORG-ID", orgId);
             }
+            appendInternalSignature(proxyRequest, config, userId, orgId);
         } catch (Exception ignored) {
             // AuthUtils is the source of truth; token decoding is only a QA/dev fallback.
         }
     }
 
-    private void appendDataEaseOrgHeaderFromToken(HttpRequestBase proxyRequest, HttpServletRequest httpRequest) {
+    private String appendDataEaseOrgHeaderFromToken(HttpRequestBase proxyRequest, HttpServletRequest httpRequest) {
         if (httpRequest == null) {
-            return;
+            return "";
         }
         String dataEaseToken = currentDataEaseToken(httpRequest);
         if (StringUtils.isBlank(dataEaseToken)) {
-            return;
+            return "";
         }
         try {
             String[] parts = dataEaseToken.split("\\.");
             if (parts.length < 2) {
-                return;
+                return "";
             }
             byte[] decodedPayload = java.util.Base64.getUrlDecoder().decode(parts[1]);
             Map<?, ?> payload = objectMapper.readValue(decodedPayload, Map.class);
             Object oid = payload.get("oid");
             if (oid != null && StringUtils.isNotBlank(String.valueOf(oid))) {
-                proxyRequest.setHeader("X-DE-ORG-ID", String.valueOf(oid));
+                String orgId = String.valueOf(oid);
+                proxyRequest.setHeader("X-DE-ORG-ID", orgId);
+                return orgId;
             }
         } catch (Exception ignored) {
             // Missing fallback org only affects dev/test tokens; request auth remains handled upstream.
+        }
+        return "";
+    }
+
+    private void appendInternalSignature(
+            HttpRequestBase proxyRequest,
+            SQLBotConfigVO config,
+            String userId,
+            String orgId
+    ) {
+        if (StringUtils.isAnyBlank(userId, orgId, config == null ? null : config.getSecret())) {
+            return;
+        }
+        String timestamp = String.valueOf(System.currentTimeMillis() / 1000);
+        proxyRequest.setHeader("X-DE-INTERNAL-TIMESTAMP", timestamp);
+        proxyRequest.setHeader(
+                "X-DE-INTERNAL-SIGNATURE",
+                internalSignature(config.getSecret(), userId, orgId, timestamp)
+        );
+    }
+
+    private String internalSignature(String secret, String userId, String orgId, String timestamp) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal((userId + ":" + orgId + ":" + timestamp).getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (Exception e) {
+            DEException.throwException("DataEase internal SQLBot signature failed: " + e.getMessage());
+            return "";
         }
     }
 
@@ -540,20 +707,6 @@ public class TrustedAnswerStubSqlBotProxy {
             normalized = normalized + "?" + uri.getRawQuery();
         }
         return normalized;
-    }
-
-    private boolean isAllowedRuntimeProxyPath(String path) {
-        String rawPath = URI.create("http://dataease.local" + path).getPath();
-        return rawPath.matches("^/system/assistant/validator$")
-                || rawPath.matches("^/chat/assistant/start$")
-                || rawPath.matches("^/chat/list$")
-                || rawPath.matches("^/chat/recent_questions/[^/]+$")
-                || rawPath.matches("^/chat/recommend_questions/[^/]+$")
-                || rawPath.matches("^/chat/record/[^/]+/(data|usage|analysis|predict)$")
-                || rawPath.matches("^/chat/[^/]+/with_data$")
-                || rawPath.matches("^/chat/[^/]+/[^/]+$")
-                || rawPath.matches("^/chat/sqlbot-new/history$")
-                || rawPath.matches("^/chat/[^/]+/sqlbot-new/(context|context-switch|snapshot)$");
     }
 
     private SQLBotConfigVO loadSqlBotConfig() {
@@ -604,28 +757,6 @@ public class TrustedAnswerStubSqlBotProxy {
     }
 
     private CloseableHttpClient buildRuntimeHttpClient(String domain) {
-        String normalizedDomain = StringUtils.defaultString(domain);
-        if (!normalizedDomain.startsWith("https")) {
-            return HttpClientBuilder.create().build();
-        }
-        try {
-            SSLContextBuilder builder = new SSLContextBuilder();
-            builder.loadTrustMaterial(null, (X509Certificate[] certificates, String authType) -> true);
-            SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
-                    builder.build(),
-                    new String[]{"TLSv1.1", "TLSv1.2", "SSLv3"},
-                    null,
-                    NoopHostnameVerifier.INSTANCE
-            );
-            Registry<ConnectionSocketFactory> registry = RegistryBuilder.<ConnectionSocketFactory>create()
-                    .register("http", new PlainConnectionSocketFactory())
-                    .register("https", socketFactory)
-                    .build();
-            HttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(registry);
-            return HttpClients.custom().setConnectionManager(connManager).build();
-        } catch (Exception e) {
-            DEException.throwException("HttpClient查询失败: " + e.getMessage());
-            return null;
-        }
+        return HttpClientBuilder.create().build();
     }
 }

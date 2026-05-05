@@ -50,6 +50,62 @@ public enum TrustedAnswerErrorCode {
             "apply-row-permission",
             false
     ),
+    ASK_DISABLED(
+            TrustedAnswerState.NO_AUTHORIZED_CONTEXT,
+            "智能问数已关闭。",
+            "全局 ask_enabled=false，后端已阻断基础问数流。",
+            "在系统设置中启用智能问数后重试。",
+            "check-runtime-switch",
+            false
+    ),
+    ACTION_DISABLED(
+            TrustedAnswerState.NO_AUTHORIZED_CONTEXT,
+            "当前问数能力已关闭。",
+            "对应运行时开关关闭，后端已拒绝该动作。",
+            "启用对应问数能力后重试。",
+            "check-action-switch",
+            false
+    ),
+    UNMAPPED_SQLBOT_PROXY_PATH(
+            TrustedAnswerState.UNSAFE_BLOCKED,
+            "该 SQLBot 运行时路径未纳入可信问数契约。",
+            "请求路径或 method 无法映射到 DataEase 运行时动作矩阵。",
+            "改用 DataEase 可信问数 endpoint，或补充后端动作契约。",
+            "validate-action-contract",
+            false
+    ),
+    TRUSTED_TRACE_REQUIRED(
+            TrustedAnswerState.UNSAFE_BLOCKED,
+            "该 SQLBot 运行时请求缺少可信问数上下文。",
+            "record 级 SQLBot 运行时动作没有绑定 DataEase 可信 trace，或请求的记录不属于该 trace。",
+            "先通过 DataEase 可信问数主流程生成答案，再基于该答案触发图表、解读、预测或推荐问题。",
+            "validate-trusted-runtime-scope",
+            false
+    ),
+    FACT_RESULT_REQUIRED(
+            TrustedAnswerState.UNSAFE_BLOCKED,
+            "无法生成可信事实答案。",
+            "SQLBot 返回了事实内容，但 DataEase 没有授权结果集标记。",
+            "先由 DataEase 执行授权查询并生成结果集。",
+            "validate-fact-boundary",
+            false
+    ),
+    RESOURCE_NOT_ASKABLE(
+            TrustedAnswerState.NO_AUTHORIZED_CONTEXT,
+            "当前问数资源尚未达到可问状态。",
+            "资源未学习、学习失败、已禁用、未绑定主题，或字段质量不足。",
+            "在问数资源配置中完成学习和质量修复后重试。",
+            "evaluate-resource-readiness",
+            false
+    ),
+    SENSITIVE_PAYLOAD_RESTRICTED(
+            TrustedAnswerState.UNSAFE_BLOCKED,
+            "敏感反馈内容仅允许受控访问。",
+            "CorrectionTodo restricted payload 不允许在当前视图展示。",
+            "使用诊断权限查看，或查看脱敏摘要。",
+            "redact-correction-payload",
+            false
+    ),
     MULTI_DATASOURCE_AMBIGUOUS(
             TrustedAnswerState.NEEDS_CLARIFICATION,
             "该主题命中多个数据源，需要先选择执行数据源。",

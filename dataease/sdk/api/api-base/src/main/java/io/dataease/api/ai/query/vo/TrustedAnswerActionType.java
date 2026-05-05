@@ -1,0 +1,21 @@
+package io.dataease.api.ai.query.vo;
+
+public enum TrustedAnswerActionType {
+    ASSISTANT_VALIDATE,
+    ASSISTANT_START,
+    BASIC_ASK,
+    RECOMMENDATION_ASK,
+    DATA_INTERPRETATION,
+    FORECAST,
+    MANUAL_FOLLOW_UP,
+    AUTO_FOLLOW_UP,
+    HISTORY_LIST,
+    HISTORY_RESTORE,
+    HISTORY_FOLLOW_UP,
+    CHART_DATA,
+    USAGE,
+    CONTEXT_SWITCH,
+    SNAPSHOT,
+    DASHBOARD_ASK,
+    FILE_ASK
+}

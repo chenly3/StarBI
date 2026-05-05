@@ -28,4 +28,22 @@ public class AIQueryLearningResourceVO implements Serializable {
     private String lastLearningTime;
 
     private String failureReason;
+
+    private Boolean enabled = true;
+
+    private Boolean themeBound = true;
+
+    private Integer fieldCount = 0;
+
+    private Integer recommendationCount = 0;
+
+    private Integer failureRate30d = 0;
+
+    private Integer negativeFeedbackRate30d = 0;
+
+    private Integer ambiguityRate30d = 0;
+
+    private ResourceReadinessState readinessState;
+
+    private AuthorizedAskabilityState askabilityState;
 }

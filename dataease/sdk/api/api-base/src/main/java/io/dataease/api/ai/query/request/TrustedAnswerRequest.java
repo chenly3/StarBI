@@ -3,6 +3,7 @@ package io.dataease.api.ai.query.request;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import io.dataease.api.ai.query.vo.TrustedAnswerActionType;
 import lombok.Data;
 
 import java.io.Serial;
@@ -30,4 +31,25 @@ public class TrustedAnswerRequest implements Serializable {
     @JsonProperty("chat_id")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long chatId;
+
+    @JsonProperty("action_type")
+    private TrustedAnswerActionType actionType = TrustedAnswerActionType.BASIC_ASK;
+
+    @JsonProperty("entry_scene")
+    private String entryScene;
+
+    @JsonProperty("resource_kind")
+    private String resourceKind;
+
+    @JsonProperty("resource_id")
+    private String resourceId;
+
+    @JsonProperty("source_trace_id")
+    private String sourceTraceId;
+
+    @JsonProperty("parent_trace_id")
+    private String parentTraceId;
+
+    @JsonProperty("record_id")
+    private String recordId;
 }

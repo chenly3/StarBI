@@ -1,10 +1,13 @@
 import request from '@/config/axios'
 import { PATH_URL } from '@/config/axios/service'
 import { configHandler } from '@/config/axios/refresh'
+import { useCache } from '@/hooks/web/useCache'
 import {
   toSqlBotCompatibleEvent,
   type SQLBotStreamEventLike
 } from '@/api/aiTrustedAnswerEventAdapter'
+
+const { wsCache } = useCache()
 
 export type TrustedAnswerState =
   | 'TRUSTED'
@@ -14,12 +17,38 @@ export type TrustedAnswerState =
   | 'NO_AUTHORIZED_CONTEXT'
   | 'FAILED'
 
+export type TrustedAnswerActionType =
+  | 'ASSISTANT_VALIDATE'
+  | 'ASSISTANT_START'
+  | 'BASIC_ASK'
+  | 'RECOMMENDATION_ASK'
+  | 'DATA_INTERPRETATION'
+  | 'FORECAST'
+  | 'MANUAL_FOLLOW_UP'
+  | 'AUTO_FOLLOW_UP'
+  | 'HISTORY_LIST'
+  | 'HISTORY_RESTORE'
+  | 'HISTORY_FOLLOW_UP'
+  | 'CHART_DATA'
+  | 'USAGE'
+  | 'CONTEXT_SWITCH'
+  | 'SNAPSHOT'
+  | 'DASHBOARD_ASK'
+  | 'FILE_ASK'
+
 export interface TrustedAnswerRequest {
   question: string
   theme_id?: string | number
   datasource_id?: string | number
   model_id?: string
   chat_id?: string | number
+  action_type?: TrustedAnswerActionType
+  entry_scene?: string
+  resource_kind?: string
+  resource_id?: string
+  source_trace_id?: string
+  parent_trace_id?: string
+  record_id?: string
 }
 
 export interface TrustedAnswerError {
@@ -62,6 +91,51 @@ export interface TrustedAnswerRepairItem {
   primary_action?: string
 }
 
+export interface TrustedAnswerEndpointContract {
+  dataease_endpoint: string
+  method: string
+  action_type: TrustedAnswerActionType
+  required_switch?: string
+  sqlbot_upstream?: string
+  capability_check?: string
+  negative_test?: string
+}
+
+export interface TrustedAnswerCorrectionTodo {
+  todo_id: string
+  tenant_id?: string
+  workspace_id?: string
+  theme_id?: string
+  resource_id?: string
+  diagnosis_type?: string
+  sanitized_question_summary: string
+  duplicate_fingerprint: string
+  status: string
+  severity?: string
+  impact_count: number
+  restricted_payload_visible: boolean
+}
+
+export interface TrustedAnswerSemanticPatch {
+  patch_id: string
+  scope: string
+  target_id?: string
+  theme_id?: string
+  resource_id?: string
+  patch_type: string
+  status: string
+  source_todo_id?: string
+  audit_event_no?: string
+  rollback_to_patch_id?: string
+}
+
+export type TrustedAnswerSemanticPatchOperation =
+  | 'draft'
+  | 'publish'
+  | 'disable'
+  | 'unpublish'
+  | 'rollback'
+
 export interface TrustedAnswerStreamCallbacks {
   onOpen?: (response: Response) => void
   onMessage?: (data: string, event: TrustedAnswerSseEvent) => void
@@ -94,6 +168,16 @@ const firstPresent = (...values: unknown[]) => {
 const normalizeOptionalString = (...values: unknown[]) => {
   const value = firstPresent(...values)
   return value === undefined ? undefined : String(value)
+}
+
+const trustedAnswerScopeHeaders = () => {
+  const orgId = normalizeOptionalString(wsCache.get('user.oid')) || 'default'
+  const userId = normalizeOptionalString(wsCache.get('user.uid')) || 'anonymous'
+  return {
+    'X-DE-Tenant-Id': orgId,
+    'X-DE-Workspace-Id': orgId,
+    'X-DE-User-Id': userId
+  }
 }
 
 const parseTrustedAnswerSseMessage = (message: string): TrustedAnswerSseEvent | null => {
@@ -218,7 +302,16 @@ export const streamTrustedAnswerQuestion = async (
         context.datasourceId
       ) as string | number | undefined,
       model_id: normalizeOptionalString(payload.model_id, payload.modelId, payload.ai_modal_id),
-      chat_id: firstPresent(payload.chat_id, payload.chatId) as string | number | undefined
+      chat_id: firstPresent(payload.chat_id, payload.chatId) as string | number | undefined,
+      action_type: (payload.action_type ||
+        payload.actionType ||
+        'BASIC_ASK') as TrustedAnswerActionType,
+      entry_scene: normalizeOptionalString(payload.entry_scene, payload.entryScene),
+      resource_kind: normalizeOptionalString(payload.resource_kind, payload.resourceKind),
+      resource_id: normalizeOptionalString(payload.resource_id, payload.resourceId),
+      source_trace_id: normalizeOptionalString(payload.source_trace_id, payload.sourceTraceId),
+      parent_trace_id: normalizeOptionalString(payload.parent_trace_id, payload.parentTraceId),
+      record_id: normalizeOptionalString(payload.record_id, payload.recordId)
     },
     {
       signal: options.signal,
@@ -237,3 +330,37 @@ export const getTrustedAnswerTrustHealth = () =>
 
 export const listTrustedAnswerRepairQueue = () =>
   request.get({ url: '/ai/query/trusted-answer/repair-queue' })
+
+export const listTrustedAnswerContracts = () =>
+  request.get<TrustedAnswerEndpointContract[]>({ url: '/ai/query/trusted-answer/contracts' })
+
+export const createTrustedAnswerCorrectionTodo = (data: Record<string, unknown>) =>
+  request.post<TrustedAnswerCorrectionTodo>({
+    url: '/ai/query/trusted-answer/correction-todos',
+    headers: trustedAnswerScopeHeaders(),
+    data
+  })
+
+export const listTrustedAnswerCorrectionTodos = () =>
+  request.get<TrustedAnswerCorrectionTodo[]>({
+    url: '/ai/query/trusted-answer/correction-todos',
+    headers: trustedAnswerScopeHeaders()
+  })
+
+export const applyTrustedAnswerSemanticPatch = (data: {
+  todo_id?: string
+  scope: string
+  target_id?: string
+  theme_id?: string | number
+  resource_id?: string
+  patch_type: string
+  operation: TrustedAnswerSemanticPatchOperation
+  patch_id?: string
+  previous_patch_id?: string
+  actor_role?: string
+  content?: string
+}) =>
+  request.post<TrustedAnswerSemanticPatch>({
+    url: '/ai/query/trusted-answer/semantic-patches',
+    data
+  })
