@@ -15,6 +15,12 @@ public class TrustedAnswerRepairItemVO implements Serializable {
     @JsonProperty("trace_id")
     private String traceId;
 
+    @JsonProperty("todo_id")
+    private String todoId;
+
+    @JsonProperty("source_type")
+    private String sourceType;
+
     private TrustedAnswerState state;
 
     @JsonProperty("theme_name")

@@ -14,8 +14,10 @@ import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import io.dataease.api.dataset.vo.DataSQLBotAssistantVO;
 import io.dataease.api.dataset.vo.SQLBotAssistanTable;
+import io.dataease.auth.bo.TokenUserBO;
 import io.dataease.dataset.manage.DatasetSQLBotManage;
 import io.dataease.substitute.permissions.dataset.SubstituteDatasetExampleStore;
+import io.dataease.utils.AuthUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -121,6 +123,7 @@ public class TrustedAnswerRuntimeContextService {
         TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
         trace.setTraceId("ta-" + UUID.randomUUID());
         trace.setState(TrustedAnswerState.FAILED);
+        attachCurrentOwner(trace);
         TrustedAnswerContextVO context = new TrustedAnswerContextVO();
         trace.setContext(context);
 
@@ -315,6 +318,21 @@ public class TrustedAnswerRuntimeContextService {
         trace.setError(error);
         traceStore.put(trace);
         return trace;
+    }
+
+    private void attachCurrentOwner(TrustedAnswerTraceVO trace) {
+        TokenUserBO user = AuthUtils.getUser();
+        if (user == null) {
+            return;
+        }
+        if (user.getUserId() != null) {
+            trace.setOwnerUserId(String.valueOf(user.getUserId()));
+        }
+        if (user.getDefaultOid() != null) {
+            String orgId = String.valueOf(user.getDefaultOid());
+            trace.setOwnerOrgId(orgId);
+            trace.setOwnerWorkspaceId(orgId);
+        }
     }
 
     private static List<DataSQLBotAssistantVO> filterAuthorizedSchema(List<DataSQLBotAssistantVO> schema, List<Long> datasetIds) {

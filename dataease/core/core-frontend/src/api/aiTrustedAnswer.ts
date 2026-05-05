@@ -80,8 +80,19 @@ export interface TrustedAnswerTrustHealth {
   trusted_rate: number
 }
 
+export interface TrustedAnswerRuntimePolicy {
+  ask_enabled: boolean
+  data_interpretation_enabled: boolean
+  forecast_enabled: boolean
+  followup_enabled: boolean
+  sample_dataset_enabled: boolean
+  voice_enabled: boolean
+}
+
 export interface TrustedAnswerRepairItem {
-  trace_id: string
+  trace_id?: string
+  todo_id?: string
+  source_type?: 'trace' | 'correction_todo' | string
   state: TrustedAnswerState
   theme_name?: string
   error_code?: string
@@ -127,6 +138,7 @@ export interface TrustedAnswerSemanticPatch {
   source_todo_id?: string
   audit_event_no?: string
   rollback_to_patch_id?: string
+  content?: string
 }
 
 export type TrustedAnswerSemanticPatchOperation =
@@ -334,6 +346,9 @@ export const listTrustedAnswerRepairQueue = () =>
 export const listTrustedAnswerContracts = () =>
   request.get<TrustedAnswerEndpointContract[]>({ url: '/ai/query/trusted-answer/contracts' })
 
+export const getTrustedAnswerRuntimePolicy = () =>
+  request.get<TrustedAnswerRuntimePolicy>({ url: '/ai/query/trusted-answer/runtime-policy' })
+
 export const createTrustedAnswerCorrectionTodo = (data: Record<string, unknown>) =>
   request.post<TrustedAnswerCorrectionTodo>({
     url: '/ai/query/trusted-answer/correction-todos',
@@ -346,6 +361,12 @@ export const listTrustedAnswerCorrectionTodos = () =>
     url: '/ai/query/trusted-answer/correction-todos',
     headers: trustedAnswerScopeHeaders()
   })
+
+export const listTrustedAnswerSemanticPatches = () =>
+  request.get<TrustedAnswerSemanticPatch[]>({ url: '/ai/query/trusted-answer/semantic-patches' })
+
+export const createTrustedAnswerHistoryRestoreTrace = (data: TrustedAnswerRequest) =>
+  request.post({ url: '/ai/query/trusted-answer/history-restore-trace', data })
 
 export const applyTrustedAnswerSemanticPatch = (data: {
   todo_id?: string

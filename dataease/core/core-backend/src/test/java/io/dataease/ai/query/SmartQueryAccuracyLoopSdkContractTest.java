@@ -90,6 +90,9 @@ class SmartQueryAccuracyLoopSdkContractTest {
         assertJsonField(traceClass, "parentTraceId", "parent_trace_id");
         assertJsonField(traceClass, "userSafeEvidenceSummary", "user_safe_evidence_summary");
         assertJsonField(traceClass, "blockedReason", "blocked_reason");
+        assertJsonField(traceClass, "ownerUserId", "owner_user_id");
+        assertJsonField(traceClass, "ownerOrgId", "owner_org_id");
+        assertJsonField(traceClass, "ownerWorkspaceId", "owner_workspace_id");
 
         Class<?> runtimePolicyClass = requireClass("io.dataease.api.ai.query.vo.TrustedAnswerRuntimePolicyVO");
         assertJsonField(runtimePolicyClass, "askEnabled", "ask_enabled");
@@ -112,6 +115,10 @@ class SmartQueryAccuracyLoopSdkContractTest {
         assertJsonField(todoClass, "sanitizedQuestionSummary", "sanitized_question_summary");
         assertJsonField(todoClass, "duplicateFingerprint", "duplicate_fingerprint");
         assertJsonField(todoClass, "restrictedPayloadVisible", "restricted_payload_visible");
+
+        Class<?> repairItemClass = requireClass("io.dataease.api.ai.query.vo.TrustedAnswerRepairItemVO");
+        assertJsonField(repairItemClass, "todoId", "todo_id");
+        assertJsonField(repairItemClass, "sourceType", "source_type");
 
         Class<?> patchClass = requireClass("io.dataease.api.ai.query.vo.TrustedAnswerSemanticPatchVO");
         assertJsonField(patchClass, "patchId", "patch_id");
@@ -147,6 +154,9 @@ class SmartQueryAccuracyLoopSdkContractTest {
         assertHasPublicMethod(serverClass, "createCorrectionTodo");
         assertHasPublicMethod(serverClass, "correctionTodos");
         assertHasPublicMethod(serverClass, "applySemanticPatch");
+        assertHasPublicMethod(serverClass, "runtimePolicy");
+        assertHasPublicMethod(serverClass, "semanticPatches");
+        assertHasPublicMethod(serverClass, "historyRestoreTrace");
         assertHasPublicMethod(serverClass, "dashboardAsk");
         assertHasPublicMethod(serverClass, "fileAsk");
     }

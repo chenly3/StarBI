@@ -88,6 +88,12 @@ public class TrustedAnswerSemanticPatchService {
         return activePatches(scope, null, null);
     }
 
+    public synchronized List<TrustedAnswerSemanticPatchVO> listAll() {
+        return patches.values().stream()
+                .map(this::snapshot)
+                .toList();
+    }
+
     public synchronized List<TrustedAnswerSemanticPatchVO> activePatches(String scope, String themeId, String resourceId) {
         String requestedScope = StringUtils.trimToEmpty(scope);
         String requestedThemeId = StringUtils.trimToEmpty(themeId);

@@ -1,6 +1,9 @@
 package io.dataease.ai.query;
 
 import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
+import io.dataease.ai.query.trusted.TrustedAnswerCorrectionTodoService;
+import io.dataease.ai.query.trusted.TrustedAnswerSensitivePayloadService;
+import io.dataease.api.ai.query.request.TrustedAnswerCorrectionFeedbackRequest;
 import io.dataease.ai.query.trusted.TrustedAnswerTraceStore;
 import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorCode;
@@ -49,6 +52,33 @@ class TrustedAnswerOpsServiceTest {
         assertEquals("ta-2", repairItems.get(0).getTraceId());
         assertEquals("NO_AUTHORIZED_DATASET", repairItems.get(0).getErrorCode());
         assertEquals("修复权限", repairItems.get(0).getPrimaryAction());
+    }
+
+    @Test
+    void scopedRepairQueueShouldContainCorrectionTodos() {
+        TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
+        TrustedAnswerCorrectionTodoService todoService = new TrustedAnswerCorrectionTodoService(
+                new TrustedAnswerSensitivePayloadService("ops-unit-test-secret")
+        );
+        TrustedAnswerCorrectionFeedbackRequest request = new TrustedAnswerCorrectionFeedbackRequest();
+        request.setThemeId("1001");
+        request.setResourceId("11");
+        request.setDiagnosisType("FIELD_AMBIGUOUS");
+        request.setQuestionText("客户编码和客户名称识别错了");
+        todoService.create("tenant-1", "workspace-1", "user-1", request);
+
+        TrustedAnswerOpsService service = new TrustedAnswerOpsService(traceStore, todoService);
+        List<TrustedAnswerRepairItemVO> repairItems = service.repairQueue(
+                "resource_owner",
+                "tenant-1",
+                "workspace-1",
+                "user-1"
+        );
+
+        assertEquals(1, repairItems.size());
+        assertEquals("correction_todo", repairItems.get(0).getSourceType());
+        assertEquals("FIELD_AMBIGUOUS", repairItems.get(0).getErrorCode());
+        assertEquals("处理反馈", repairItems.get(0).getPrimaryAction());
     }
 
     private static TrustedAnswerTraceVO trace(

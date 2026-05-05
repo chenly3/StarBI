@@ -523,10 +523,13 @@ public class TrustedAnswerStubSqlBotProxy {
         if (sourceTrace == null || sourceTrace.getState() != TrustedAnswerState.TRUSTED) {
             DEException.throwException(TrustedAnswerErrorCode.TRUSTED_TRACE_REQUIRED.toError().getMessage());
         }
+        if (!isTraceOwnedByCurrentUser(sourceTrace)) {
+            DEException.throwException(TrustedAnswerErrorCode.TRUSTED_TRACE_REQUIRED.toError().getMessage());
+        }
         if (requiresTrustedRecordScope(actionType)) {
             String recordId = StringUtils.defaultIfBlank(request.getRecordId(), extractRecordId(path));
-            if (StringUtils.isBlank(recordId)
-                    || sourceTrace.getAuthorizedRecordIds().stream().noneMatch(recordId::equals)) {
+            if (StringUtils.isNotBlank(recordId)
+                    && sourceTrace.getAuthorizedRecordIds().stream().noneMatch(recordId::equals)) {
                 DEException.throwException(TrustedAnswerErrorCode.TRUSTED_TRACE_REQUIRED.toError().getMessage());
             }
         }
@@ -549,6 +552,27 @@ public class TrustedAnswerStubSqlBotProxy {
                 || actionType == TrustedAnswerActionType.FORECAST
                 || actionType == TrustedAnswerActionType.CHART_DATA
                 || actionType == TrustedAnswerActionType.USAGE;
+    }
+
+    private boolean isTraceOwnedByCurrentUser(TrustedAnswerTraceVO trace) {
+        if (trace == null || !hasTraceOwner(trace) || AuthUtils.isSysAdmin()) {
+            return true;
+        }
+        TokenUserBO user = AuthUtils.getUser();
+        if (user == null || user.getUserId() == null || user.getDefaultOid() == null) {
+            return false;
+        }
+        String userId = String.valueOf(user.getUserId());
+        String orgId = String.valueOf(user.getDefaultOid());
+        return StringUtils.equals(trace.getOwnerUserId(), userId)
+                && StringUtils.equals(trace.getOwnerOrgId(), orgId)
+                && StringUtils.equals(trace.getOwnerWorkspaceId(), orgId);
+    }
+
+    private boolean hasTraceOwner(TrustedAnswerTraceVO trace) {
+        return StringUtils.isNotBlank(trace.getOwnerUserId())
+                || StringUtils.isNotBlank(trace.getOwnerOrgId())
+                || StringUtils.isNotBlank(trace.getOwnerWorkspaceId());
     }
 
     private String extractRecordId(String path) {

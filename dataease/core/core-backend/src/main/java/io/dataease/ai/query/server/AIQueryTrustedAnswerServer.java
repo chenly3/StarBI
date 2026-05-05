@@ -4,10 +4,12 @@ import io.dataease.ai.query.trusted.TrustedAnswerOpsService;
 import io.dataease.ai.query.trusted.TrustedAnswerActionContractService;
 import io.dataease.ai.query.trusted.TrustedAnswerCorrectionTodoService;
 import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
+import io.dataease.ai.query.trusted.TrustedAnswerRuntimePolicyService;
 import io.dataease.ai.query.trusted.TrustedAnswerSemanticPatchService;
 import io.dataease.ai.query.trusted.TrustedAnswerSensitivePayloadService;
 import io.dataease.ai.query.trusted.TrustedAnswerStubSqlBotProxy;
 import io.dataease.ai.query.trusted.TrustedAnswerTraceStore;
+import io.dataease.api.ai.query.vo.TrustedAnswerRuntimePolicyVO;
 import io.dataease.api.ai.query.request.AIQuerySqlBotRuntimeProxyRequest;
 import io.dataease.api.ai.query.request.TrustedAnswerCorrectionFeedbackRequest;
 import io.dataease.api.ai.query.request.TrustedAnswerRequest;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 
 @RestController
 @RequestMapping("/ai/query/trusted-answer")
@@ -45,6 +48,7 @@ public class AIQueryTrustedAnswerServer {
     private final TrustedAnswerActionContractService actionContractService;
     private final TrustedAnswerCorrectionTodoService correctionTodoService;
     private final TrustedAnswerSemanticPatchService semanticPatchService;
+    private final TrustedAnswerRuntimePolicyService runtimePolicyService;
 
     public AIQueryTrustedAnswerServer(
             TrustedAnswerRuntimeContextService runtimeContextService,
@@ -59,7 +63,8 @@ public class AIQueryTrustedAnswerServer {
                 opsService,
                 new TrustedAnswerActionContractService(),
                 new TrustedAnswerCorrectionTodoService(new TrustedAnswerSensitivePayloadService("unit-test-secret")),
-                new TrustedAnswerSemanticPatchService()
+                new TrustedAnswerSemanticPatchService(),
+                new TrustedAnswerRuntimePolicyService((java.util.function.Function<String, String>) key -> null)
         );
     }
 
@@ -71,7 +76,8 @@ public class AIQueryTrustedAnswerServer {
             TrustedAnswerOpsService opsService,
             TrustedAnswerActionContractService actionContractService,
             TrustedAnswerCorrectionTodoService correctionTodoService,
-            TrustedAnswerSemanticPatchService semanticPatchService
+            TrustedAnswerSemanticPatchService semanticPatchService,
+            TrustedAnswerRuntimePolicyService runtimePolicyService
     ) {
         this.runtimeContextService = runtimeContextService;
         this.stubSqlBotProxy = stubSqlBotProxy;
@@ -87,6 +93,30 @@ public class AIQueryTrustedAnswerServer {
         this.semanticPatchService = semanticPatchService == null
                 ? new TrustedAnswerSemanticPatchService()
                 : semanticPatchService;
+        this.runtimePolicyService = runtimePolicyService == null
+                ? new TrustedAnswerRuntimePolicyService((java.util.function.Function<String, String>) key -> null)
+                : runtimePolicyService;
+    }
+
+    public AIQueryTrustedAnswerServer(
+            TrustedAnswerRuntimeContextService runtimeContextService,
+            TrustedAnswerStubSqlBotProxy stubSqlBotProxy,
+            TrustedAnswerTraceStore traceStore,
+            TrustedAnswerOpsService opsService,
+            TrustedAnswerActionContractService actionContractService,
+            TrustedAnswerCorrectionTodoService correctionTodoService,
+            TrustedAnswerSemanticPatchService semanticPatchService
+    ) {
+        this(
+                runtimeContextService,
+                stubSqlBotProxy,
+                traceStore,
+                opsService,
+                actionContractService,
+                correctionTodoService,
+                semanticPatchService,
+                new TrustedAnswerRuntimePolicyService((java.util.function.Function<String, String>) key -> null)
+        );
     }
 
     @PostMapping("/stream")
@@ -99,7 +129,9 @@ public class AIQueryTrustedAnswerServer {
             if (request == null) {
                 request = new TrustedAnswerRequest();
             }
-            request.setActionType(TrustedAnswerActionType.BASIC_ASK);
+            if (request.getActionType() == null) {
+                request.setActionType(TrustedAnswerActionType.BASIC_ASK);
+            }
             TrustedAnswerTraceVO trace = runtimeContextService.buildTrace(request);
             stubSqlBotProxy.stream(trace, request, httpRequest, response);
         } catch (Exception e) {
@@ -120,7 +152,9 @@ public class AIQueryTrustedAnswerServer {
 
     @GetMapping("/trace/{traceId}")
     public TrustedAnswerTraceVO trace(@PathVariable("traceId") String traceId) {
-        return traceStore.get(traceId);
+        TrustedAnswerTraceVO trace = traceStore.get(traceId);
+        assertTraceVisible(trace);
+        return trace;
     }
 
     @GetMapping("/trust-health")
@@ -130,12 +164,23 @@ public class AIQueryTrustedAnswerServer {
 
     @GetMapping("/repair-queue")
     public List<TrustedAnswerRepairItemVO> repairQueue() {
-        return opsService.repairQueue();
+        CurrentUserScope scope = currentUserScope();
+        return opsService.repairQueue(
+                AuthUtils.isSysAdmin() ? "diagnosis_operator" : "resource_owner",
+                scope.tenantId(),
+                scope.workspaceId(),
+                scope.userId()
+        );
     }
 
     @GetMapping("/contracts")
     public List<TrustedAnswerEndpointContractVO> contracts() {
         return actionContractService.contracts();
+    }
+
+    @GetMapping("/runtime-policy")
+    public TrustedAnswerRuntimePolicyVO runtimePolicy() {
+        return runtimePolicyService.load();
     }
 
     @PostMapping("/correction-todos")
@@ -169,6 +214,20 @@ public class AIQueryTrustedAnswerServer {
         return semanticPatchService.apply(request);
     }
 
+    @GetMapping("/semantic-patches")
+    public List<TrustedAnswerSemanticPatchVO> semanticPatches() {
+        return semanticPatchService.listAll();
+    }
+
+    @PostMapping("/history-restore-trace")
+    public TrustedAnswerTraceVO historyRestoreTrace(@RequestBody TrustedAnswerRequest request) {
+        if (request == null) {
+            request = new TrustedAnswerRequest();
+        }
+        request.setActionType(TrustedAnswerActionType.HISTORY_RESTORE);
+        return runtimeContextService.buildTrace(request);
+    }
+
     @PostMapping("/dashboard/ask")
     public TrustedAnswerTraceVO dashboardAsk(@RequestBody TrustedAnswerRequest request) {
         if (request == null) {
@@ -197,5 +256,24 @@ public class AIQueryTrustedAnswerServer {
     }
 
     private record CurrentUserScope(String tenantId, String workspaceId, String userId) {
+    }
+
+    private void assertTraceVisible(TrustedAnswerTraceVO trace) {
+        if (trace == null || !hasTraceOwner(trace) || AuthUtils.isSysAdmin()) {
+            return;
+        }
+        CurrentUserScope scope = currentUserScope();
+        boolean sameUser = StringUtils.equals(trace.getOwnerUserId(), scope.userId());
+        boolean sameOrg = StringUtils.equals(trace.getOwnerOrgId(), scope.tenantId())
+                && StringUtils.equals(trace.getOwnerWorkspaceId(), scope.workspaceId());
+        if (!sameUser || !sameOrg) {
+            throw new IllegalArgumentException("trusted trace is not visible to current user");
+        }
+    }
+
+    private boolean hasTraceOwner(TrustedAnswerTraceVO trace) {
+        return StringUtils.isNotBlank(trace.getOwnerUserId())
+                || StringUtils.isNotBlank(trace.getOwnerOrgId())
+                || StringUtils.isNotBlank(trace.getOwnerWorkspaceId());
     }
 }

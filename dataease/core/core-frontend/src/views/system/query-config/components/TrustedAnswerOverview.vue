@@ -19,6 +19,28 @@
           <strong>{{ health?.blocking_issue_count ?? 0 }}</strong>
         </article>
       </div>
+      <div class="trusted-answer-overview__status-grid">
+        <article class="trusted-answer-overview__status-card">
+          <span>动作契约</span>
+          <strong>{{ contracts.length }}</strong>
+          <p>覆盖可见问数入口与 SQLBot 代理路径</p>
+        </article>
+        <article class="trusted-answer-overview__status-card">
+          <span>运行时开关</span>
+          <strong>{{ runtimePolicyLabel }}</strong>
+          <p>问数、解读、预测、追问按后端开关执行</p>
+        </article>
+        <article class="trusted-answer-overview__status-card">
+          <span>修正待办</span>
+          <strong>{{ correctionTodos.length }}</strong>
+          <p>用户反馈与系统诊断进入运营修复队列</p>
+        </article>
+        <article class="trusted-answer-overview__status-card">
+          <span>语义补丁</span>
+          <strong>{{ semanticPatchHealthLabel }}</strong>
+          <p>已发布/草稿/停用补丁进入健康观察</p>
+        </article>
+      </div>
     </div>
 
     <div class="trusted-answer-overview__queue">
@@ -29,14 +51,16 @@
       <div v-if="repairItems.length" class="trusted-answer-overview__repair-list">
         <article
           v-for="item in repairItems.slice(0, 3)"
-          :key="item.trace_id"
+          :key="item.trace_id || item.todo_id"
           class="trusted-answer-overview__repair-item"
         >
           <div>
             <strong>{{ item.message || item.error_code || '待处理问题' }}</strong>
             <p>{{ item.fix || item.cause || '查看 Trace 定位原因' }}</p>
           </div>
-          <button class="trusted-answer-overview__trace-button" type="button">查看 Trace</button>
+          <button class="trusted-answer-overview__trace-button" type="button">
+            {{ item.source_type === 'correction_todo' ? '处理反馈' : '查看 Trace' }}
+          </button>
         </article>
       </div>
       <div v-else class="trusted-answer-overview__empty">
@@ -53,13 +77,25 @@
 import { computed, onMounted, ref } from 'vue'
 import {
   getTrustedAnswerTrustHealth,
+  getTrustedAnswerRuntimePolicy,
+  listTrustedAnswerContracts,
+  listTrustedAnswerCorrectionTodos,
   listTrustedAnswerRepairQueue,
+  listTrustedAnswerSemanticPatches,
+  type TrustedAnswerCorrectionTodo,
+  type TrustedAnswerEndpointContract,
   type TrustedAnswerRepairItem,
+  type TrustedAnswerRuntimePolicy,
+  type TrustedAnswerSemanticPatch,
   type TrustedAnswerTrustHealth
 } from '@/api/aiTrustedAnswer'
 
 const health = ref<TrustedAnswerTrustHealth | null>(null)
 const repairItems = ref<TrustedAnswerRepairItem[]>([])
+const contracts = ref<TrustedAnswerEndpointContract[]>([])
+const runtimePolicy = ref<TrustedAnswerRuntimePolicy | null>(null)
+const correctionTodos = ref<TrustedAnswerCorrectionTodo[]>([])
+const semanticPatches = ref<TrustedAnswerSemanticPatch[]>([])
 const loadError = ref('')
 
 function unwrapResponse<T>(response: any, fallback: T): T {
@@ -73,20 +109,64 @@ const healthLabel = computed(() => {
   return health.value.trusted ? '可信' : '需修复'
 })
 
+const runtimePolicyLabel = computed(() => {
+  if (!runtimePolicy.value) {
+    return '待加载'
+  }
+  const switches = [
+    runtimePolicy.value.ask_enabled,
+    runtimePolicy.value.data_interpretation_enabled,
+    runtimePolicy.value.forecast_enabled,
+    runtimePolicy.value.followup_enabled
+  ]
+  const enabledCount = switches.filter(Boolean).length
+  return `${enabledCount}/${switches.length}`
+})
+
+const semanticPatchHealthLabel = computed(() => {
+  if (!semanticPatches.value.length) {
+    return '0'
+  }
+  const publishedCount = semanticPatches.value.filter(item => item.status === 'PUBLISHED').length
+  return `${publishedCount}/${semanticPatches.value.length}`
+})
+
 const loadOverview = async () => {
   try {
-    const [healthResult, repairQueueResult] = await Promise.all([
+    const [
+      healthResult,
+      repairQueueResult,
+      contractsResult,
+      runtimePolicyResult,
+      correctionTodosResult,
+      semanticPatchesResult
+    ] = await Promise.all([
       getTrustedAnswerTrustHealth(),
-      listTrustedAnswerRepairQueue()
+      listTrustedAnswerRepairQueue(),
+      listTrustedAnswerContracts(),
+      getTrustedAnswerRuntimePolicy(),
+      listTrustedAnswerCorrectionTodos(),
+      listTrustedAnswerSemanticPatches()
     ])
     health.value = unwrapResponse<TrustedAnswerTrustHealth | null>(healthResult, null)
     const repairPayload = unwrapResponse<TrustedAnswerRepairItem[]>(repairQueueResult, [])
     repairItems.value = Array.isArray(repairPayload) ? repairPayload : []
+    const contractPayload = unwrapResponse<TrustedAnswerEndpointContract[]>(contractsResult, [])
+    contracts.value = Array.isArray(contractPayload) ? contractPayload : []
+    runtimePolicy.value = unwrapResponse<TrustedAnswerRuntimePolicy | null>(runtimePolicyResult, null)
+    const todoPayload = unwrapResponse<TrustedAnswerCorrectionTodo[]>(correctionTodosResult, [])
+    correctionTodos.value = Array.isArray(todoPayload) ? todoPayload : []
+    const patchPayload = unwrapResponse<TrustedAnswerSemanticPatch[]>(semanticPatchesResult, [])
+    semanticPatches.value = Array.isArray(patchPayload) ? patchPayload : []
     loadError.value = ''
   } catch (error) {
     console.error('load trusted answer overview failed', error)
     health.value = null
     repairItems.value = []
+    contracts.value = []
+    runtimePolicy.value = null
+    correctionTodos.value = []
+    semanticPatches.value = []
     loadError.value = '可信答案概览暂时不可用，请确认后端服务已更新。'
   }
 }
@@ -138,6 +218,41 @@ onMounted(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
+}
+
+.trusted-answer-overview__status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.trusted-answer-overview__status-card {
+  border: 1px solid #e6ebf2;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 10px 12px;
+}
+
+.trusted-answer-overview__status-card span {
+  color: #5f6f89;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.trusted-answer-overview__status-card strong {
+  display: block;
+  margin-top: 3px;
+  color: #1f2733;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.trusted-answer-overview__status-card p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .trusted-answer-overview__metric {
@@ -225,6 +340,10 @@ onMounted(() => {
 @media (max-width: 1180px) {
   .trusted-answer-overview {
     grid-template-columns: 1fr;
+  }
+
+  .trusted-answer-overview__status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

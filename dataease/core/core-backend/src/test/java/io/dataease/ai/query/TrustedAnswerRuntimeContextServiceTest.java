@@ -131,6 +131,29 @@ class TrustedAnswerRuntimeContextServiceTest {
     }
 
     @Test
+    void trustedTraceShouldCarryCurrentOwnerScope() {
+        TrustedAnswerRequest request = request(1001L, 21L);
+        AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
+        when(aiQueryThemeManage.getTheme(1001L)).thenReturn(theme);
+        when(datasetSQLBotManage.getDatasourceList(21L, null, "11"))
+                .thenReturn(List.of(datasource(21L, 11L, "amount")));
+        when(aiQueryThemeManage.listQueryLearningResources()).thenReturn(List.of(learnedResource("11")));
+
+        TrustedAnswerTraceVO trace;
+        try {
+            AuthUtils.setUser(new TokenUserBO(9L, 900L));
+            trace = service.buildTrace(request);
+        } finally {
+            AuthUtils.remove();
+        }
+
+        assertEquals(TrustedAnswerState.TRUSTED, trace.getState());
+        assertEquals("9", trace.getOwnerUserId());
+        assertEquals("900", trace.getOwnerOrgId());
+        assertEquals("900", trace.getOwnerWorkspaceId());
+    }
+
+    @Test
     void trustedRuntimeContextShouldIncludePublishedSemanticPatchSummary() {
         TrustedAnswerSemanticPatchService patchService = new TrustedAnswerSemanticPatchService();
         service = new TrustedAnswerRuntimeContextService(

@@ -1,6 +1,7 @@
 import { ElMessage } from 'element-plus-secondary'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { getSQLBotEmbedConfig } from '@/api/aiQueryTheme'
+import { createTrustedAnswerHistoryRestoreTrace } from '@/api/aiTrustedAnswer'
 import { useCache } from '@/hooks/web/useCache'
 import {
   explainSqlbotError,
@@ -758,11 +759,14 @@ export const useSqlbotNewConversation = () => {
     }
   }
 
-  const buildHistoryRequestContext = (assistantToken: string): SQLBotRequestContext => {
+  const buildHistoryRequestContext = (
+    assistantToken: string,
+    fallbackSourceTraceId?: string
+  ): SQLBotRequestContext => {
     const sourceTraceId = [...(conversationSession.value?.records || [])]
       .reverse()
       .map(record => record.trustedTraceId)
-      .find(Boolean)
+      .find(Boolean) || fallbackSourceTraceId
     return {
       domain: embedState.value.domain,
       assistantId: String(embedState.value.id),
@@ -777,6 +781,30 @@ export const useSqlbotNewConversation = () => {
       locale: String(wsCache.get('lang') || 'zh-CN'),
       sourceTraceId
     }
+  }
+
+  const createHistoryRestoreTrace = async (
+    entry: SqlbotNewHistoryEntry,
+    executionContext: SqlbotNewExecutionContext,
+    chatId: number
+  ) => {
+    const response = await createTrustedAnswerHistoryRestoreTrace({
+      question: entry.lastQuestion || entry.title || '恢复历史问数',
+      theme_id: executionContext.themeId || undefined,
+      datasource_id: executionContext.datasourceId || undefined,
+      model_id: executionContext.modelId || undefined,
+      chat_id: chatId,
+      action_type: 'HISTORY_RESTORE',
+      entry_scene: 'history_restore',
+      resource_kind: executionContext.queryMode,
+      resource_id:
+        executionContext.combinationId ||
+        executionContext.sourceId ||
+        executionContext.sourceIds?.[0] ||
+        ''
+    })
+    const payload = (response as any)?.data ?? response
+    return String(payload?.trace_id || payload?.traceId || '')
   }
 
   const buildPersistedExecutionEventPayload = (executionContext: SqlbotNewExecutionContext) => {
@@ -2902,7 +2930,12 @@ export const useSqlbotNewConversation = () => {
       const assistantToken = await ensureAssistantToken(
         activeExecutionContext.value || fallbackExecutionContext
       )
-      const detailRequestContext = buildHistoryRequestContext(assistantToken)
+      const restoreTraceId = await createHistoryRestoreTrace(
+        entry,
+        fallbackExecutionContext,
+        targetChatId
+      )
+      const detailRequestContext = buildHistoryRequestContext(assistantToken, restoreTraceId)
       const [contextPayload, detail] = await Promise.all([
         getSQLBotNewHistoryContext(detailRequestContext, targetChatId),
         getSQLBotChatWithData(detailRequestContext, targetChatId)

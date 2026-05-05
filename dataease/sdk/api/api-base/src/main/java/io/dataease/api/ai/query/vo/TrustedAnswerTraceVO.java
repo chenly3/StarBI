@@ -46,4 +46,13 @@ public class TrustedAnswerTraceVO implements Serializable {
 
     @JsonProperty("blocked_reason")
     private String blockedReason;
+
+    @JsonProperty("owner_user_id")
+    private String ownerUserId;
+
+    @JsonProperty("owner_org_id")
+    private String ownerOrgId;
+
+    @JsonProperty("owner_workspace_id")
+    private String ownerWorkspaceId;
 }

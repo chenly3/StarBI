@@ -54,9 +54,18 @@ const contractCases: ContractCase[] = [
     run() {
       assertMatch(overviewSource, /getTrustedAnswerTrustHealth/, 'trust health API')
       assertMatch(overviewSource, /listTrustedAnswerRepairQueue/, 'repair queue API')
+      assertMatch(overviewSource, /listTrustedAnswerContracts/, 'contracts API')
+      assertMatch(overviewSource, /getTrustedAnswerRuntimePolicy/, 'runtime policy API')
+      assertMatch(overviewSource, /listTrustedAnswerCorrectionTodos/, 'correction todo API')
+      assertMatch(overviewSource, /listTrustedAnswerSemanticPatches/, 'semantic patch API')
       assertMatch(overviewSource, /可信健康/, 'trust health title')
       assertMatch(overviewSource, /待修复答案/, 'repair queue title')
       assertMatch(overviewSource, /查看 Trace/, 'trace action')
+      assertMatch(overviewSource, /动作契约/, 'contract health copy')
+      assertMatch(overviewSource, /运行时开关/, 'runtime switch copy')
+      assertMatch(overviewSource, /修正待办/, 'correction todo health copy')
+      assertMatch(overviewSource, /语义补丁/, 'semantic patch health copy')
+      assertMatch(overviewSource, /处理反馈/, 'correction todo action')
     }
   }
 ]

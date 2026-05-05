@@ -33,6 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AIQueryTrustedAnswerContractSmokeTest {
@@ -175,7 +176,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
     }
 
     @Test
-    void streamEndpointShouldForceBasicAskActionType() throws Exception {
+    void streamEndpointShouldPreserveExplicitActionTypeAndDefaultMissingAction() throws Exception {
         TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
         TrustedAnswerRuntimeContextService runtimeContextService = new TrustedAnswerRuntimeContextService(null, null, traceStore, null) {
             @Override
@@ -183,7 +184,7 @@ class AIQueryTrustedAnswerContractSmokeTest {
                 TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
                 trace.setTraceId("ta-action");
                 trace.setState(
-                        request.getActionType() == TrustedAnswerActionType.BASIC_ASK
+                        request.getActionType() == TrustedAnswerActionType.DATA_INTERPRETATION
                                 ? TrustedAnswerState.NO_AUTHORIZED_CONTEXT
                                 : TrustedAnswerState.TRUSTED
                 );
@@ -198,13 +199,19 @@ class AIQueryTrustedAnswerContractSmokeTest {
                 new TrustedAnswerOpsService(traceStore)
         );
         TrustedAnswerRequest request = new TrustedAnswerRequest();
-        request.setActionType(TrustedAnswerActionType.ASSISTANT_VALIDATE);
+        request.setActionType(TrustedAnswerActionType.DATA_INTERPRETATION);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         server.stream(request, null, response);
 
-        assertEquals(TrustedAnswerActionType.BASIC_ASK, request.getActionType());
+        assertEquals(TrustedAnswerActionType.DATA_INTERPRETATION, request.getActionType());
         assertTrue(response.getContentAsString().contains("\"code\":\"ASK_DISABLED\""));
+
+        TrustedAnswerRequest defaultedRequest = new TrustedAnswerRequest();
+        defaultedRequest.setActionType(null);
+        server.stream(defaultedRequest, null, new MockHttpServletResponse());
+
+        assertEquals(TrustedAnswerActionType.BASIC_ASK, defaultedRequest.getActionType());
     }
 
     @Test
@@ -239,6 +246,31 @@ class AIQueryTrustedAnswerContractSmokeTest {
         assertEquals(TrustedAnswerActionType.DASHBOARD_ASK, dashboardTrace.getContext().getActionType());
         assertEquals(TrustedAnswerActionType.FILE_ASK, fileRequest.getActionType());
         assertEquals(TrustedAnswerActionType.FILE_ASK, fileTrace.getContext().getActionType());
+    }
+
+    @Test
+    void traceEndpointShouldBlockCrossUserOwnedTrace() {
+        TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setTraceId("ta-owned");
+        trace.setState(TrustedAnswerState.TRUSTED);
+        trace.setOwnerUserId("2");
+        trace.setOwnerOrgId("20");
+        trace.setOwnerWorkspaceId("20");
+        traceStore.put(trace);
+        AIQueryTrustedAnswerServer server = new AIQueryTrustedAnswerServer(
+                null,
+                null,
+                traceStore,
+                new TrustedAnswerOpsService(traceStore)
+        );
+
+        try {
+            AuthUtils.setUser(new TokenUserBO(3L, 20L));
+            assertThrows(IllegalArgumentException.class, () -> server.trace("ta-owned"));
+        } finally {
+            AuthUtils.remove();
+        }
     }
 
     @Test
@@ -298,12 +330,21 @@ class AIQueryTrustedAnswerContractSmokeTest {
         Method traceMethod = AIQueryTrustedAnswerServer.class.getMethod("trace", String.class);
         Method trustHealthMethod = AIQueryTrustedAnswerServer.class.getMethod("trustHealth");
         Method repairQueueMethod = AIQueryTrustedAnswerServer.class.getMethod("repairQueue");
+        Method runtimePolicyMethod = AIQueryTrustedAnswerServer.class.getMethod("runtimePolicy");
+        Method semanticPatchesMethod = AIQueryTrustedAnswerServer.class.getMethod("semanticPatches");
+        Method historyRestoreTraceMethod = AIQueryTrustedAnswerServer.class.getMethod(
+                "historyRestoreTrace",
+                TrustedAnswerRequest.class
+        );
 
         assertEquals(Void.TYPE, streamMethod.getReturnType());
         assertEquals(Void.TYPE, sqlBotRuntimeMethod.getReturnType());
         assertEquals(TrustedAnswerTraceVO.class, traceMethod.getReturnType());
         assertNotNull(trustHealthMethod.getReturnType());
         assertEquals(List.class, repairQueueMethod.getReturnType());
+        assertNotNull(runtimePolicyMethod.getReturnType());
+        assertEquals(List.class, semanticPatchesMethod.getReturnType());
+        assertEquals(TrustedAnswerTraceVO.class, historyRestoreTraceMethod.getReturnType());
     }
 
     @Test
@@ -373,6 +414,43 @@ class AIQueryTrustedAnswerContractSmokeTest {
         assertEquals("4", proxyRequest.getFirstHeader("X-DE-USER-ID").getValue());
         assertEquals("44", proxyRequest.getFirstHeader("X-DE-ORG-ID").getValue());
         assertNotNull(proxyRequest.getFirstHeader("X-DE-INTERNAL-SIGNATURE"));
+    }
+
+    @Test
+    void runtimeProxyScopeValidationShouldBlockCrossUserOwnedTrace() throws Exception {
+        TrustedAnswerTraceStore traceStore = new TrustedAnswerTraceStore();
+        TrustedAnswerTraceVO trace = new TrustedAnswerTraceVO();
+        trace.setTraceId("ta-owned-proxy");
+        trace.setState(TrustedAnswerState.TRUSTED);
+        trace.setOwnerUserId("2");
+        trace.setOwnerOrgId("20");
+        trace.setOwnerWorkspaceId("20");
+        traceStore.put(trace);
+        AIQuerySqlBotRuntimeProxyRequest request = new AIQuerySqlBotRuntimeProxyRequest();
+        request.setSourceTraceId("ta-owned-proxy");
+
+        Method method = TrustedAnswerStubSqlBotProxy.class.getDeclaredMethod(
+                "validateTrustedRuntimeScope",
+                AIQuerySqlBotRuntimeProxyRequest.class,
+                TrustedAnswerActionType.class,
+                String.class
+        );
+        method.setAccessible(true);
+
+        try {
+            AuthUtils.setUser(new TokenUserBO(3L, 20L));
+            assertThrows(
+                    java.lang.reflect.InvocationTargetException.class,
+                    () -> method.invoke(
+                            new TrustedAnswerStubSqlBotProxy(null, null, null, traceStore),
+                            request,
+                            TrustedAnswerActionType.HISTORY_RESTORE,
+                            "/chat/8/with_data"
+                    )
+            );
+        } finally {
+            AuthUtils.remove();
+        }
     }
 
     @Test

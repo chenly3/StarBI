@@ -1,11 +1,13 @@
 package io.dataease.ai.query.trusted;
 
 import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
+import io.dataease.api.ai.query.vo.TrustedAnswerCorrectionTodoVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerErrorVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerRepairItemVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerState;
 import io.dataease.api.ai.query.vo.TrustedAnswerTraceVO;
 import io.dataease.api.ai.query.vo.TrustedAnswerTrustHealthVO;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +58,28 @@ public class TrustedAnswerOpsService {
                 .toList();
     }
 
+    public List<TrustedAnswerRepairItemVO> repairQueue(
+            String role,
+            String tenantId,
+            String workspaceId,
+            String userId
+    ) {
+        List<TrustedAnswerRepairItemVO> traceItems = traceStore.recent().stream()
+                .filter(trace -> isVisibleTrace(trace, role, tenantId, workspaceId, userId))
+                .filter(trace -> isRepairState(trace.getState()))
+                .map(this::toRepairItem)
+                .toList();
+        if (correctionTodoService == null) {
+            return traceItems;
+        }
+        List<TrustedAnswerRepairItemVO> todoItems = correctionTodoService
+                .listForScope(role, tenantId, workspaceId)
+                .stream()
+                .map(this::toRepairItem)
+                .toList();
+        return java.util.stream.Stream.concat(traceItems.stream(), todoItems.stream()).toList();
+    }
+
     private boolean isRepairState(TrustedAnswerState state) {
         return state == TrustedAnswerState.NO_AUTHORIZED_CONTEXT
                 || state == TrustedAnswerState.UNSAFE_BLOCKED
@@ -68,6 +92,7 @@ public class TrustedAnswerOpsService {
 
         TrustedAnswerRepairItemVO item = new TrustedAnswerRepairItemVO();
         item.setTraceId(trace.getTraceId());
+        item.setSourceType("trace");
         item.setState(trace.getState());
         item.setThemeName(context == null ? null : context.getThemeName());
         if (error != null) {
@@ -80,6 +105,44 @@ public class TrustedAnswerOpsService {
             item.setPrimaryAction("查看 Trace");
         }
         return item;
+    }
+
+    private TrustedAnswerRepairItemVO toRepairItem(TrustedAnswerCorrectionTodoVO todo) {
+        TrustedAnswerRepairItemVO item = new TrustedAnswerRepairItemVO();
+        item.setTodoId(todo.getTodoId());
+        item.setSourceType("correction_todo");
+        item.setState(TrustedAnswerState.UNSAFE_BLOCKED);
+        item.setErrorCode(todo.getDiagnosisType());
+        item.setMessage(todo.getSanitizedQuestionSummary());
+        item.setCause("用户反馈或系统诊断已进入准确率修正待办。");
+        item.setFix("在运营修正台处理为术语、别名、规则、SQL 示例、推荐问题或资源重学任务。");
+        item.setPrimaryAction("处理反馈");
+        return item;
+    }
+
+    private boolean isVisibleTrace(
+            TrustedAnswerTraceVO trace,
+            String role,
+            String tenantId,
+            String workspaceId,
+            String userId
+    ) {
+        if (trace == null || !hasOwner(trace)) {
+            return true;
+        }
+        boolean sameUser = StringUtils.equals(trace.getOwnerUserId(), userId);
+        boolean sameOrg = StringUtils.equals(trace.getOwnerOrgId(), tenantId)
+                && StringUtils.equals(trace.getOwnerWorkspaceId(), workspaceId);
+        if ("diagnosis_operator".equals(role)) {
+            return sameOrg;
+        }
+        return sameUser && sameOrg;
+    }
+
+    private boolean hasOwner(TrustedAnswerTraceVO trace) {
+        return StringUtils.isNotBlank(trace.getOwnerUserId())
+                || StringUtils.isNotBlank(trace.getOwnerOrgId())
+                || StringUtils.isNotBlank(trace.getOwnerWorkspaceId());
     }
 
     private String primaryAction(String errorCode) {

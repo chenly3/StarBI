@@ -73,6 +73,21 @@ const contractCases: ContractCase[] = [
         'semantic patch endpoint'
       )
       assertMatch(
+        trustedAnswerSource,
+        /getTrustedAnswerRuntimePolicy/,
+        'runtime policy wrapper'
+      )
+      assertMatch(
+        trustedAnswerSource,
+        /listTrustedAnswerSemanticPatches/,
+        'semantic patch list wrapper'
+      )
+      assertMatch(
+        trustedAnswerSource,
+        /createTrustedAnswerHistoryRestoreTrace/,
+        'history restore trace wrapper'
+      )
+      assertMatch(
         axiosRequestSource,
         /\.\.\.\(headers \|\| \{\}\)/,
         'axios request wrapper preserves custom headers'
@@ -189,6 +204,11 @@ const contractCases: ContractCase[] = [
         sqlbotDirectSource,
         /actionType:\s*'SNAPSHOT'[\s\S]*sourceTraceId:\s*context\.sourceTraceId/,
         'snapshot trace'
+      )
+      assertMatch(
+        readSource('src/views/sqlbot-new/useSqlbotNewConversation.ts'),
+        /createHistoryRestoreTrace[\s\S]*action_type:\s*'HISTORY_RESTORE'[\s\S]*buildHistoryRequestContext\(assistantToken,\s*restoreTraceId\)/,
+        'cold history restore trace'
       )
     }
   },
