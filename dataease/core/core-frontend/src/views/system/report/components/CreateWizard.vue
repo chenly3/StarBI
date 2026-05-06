@@ -54,7 +54,7 @@
 
 <script lang="ts" setup>
 import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
 import Step1Basic from './Step1Basic.vue'
 import Step2Recipient from './Step2Recipient.vue'

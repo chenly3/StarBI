@@ -153,7 +153,10 @@ const loadOverview = async () => {
     repairItems.value = Array.isArray(repairPayload) ? repairPayload : []
     const contractPayload = unwrapResponse<TrustedAnswerEndpointContract[]>(contractsResult, [])
     contracts.value = Array.isArray(contractPayload) ? contractPayload : []
-    runtimePolicy.value = unwrapResponse<TrustedAnswerRuntimePolicy | null>(runtimePolicyResult, null)
+    runtimePolicy.value = unwrapResponse<TrustedAnswerRuntimePolicy | null>(
+      runtimePolicyResult,
+      null
+    )
     const todoPayload = unwrapResponse<TrustedAnswerCorrectionTodo[]>(correctionTodosResult, [])
     correctionTodos.value = Array.isArray(todoPayload) ? todoPayload : []
     const patchPayload = unwrapResponse<TrustedAnswerSemanticPatch[]>(semanticPatchesResult, [])

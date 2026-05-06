@@ -120,7 +120,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
 import { reportPager, reportFireNow, reportStop, reportStart, reportDelete } from '@/api/report'
 

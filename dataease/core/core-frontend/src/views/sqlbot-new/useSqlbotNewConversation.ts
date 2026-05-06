@@ -763,10 +763,11 @@ export const useSqlbotNewConversation = () => {
     assistantToken: string,
     fallbackSourceTraceId?: string
   ): SQLBotRequestContext => {
-    const sourceTraceId = [...(conversationSession.value?.records || [])]
-      .reverse()
-      .map(record => record.trustedTraceId)
-      .find(Boolean) || fallbackSourceTraceId
+    const sourceTraceId =
+      [...(conversationSession.value?.records || [])]
+        .reverse()
+        .map(record => record.trustedTraceId)
+        .find(Boolean) || fallbackSourceTraceId
     return {
       domain: embedState.value.domain,
       assistantId: String(embedState.value.id),

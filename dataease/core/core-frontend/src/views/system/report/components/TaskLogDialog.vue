@@ -103,7 +103,7 @@
 <script lang="ts" setup>
 import { ref, watch } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus-secondary'
 import { useI18n } from '@/hooks/web/useI18n'
 import { reportLogPager, reportDeleteLog, reportLogMsg } from '@/api/report'
 
