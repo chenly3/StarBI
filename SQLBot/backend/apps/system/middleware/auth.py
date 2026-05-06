@@ -35,10 +35,21 @@ class InternalUserMiddleware(BaseHTTPMiddleware):
             if client_host in ("127.0.0.1", "::1", "localhost") and verify_internal_signature(
                 de_user_id,
                 request.headers.get("X-DE-ORG-ID"),
+                request.headers.get("X-DE-USER-ACCOUNT"),
+                request.headers.get("X-DE-USER-NAME"),
+                request.headers.get("X-DE-IS-ADMIN"),
+                request.headers.get("X-DE-IS-WS-ADMIN"),
                 request.headers.get("X-DE-INTERNAL-TIMESTAMP"),
                 request.headers.get("X-DE-INTERNAL-SIGNATURE"),
             ):
-                internal_user = build_internal_user(de_user_id, request.headers.get("X-DE-ORG-ID"))
+                internal_user = build_internal_user(
+                    de_user_id,
+                    request.headers.get("X-DE-ORG-ID"),
+                    request.headers.get("X-DE-USER-ACCOUNT"),
+                    request.headers.get("X-DE-USER-NAME"),
+                    request.headers.get("X-DE-IS-ADMIN"),
+                    request.headers.get("X-DE-IS-WS-ADMIN"),
+                )
                 if not internal_user:
                     return JSONResponse(
                         "Invalid internal DataEase user headers",
