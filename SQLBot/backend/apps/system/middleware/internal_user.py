@@ -23,6 +23,17 @@ def build_internal_user(de_user_id: Optional[str], de_org_id: Optional[str]) -> 
     org_id = _parse_positive_int(de_org_id)
     if not user_id or not org_id:
         return None
+    if user_id == 1:
+        return UserInfoDTO(
+            id=1,
+            name="admin",
+            account="admin",
+            oid=org_id,
+            email="admin@dataease",
+            language="zh-CN",
+            weight=0,
+            isAdmin=True,
+        )
     return UserInfoDTO(
         id=user_id,
         name=f"internal-{user_id}",

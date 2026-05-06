@@ -32,6 +32,15 @@ class InternalUserMiddlewareTest(unittest.TestCase):
         self.assertFalse(user.isAdmin)
         self.assertEqual(0, user.weight)
 
+    def test_internal_dataease_admin_maps_to_sqlbot_admin(self):
+        user = build_internal_user("1", "1")
+
+        self.assertIsNotNone(user)
+        self.assertEqual(1, user.id)
+        self.assertEqual(1, user.oid)
+        self.assertEqual("admin", user.account)
+        self.assertTrue(user.isAdmin)
+
     def test_internal_user_rejects_missing_org_header(self):
         self.assertIsNone(build_internal_user("4", None))
         self.assertIsNone(build_internal_user("4", "0"))
