@@ -1,10 +1,5 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    :title="t('report.task_log')"
-    width="900px"
-    @close="handleClose"
-  >
+  <el-dialog v-model="visible" :title="t('report.task_log')" width="900px" @close="handleClose">
     <!-- 日志筛选 -->
     <div class="log-filter">
       <el-select
@@ -18,16 +13,12 @@
         <el-option :label="t('report.status_success')" value="0" />
         <el-option :label="t('report.status_failed')" value="1" />
       </el-select>
-      
+
       <el-button @click="loadLogs" style="margin-left: 10px">
         <el-icon><Refresh /></el-icon>
       </el-button>
-      
-      <el-button 
-        type="danger" 
-        @click="handleDeleteLogs"
-        style="margin-left: auto"
-      >
+
+      <el-button type="danger" @click="handleDeleteLogs" style="margin-left: auto">
         {{ t('report.delete_logs') }}
       </el-button>
     </div>
@@ -61,12 +52,7 @@
 
       <el-table-column :label="t('common.operations')" width="150">
         <template #default="{ row }">
-          <el-button
-            v-if="row.execStatus === 1"
-            link
-            type="primary"
-            @click="handleViewError(row)"
-          >
+          <el-button v-if="row.execStatus === 1" link type="primary" @click="handleViewError(row)">
             {{ t('report.view_error') }}
           </el-button>
         </template>
@@ -130,7 +116,7 @@ const errorMessage = ref('')
 // 加载日志
 const loadLogs = async () => {
   if (!props.taskId) return
-  
+
   loading.value = true
   try {
     const res = await reportLogPager({
@@ -164,20 +150,16 @@ const handleViewError = async (row: any) => {
 // 删除日志
 const handleDeleteLogs = async () => {
   try {
-    await ElMessageBox.confirm(
-      t('report.delete_logs_confirm'),
-      t('common.tip'),
-      {
-        type: 'warning',
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel')
-      }
-    )
-    
+    await ElMessageBox.confirm(t('report.delete_logs_confirm'), t('common.tip'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel')
+    })
+
     await reportDeleteLog({
       taskId: props.taskId
     })
-    
+
     ElMessage.success(t('report.delete_logs_success'))
     loadLogs()
   } catch (error) {
@@ -198,11 +180,15 @@ const handleClose = () => {
   emit('close')
 }
 
-watch(() => props.taskId, () => {
-  if (props.taskId) {
-    loadLogs()
-  }
-}, { immediate: true })
+watch(
+  () => props.taskId,
+  () => {
+    if (props.taskId) {
+      loadLogs()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style lang="less" scoped>

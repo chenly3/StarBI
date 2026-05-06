@@ -120,6 +120,22 @@ export const routes: AppRouteRecordRaw[] = [
     ]
   },
   {
+    path: '/sys-setting/report',
+    name: 'sys-setting-report-shell',
+    component: () => import('@/layout/index.vue'),
+    hidden: true,
+    meta: { hidden: true },
+    children: [
+      {
+        path: '',
+        name: 'sys-setting-report-page',
+        hidden: true,
+        component: () => import('@/views/system/report/index.vue'),
+        meta: { hidden: true }
+      }
+    ]
+  },
+  {
     path: '/sys-setting/font',
     name: 'sys-setting-font-shell',
     component: () => import('@/layout/index.vue'),

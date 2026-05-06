@@ -14,25 +14,13 @@
 
     <div class="wizard-content">
       <!-- 步骤1: 基本信息 -->
-      <step1-basic
-        v-show="currentStep === 0"
-        ref="step1Ref"
-        :form-data="formData"
-      />
+      <step1-basic v-show="currentStep === 0" ref="step1Ref" :form-data="formData" />
 
       <!-- 步骤2: 接收人 -->
-      <step2-recipient
-        v-show="currentStep === 1"
-        ref="step2Ref"
-        :form-data="formData"
-      />
+      <step2-recipient v-show="currentStep === 1" ref="step2Ref" :form-data="formData" />
 
       <!-- 步骤3: 发送设置 -->
-      <step3-send
-        v-show="currentStep === 2"
-        ref="step3Ref"
-        :form-data="formData"
-      />
+      <step3-send v-show="currentStep === 2" ref="step3Ref" :form-data="formData" />
     </div>
 
     <template #footer>
@@ -110,7 +98,7 @@ const formData = ref<any>({
 // 加载任务详情
 const loadTaskInfo = async () => {
   if (!props.taskId) return
-  
+
   try {
     const res = await reportInfo(props.taskId)
     formData.value = {
@@ -153,7 +141,7 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     const data = { ...formData.value }
-    
+
     if (isEdit.value) {
       data.taskId = props.taskId
       await reportUpdate(data)
@@ -162,7 +150,7 @@ const handleSubmit = async () => {
       await reportCreate(data)
       ElMessage.success(t('report.create_success'))
     }
-    
+
     emit('success')
     handleClose()
   } catch (error) {
@@ -177,11 +165,15 @@ const handleClose = () => {
   emit('close')
 }
 
-watch(() => props.taskId, () => {
-  if (props.taskId) {
-    loadTaskInfo()
-  }
-}, { immediate: true })
+watch(
+  () => props.taskId,
+  () => {
+    if (props.taskId) {
+      loadTaskInfo()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style lang="less" scoped>

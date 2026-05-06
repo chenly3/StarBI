@@ -40,7 +40,7 @@
       :empty-text="t('report.no_tasks')"
     >
       <el-table-column prop="name" :label="t('report.task_name')" min-width="200" />
-      
+
       <el-table-column :label="t('report.status')" width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === 0 ? 'success' : 'info'">
@@ -100,11 +100,7 @@
     </div>
 
     <!-- 立即执行确认对话框 -->
-    <el-dialog
-      v-model="showFireDialog"
-      :title="t('report.fire_now_confirm_title')"
-      width="400px"
-    >
+    <el-dialog v-model="showFireDialog" :title="t('report.fire_now_confirm_title')" width="400px">
       <p>{{ t('report.fire_now_confirm_message') }}</p>
       <p v-if="fireTask" class="fire-task-name">{{ fireTask.name }}</p>
       <template #footer>
@@ -187,7 +183,7 @@ const handleFireNow = (task: any) => {
 
 const confirmFireNow = async () => {
   if (!fireTask.value) return
-  
+
   firing.value = true
   try {
     await reportFireNow(fireTask.value.id)
@@ -203,15 +199,13 @@ const confirmFireNow = async () => {
 // 切换状态
 const handleToggleStatus = async (task: any) => {
   const action = task.status === 0 ? 'stop' : 'start'
-  const confirmMsg = task.status === 0 
-    ? t('report.stop_confirm') 
-    : t('report.start_confirm')
-  
+  const confirmMsg = task.status === 0 ? t('report.stop_confirm') : t('report.start_confirm')
+
   try {
     await ElMessageBox.confirm(confirmMsg, t('common.tip'), {
       type: 'warning'
     })
-    
+
     if (action === 'stop') {
       await reportStop(task.id)
       ElMessage.success(t('report.stop_success'))
@@ -219,7 +213,7 @@ const handleToggleStatus = async (task: any) => {
       await reportStart(task.id)
       ElMessage.success(t('report.start_success'))
     }
-    
+
     loadTasks()
   } catch (error) {
     if (error !== 'cancel') {
@@ -240,7 +234,7 @@ const handleDelete = async (task: any) => {
         cancelButtonText: t('common.cancel')
       }
     )
-    
+
     await reportDelete([task.id])
     ElMessage.success(t('report.delete_success'))
     loadTasks()
@@ -252,7 +246,7 @@ const handleDelete = async (task: any) => {
 }
 
 // 格式化调度信息
-const formatSchedule = (row: any) => {
+const formatSchedule = () => {
   // TODO: 根据rateType和rateVal格式化调度信息
   return t('report.schedule_daily', { time: '12:00' })
 }
@@ -287,7 +281,7 @@ defineExpose({
 
 .task-table {
   flex: 1;
-  
+
   :deep(.el-table__empty-block) {
     min-height: 200px;
   }
