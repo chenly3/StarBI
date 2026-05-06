@@ -131,7 +131,7 @@ export const routes: AppRouteRecordRaw[] = [
         name: 'sys-setting-report-page',
         hidden: true,
         component: () => import('@/views/system/report/index.vue'),
-        meta: { hidden: true, title: 'scheduled_reports_title' }
+        meta: { hidden: true }
       }
     ]
   },

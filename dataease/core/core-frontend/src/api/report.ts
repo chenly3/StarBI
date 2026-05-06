@@ -1,4 +1,4 @@
-import { request } from '@/utils/request'
+import request from '@/config/axios'
 
 /**
  * 分页查询任务列表
@@ -104,10 +104,7 @@ export const reportLogPager = (data: {
 /**
  * 删除日志
  */
-export const reportDeleteLog = (data: {
-  taskId?: number
-  ids?: number[]
-}) => {
+export const reportDeleteLog = (data: { taskId?: number; ids?: number[] }) => {
   return request.post({
     url: '/reportTask/deleteLog',
     data

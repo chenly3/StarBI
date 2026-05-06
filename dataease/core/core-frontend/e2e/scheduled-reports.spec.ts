@@ -226,7 +226,8 @@ async function navigateToReportPage(page: Page) {
 // ---------------------------------------------------------------------------
 
 test.describe('Scheduled Reports - E2E Acceptance', () => {
-  test.describe.configure({ mode: 'serial' })
+  // Remove serial mode to allow all tests to run independently
+  // If one test fails, others will still execute
 
   // Skip the entire suite if the backend is not available
   test.beforeAll(async () => {
@@ -262,7 +263,7 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
 
     // Check if empty state is visible (likely what we see)
     const emptyState = page.locator('.ed-empty').first()
-    const hasEmptyState = await emptyState.count() > 0
+    const hasEmptyState = (await emptyState.count()) > 0
 
     if (hasEmptyState) {
       await expect(emptyState).toBeVisible({ timeout: 5000 })
@@ -291,7 +292,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await login(page)
     await navigateToReportPage(page)
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
 
     const dialog = page.locator('.el-dialog')
@@ -324,7 +328,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await login(page)
     await navigateToReportPage(page)
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
 
@@ -365,7 +372,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await login(page)
     await navigateToReportPage(page)
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
 
@@ -402,7 +412,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await login(page)
     await navigateToReportPage(page)
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
 
@@ -441,7 +454,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await login(page)
     await navigateToReportPage(page)
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
 
@@ -559,7 +575,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     const pageTitle = page.locator('.system-setting-page__title, h1')
     await expect(pageTitle).toBeVisible({ timeout: 15_000 })
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await expect(createBtn).toBeVisible()
 
     const tableContainer = page.locator('.task-list-container')
@@ -576,7 +595,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     await navigateToReportPage(page)
     await takeScreenshot(page, '14-visual-report-list')
 
-    const createBtn = page.locator('.el-button').filter({ hasText: /新建|创建/ }).first()
+    const createBtn = page
+      .locator('.el-button')
+      .filter({ hasText: /新建|创建/ })
+      .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
     await takeScreenshot(page, '15-visual-wizard-step1')

@@ -1,10 +1,11 @@
 <template>
-  <el-dialog
+  <el-drawer
     v-model="visible"
     :title="isEdit ? t('report.edit_task') : t('report.create_task')"
-    width="800px"
-    :close-on-click-modal="false"
-    @close="handleClose"
+    destroy-on-close
+    size="640px"
+    :before-close="handleClose"
+    modal-class="report-task-drawer"
   >
     <el-steps :active="currentStep" finish-status="success" class="wizard-steps">
       <el-step :title="t('report.step_basic')" />
@@ -13,31 +14,48 @@
     </el-steps>
 
     <div class="wizard-content">
-      <!-- 步骤1: 基本信息 -->
-      <step1-basic v-show="currentStep === 0" ref="step1Ref" :form-data="formData" />
-
-      <!-- 步骤2: 接收人 -->
-      <step2-recipient v-show="currentStep === 1" ref="step2Ref" :form-data="formData" />
-
-      <!-- 步骤3: 发送设置 -->
-      <step3-send v-show="currentStep === 2" ref="step3Ref" :form-data="formData" />
+      <el-scrollbar>
+        <step1-basic
+          v-show="currentStep === 0"
+          ref="step1Ref"
+          :form-data="formData"
+          @update:form-data="formData = $event"
+        />
+        <step2-recipient
+          v-show="currentStep === 1"
+          ref="step2Ref"
+          :form-data="formData"
+          @update:form-data="formData = $event"
+        />
+        <step3-send
+          v-show="currentStep === 2"
+          ref="step3Ref"
+          :form-data="formData"
+          @update:form-data="formData = $event"
+        />
+      </el-scrollbar>
     </div>
 
     <template #footer>
-      <div class="wizard-footer">
-        <el-button v-if="currentStep > 0" @click="handlePrev">
+      <div class="dialog-footer">
+        <el-button v-if="currentStep > 0" secondary @click="handlePrev">
           {{ t('common.prev') }}
         </el-button>
         <el-button v-if="currentStep < 2" type="primary" @click="handleNext">
           {{ t('common.next') }}
         </el-button>
-        <el-button v-else type="primary" :loading="submitting" @click="handleSubmit">
-          {{ isEdit ? t('common.update') : t('common.create') }}
+        <el-button
+          v-if="currentStep === 2"
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          {{ isEdit ? t('common.save') : t('common.sure') }}
         </el-button>
-        <el-button @click="handleClose">{{ t('common.cancel') }}</el-button>
+        <el-button secondary @click="handleClose">{{ t('common.cancel') }}</el-button>
       </div>
     </template>
-  </el-dialog>
+  </el-drawer>
 </template>
 
 <script lang="ts" setup>
@@ -58,6 +76,7 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'success'])
 
 const visible = ref(true)
+
 const currentStep = ref(0)
 const submitting = ref(false)
 const step1Ref = ref()
@@ -66,7 +85,6 @@ const step3Ref = ref()
 
 const isEdit = computed(() => props.taskId !== null)
 
-// 表单数据
 const formData = ref<any>({
   name: '',
   title: '',
@@ -95,42 +113,29 @@ const formData = ref<any>({
   dataPermission: 0
 })
 
-// 加载任务详情
 const loadTaskInfo = async () => {
   if (!props.taskId) return
-
   try {
     const res = await reportInfo(props.taskId)
-    formData.value = {
-      ...formData.value,
-      ...res.data
-    }
-  } catch (error) {
+    formData.value = { ...formData.value, ...res.data }
+  } catch {
     ElMessage.error(t('report.load_info_failed'))
   }
 }
 
-// 上一步
 const handlePrev = () => {
-  if (currentStep.value > 0) {
-    currentStep.value--
-  }
+  if (currentStep.value > 0) currentStep.value--
 }
 
-// 下一步
 const handleNext = async () => {
   const currentRef = [step1Ref, step2Ref, step3Ref][currentStep.value]
-  if (currentRef && currentRef.value) {
+  if (currentRef?.value) {
     const valid = await currentRef.value.validate()
-    if (valid) {
-      currentStep.value++
-    }
+    if (valid) currentStep.value++
   }
 }
 
-// 提交
 const handleSubmit = async () => {
-  // 验证所有步骤
   for (const stepRef of [step1Ref, step2Ref, step3Ref]) {
     if (stepRef.value) {
       const valid = await stepRef.value.validate()
@@ -141,7 +146,6 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     const data = { ...formData.value }
-
     if (isEdit.value) {
       data.taskId = props.taskId
       await reportUpdate(data)
@@ -150,27 +154,24 @@ const handleSubmit = async () => {
       await reportCreate(data)
       ElMessage.success(t('report.create_success'))
     }
-
     emit('success')
     handleClose()
-  } catch (error) {
+  } catch {
     ElMessage.error(isEdit.value ? t('report.update_failed') : t('report.create_failed'))
   } finally {
     submitting.value = false
   }
 }
 
-// 关闭
 const handleClose = () => {
+  currentStep.value = 0
   emit('close')
 }
 
 watch(
   () => props.taskId,
   () => {
-    if (props.taskId) {
-      loadTaskInfo()
-    }
+    if (props.taskId) loadTaskInfo()
   },
   { immediate: true }
 )
@@ -178,17 +179,92 @@ watch(
 
 <style lang="less" scoped>
 .wizard-steps {
-  margin-bottom: 30px;
+  margin-bottom: 24px;
+  padding: 0 4px;
 }
 
 .wizard-content {
   min-height: 400px;
-  padding: 20px;
+  max-height: calc(100vh - 300px);
+  overflow: hidden;
 }
+</style>
+<style lang="less">
+.report-task-drawer {
+  .ed-drawer__header {
+    margin-bottom: 0;
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid #edf0f5;
+  }
 
-.wizard-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  .ed-drawer__title {
+    color: #111827;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+  }
+
+  .ed-drawer__body {
+    padding: 18px 24px;
+    color: #27364f;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-drawer__footer {
+    padding: 14px 24px 20px;
+    border-top: 1px solid #edf0f5;
+  }
+
+  .ed-form-item__label {
+    margin-bottom: 8px;
+    color: #344054;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 600;
+  }
+
+  .ed-input__wrapper,
+  .ed-select__wrapper {
+    min-height: var(--system-control-height, 44px);
+    height: var(--system-control-height, 44px);
+    border-radius: 8px;
+    font-size: 15px;
+    box-sizing: border-box;
+  }
+
+  .ed-input__inner,
+  .ed-select__input,
+  .ed-select__placeholder {
+    height: var(--system-control-height, 44px);
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-textarea__inner {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .ed-radio__label,
+  .ed-checkbox__label {
+    font-size: 15px;
+  }
+
+  .ed-button {
+    height: var(--system-control-height, 44px);
+    min-height: var(--system-control-height, 44px);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
 }
 </style>
