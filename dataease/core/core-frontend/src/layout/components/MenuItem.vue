@@ -34,7 +34,8 @@ const titleFallbackMap = {
   org: '组织管理',
   'query-config': '问数配置',
   permission: '权限配置',
-  'row-column-permission': '行列权限配置'
+  'row-column-permission': '行列权限配置',
+  report: '定时报告'
 }
 
 const iconFallbackMap = {
@@ -44,7 +45,8 @@ const iconFallbackMap = {
   permission: 'icon_security',
   font: 'icon_font',
   'query-config': 'icon_msg_fill',
-  'row-column-permission': 'icon_security'
+  'row-column-permission': 'icon_security',
+  report: 'report'
 }
 
 const menuIconStyle = {

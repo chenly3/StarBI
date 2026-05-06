@@ -17,7 +17,8 @@ const SETTING_MENU_WHITELIST = new Set([
   'org',
   'permission',
   'query-config',
-  'row-column-permission'
+  'row-column-permission',
+  'report'
 ])
 type MenuRouteRecord = {
   path: string
@@ -50,7 +51,8 @@ const SYSTEM_SETTING_TARGET_PATHS: Record<string, string> = {
   org: '/sys-setting/org',
   permission: '/sys-setting/permission',
   'query-config': '/sys-setting/query-config',
-  'row-column-permission': '/sys-setting/row-column-permission'
+  'row-column-permission': '/sys-setting/row-column-permission',
+  report: '/sys-setting/report'
 }
 
 const tempColor = computed(() => {

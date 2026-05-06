@@ -228,6 +228,8 @@ export default {
     ai_config_center_desc: '统一维护模型、术语和 SQL 示例库，作为智能问数的通用配置入口。',
     query_config_title: '问数配置',
     query_config_subtitle: '统一管理问数资源与分析主题，作为系统设置下的智能问数配置入口。',
+    scheduled_reports_title: '定时报告',
+    scheduled_reports_subtitle: '配置定时任务，自动发送仪表盘、电子表格等报告到邮箱、钉钉、企微、飞书。',
     query_config_resource_manage: '问数资源管理',
     query_config_theme_manage: '分析主题管理',
     adjust_theme_assignment: '调整分析主题分配',
