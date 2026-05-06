@@ -22,6 +22,45 @@ const normalizeList = (values?: string[]) => {
   return Array.isArray(values) ? values.map(item => normalizeText(item)).filter(Boolean) : []
 }
 
+const knownMetricTokens = [
+  '应付金额',
+  '官网价',
+  '销售金额',
+  '销售额',
+  '金额',
+  '销售数量',
+  '销量',
+  '订单数',
+  '订单量',
+  '用户数',
+  '用户量',
+  '利润',
+  '成本'
+]
+
+const knownDimensionTokens = [
+  '产品',
+  '账号',
+  '云类型',
+  '账期',
+  '店铺',
+  '门店',
+  '品类',
+  '品线',
+  '地区',
+  '城市',
+  '日期',
+  '月份',
+  '时间'
+]
+
+const splitScopedTokens = (value?: string) => {
+  return normalizeText(value)
+    .split(/[\/,，；;|\s]+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
 const splitParagraphs = (value?: string) => {
   return normalizeText(value)
     .split('\n')
@@ -151,21 +190,7 @@ const questionMetricValue = computed(() => {
     return ''
   }
 
-  const knownMetrics = [
-    '销售金额',
-    '销售额',
-    '金额',
-    '销售数量',
-    '销量',
-    '订单数',
-    '订单量',
-    '用户数',
-    '用户量',
-    '利润',
-    '成本'
-  ]
-
-  return knownMetrics.find(item => question.includes(item)) || ''
+  return knownMetricTokens.find(item => question.includes(item)) || ''
 })
 
 const questionDimensionValue = computed(() => {
@@ -174,16 +199,27 @@ const questionDimensionValue = computed(() => {
     return ''
   }
 
-  const knownDimensions = ['店铺', '门店', '品类', '品线', '地区', '城市', '日期', '月份', '时间']
-  return knownDimensions.find(item => question.includes(item)) || ''
+  return knownDimensionTokens.find(item => question.includes(item)) || ''
 })
 
 const preferredMetric = computed(() => {
   return metricValue.value || questionMetricValue.value || '核心指标'
 })
 
+const scopedFields = computed(() => {
+  return [...new Set(splitScopedTokens(props.executionSummary?.scopeLabel))]
+})
+
+const scopedDimensionCandidates = computed(() => {
+  return knownDimensionTokens.filter(item => scopedFields.value.includes(item))
+})
+
+const fallbackDimension = computed(() => {
+  return scopedDimensionCandidates.value.find(item => item !== preferredMetric.value) || ''
+})
+
 const preferredDimension = computed(() => {
-  return dimensionValue.value || questionDimensionValue.value || ''
+  return dimensionValue.value || fallbackDimension.value || questionDimensionValue.value || ''
 })
 
 const recognizedItems = computed(() => {
@@ -233,18 +269,28 @@ const nextQuestionSuggestions = computed(() => {
   const normalizedQuestion = questionText.value
   const metric = preferredMetric.value
   const dimension = preferredDimension.value
-  const baseDimension = dimension || '店铺'
+  const scopedFallbackMetric = metric === '核心指标' ? '' : metric
 
   if (normalizedQuestion.includes('占比')) {
-    suggestions.push(`按${baseDimension}统计${metric}占比`)
-    suggestions.push(`按品类统计${metric}占比`)
-    suggestions.push(`近30天按${baseDimension}统计${metric}占比`)
-    suggestions.push(`本月按${baseDimension}统计${metric}占比`)
+    if (dimension && scopedFallbackMetric) {
+      suggestions.push(`按${dimension}统计${metric}占比`)
+      suggestions.push(`近30天按${dimension}统计${metric}占比`)
+      suggestions.push(`本月按${dimension}统计${metric}占比`)
+    } else if (scopedFallbackMetric) {
+      suggestions.push(`近30天${metric}占比`)
+      suggestions.push(`本月${metric}占比`)
+      suggestions.push(`总览${metric}占比`)
+    }
   } else {
-    suggestions.push(`按${baseDimension}统计${metric}`)
-    suggestions.push(`按品类统计${metric}`)
-    suggestions.push(`近30天按${baseDimension}统计${metric}`)
-    suggestions.push(`本月按${baseDimension}统计${metric}`)
+    if (dimension && scopedFallbackMetric) {
+      suggestions.push(`按${dimension}统计${metric}`)
+      suggestions.push(`近30天按${dimension}统计${metric}`)
+      suggestions.push(`本月按${dimension}统计${metric}`)
+    } else if (scopedFallbackMetric) {
+      suggestions.push(`近30天统计${metric}`)
+      suggestions.push(`本月统计${metric}`)
+      suggestions.push(`总览${metric}`)
+    }
   }
 
   normalizeList(props.record.recommendQuestions).forEach(item => {

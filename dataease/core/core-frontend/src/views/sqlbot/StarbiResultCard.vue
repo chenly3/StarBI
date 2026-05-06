@@ -486,11 +486,18 @@ const errorReasonLine = computed(() => {
   return `底层返回的信息是：${errorInfo.value.detail}`
 })
 
+const canViewExecutionDetails = computed(() =>
+  Boolean(props.showExecutionDetails && props.record.id)
+)
+
 const errorSuggestionLine = computed(() => {
-  if (!errorInfo.value.suggestions.length) {
+  const visibleSuggestions = errorInfo.value.suggestions.filter(
+    item => canViewExecutionDetails.value || !item.includes('执行详情')
+  )
+  if (!visibleSuggestions.length) {
     return ''
   }
-  return `你可以先这样处理：${errorInfo.value.suggestions.join('；')}`
+  return `你可以先这样处理：${visibleSuggestions.join('；')}`
 })
 
 const reasoningPanelTitle = computed(() => {
@@ -1061,7 +1068,7 @@ const handlePredictAction = () => {
     <div class="starbi-result-foot">
       <div class="starbi-result-actions">
         <button
-          v-if="showExecutionDetails && record.id"
+          v-if="canViewExecutionDetails"
           class="starbi-foot-btn ghost"
           type="button"
           @pointerdown.stop

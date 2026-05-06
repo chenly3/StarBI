@@ -107,6 +107,7 @@ const isExpanded = (key: string) => expandedKeys.value.includes(key)
   <el-drawer
     :model-value="visible"
     :size="drawerSize"
+    append-to-body
     direction="rtl"
     title="执行详情"
     custom-class="sqlbot-new-execution-drawer"

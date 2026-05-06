@@ -42,6 +42,12 @@ const conversationRecordSource = readSource(
 const conversationSource = readSource('src/views/sqlbot-new/useSqlbotNewConversation.ts')
 const historySource = readSource('src/views/sqlbot-new/useSqlbotNewHistory.ts')
 const indexSource = readSource('src/views/sqlbot-new/index.vue')
+const executionDetailsDrawerSource = readSource(
+  'src/views/sqlbot-new/components/ExecutionDetailsDrawer.vue'
+)
+const executionMetaCardSource = readSource(
+  'src/views/sqlbot-new/components/SqlbotNewExecutionMetaCard.vue'
+)
 
 const contractCases: ContractCase[] = [
   {
@@ -187,6 +193,58 @@ const contractCases: ContractCase[] = [
         /restoreHistorySession[\s\S]*catch \(error\) \{[\s\S]*writeActiveSessionId\(''\)/,
         'failed history restore should clear stale active id'
       )
+    }
+  },
+  {
+    name: 'execution details drawer renders as body-level overlay and index opens it through runtime details api',
+    run() {
+      assertMatch(
+        starbiResultCardSource,
+        /emit\('view-execution-details', record\)/,
+        'result card execution details emit'
+      )
+      assertMatch(
+        indexSource,
+        /const openExecutionDetails = async \(record: SqlbotNewConversationRecordItem\)/,
+        'index execution details handler'
+      )
+      assertMatch(indexSource, /getExecutionDetails\(recordId\)/, 'execution details api call')
+      assertMatch(
+        executionDetailsDrawerSource,
+        /append-to-body/,
+        'execution details drawer should append to body'
+      )
+    }
+  },
+  {
+    name: 'error copy only mentions execution details when the action is actually available',
+    run() {
+      assertMatch(
+        starbiResultCardSource,
+        /const canViewExecutionDetails = computed\(\(\) =>\s*Boolean\(props\.showExecutionDetails && props\.record\.id\)\s*\)/,
+        'result card execution detail capability guard'
+      )
+      assertMatch(
+        starbiResultCardSource,
+        /errorInfo\.value\.suggestions\.filter\(\s*item =>\s*canViewExecutionDetails\.value\s*\|\|\s*!item\.includes\('执行详情'\)\s*\)/,
+        'error copy should drop execution-detail guidance when no entry is available'
+      )
+    }
+  },
+  {
+    name: 'failure suggestions stay inside current smart query scope instead of defaulting to shop or category language',
+    run() {
+      assertMatch(
+        executionMetaCardSource,
+        /scopeValue\.value|datasourceLabel|selectionMeta|sourceMeta/,
+        'failure suggestions should use current scope metadata'
+      )
+      if (/const baseDimension = dimension \|\| '店铺'/.test(executionMetaCardSource)) {
+        fail('failure suggestions must not default base dimension to 店铺')
+      }
+      if (/suggestions\.push\(`按品类统计/.test(executionMetaCardSource)) {
+        fail('failure suggestions must not hard-code 品类 fallback copy')
+      }
     }
   }
 ]
