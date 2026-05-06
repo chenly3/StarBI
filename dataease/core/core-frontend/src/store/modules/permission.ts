@@ -82,7 +82,8 @@ const SYSTEM_ADMIN_SETTING_PATHS = [
   '/sys-setting/user',
   '/sys-setting/org',
   '/sys-setting/permission',
-  '/sys-setting/row-column-permission'
+  '/sys-setting/row-column-permission',
+  '/sys-setting/report'
 ]
 
 const isAdminUser = () => {

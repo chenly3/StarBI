@@ -226,7 +226,9 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
       .first()
     await expect(createBtn).toBeVisible({ timeout: 10_000 })
 
-    const searchInput = page.locator('.task-toolbar input, .search-input, input[placeholder*="搜索"]').first()
+    const searchInput = page
+      .locator('.task-toolbar input, .search-input, input[placeholder*="搜索"]')
+      .first()
     await expect(searchInput).toBeVisible({ timeout: 10_000 })
 
     const table = page.locator('.task-table, .el-table, .ed-empty')
