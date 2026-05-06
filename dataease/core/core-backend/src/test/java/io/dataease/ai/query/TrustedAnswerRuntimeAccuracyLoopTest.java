@@ -1,5 +1,9 @@
 package io.dataease.ai.query;
 
+import io.dataease.ai.query.trusted.TrustedAnswerRuntimeContextService;
+import io.dataease.api.ai.query.vo.AIQueryLearningResourceVO;
+import io.dataease.api.ai.query.vo.TrustedAnswerContextVO;
+import io.dataease.substitute.permissions.dataset.SubstituteDatasetExampleStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -269,6 +273,25 @@ class TrustedAnswerRuntimeAccuracyLoopTest {
                 source.contains("context.setReadinessState(ResourceReadinessState.FORMAL_ASKABLE);"),
                 "runtime context must not unconditionally mark resources as formal askable"
         );
+    }
+
+    @Test
+    void substituteDatasetShouldUseDataEaseAuthorizedScopeWhenSqlBotLearningResourceIsMissing() {
+        TrustedAnswerContextVO context = new TrustedAnswerContextVO();
+        context.setDatasourceId(SubstituteDatasetExampleStore.DATASET_ID);
+        context.setResourceId("datasource:" + SubstituteDatasetExampleStore.DATASET_ID);
+        context.setVisibleFieldCount(4);
+
+        AIQueryLearningResourceVO resource = TrustedAnswerRuntimeContextService.substituteLearningResourceFromAuthorizedScope(
+                context,
+                List.of(SubstituteDatasetExampleStore.DATASET_ID)
+        );
+
+        assertTrue(resource != null, "local authorized substitute dataset should produce a runtime learning resource");
+        assertTrue("succeeded".equals(resource.getLearningStatus()));
+        assertTrue(Boolean.TRUE.equals(resource.getEnabled()));
+        assertTrue(Boolean.TRUE.equals(resource.getThemeBound()));
+        assertTrue(resource.getFieldCount() == 4);
     }
 
     private static Object newInstance(String className) throws Exception {

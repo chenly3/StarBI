@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -232,6 +233,49 @@ class AIQueryResourceLearningContractSmokeTest {
         assertEquals(11, camelCase.getAmbiguityRate30d());
         assertEquals("TRIAL_ASKABLE", String.valueOf(camelCase.getReadinessState()));
         assertEquals("ASK_PARTIAL", String.valueOf(camelCase.getAskabilityState()));
+    }
+
+    @Test
+    void resourceLearningShouldPreferCurrentAccountThenFallbackToAdminForMissingEmbeddedIdentity() throws Exception {
+        Method candidatesMethod = AIQueryThemeManage.class.getDeclaredMethod(
+                "resourceLearningAccountCandidates",
+                String.class
+        );
+        candidatesMethod.setAccessible(true);
+
+        assertEquals(
+                List.of("docs_demo", "admin"),
+                candidatesMethod.invoke(null, "docs_demo")
+        );
+        assertEquals(
+                List.of("admin"),
+                candidatesMethod.invoke(null, "admin")
+        );
+        assertEquals(
+                List.of("admin"),
+                candidatesMethod.invoke(null, "")
+        );
+    }
+
+    @Test
+    void resourceLearningShouldRecognizeMissingEmbeddedAccountErrorsForFallbackRetry() throws Exception {
+        Method fallbackMethod = AIQueryThemeManage.class.getDeclaredMethod(
+                "shouldRetryResourceLearningWithAdmin",
+                Exception.class
+        );
+        fallbackMethod.setAccessible(true);
+
+        boolean retryable = (boolean) fallbackMethod.invoke(
+                null,
+                new RuntimeException("HttpClient查询失败: \"Authentication invalid【Account does not exist!】\"")
+        );
+        boolean nonRetryable = (boolean) fallbackMethod.invoke(
+                null,
+                new RuntimeException("sqlbot config disabled")
+        );
+
+        assertTrue(retryable);
+        assertEquals(false, nonRetryable);
     }
 
     private static Class<?> firstGenericArgument(Method method) {
