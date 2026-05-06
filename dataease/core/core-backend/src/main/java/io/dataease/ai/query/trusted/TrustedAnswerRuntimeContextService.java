@@ -293,23 +293,51 @@ public class TrustedAnswerRuntimeContextService {
             TrustedAnswerContextVO context,
             List<Long> datasetIds
     ) {
-        List<String> candidates = new java.util.ArrayList<>();
+        Set<String> candidates = new java.util.LinkedHashSet<>();
         if (StringUtils.isNotBlank(context.getResourceId())) {
-            candidates.add(context.getResourceId());
+            addResourceCandidate(candidates, context.getResourceId());
         }
-        datasetIds.stream().map(String::valueOf).forEach(candidates::add);
+        if (context.getDatasourceId() != null) {
+            addResourceCandidate(candidates, String.valueOf(context.getDatasourceId()));
+        }
+        datasetIds.stream().map(String::valueOf).forEach(candidate -> addResourceCandidate(candidates, candidate));
         if (candidates.isEmpty()) {
             return null;
         }
         try {
-            return aiQueryThemeManage.listQueryLearningResources().stream()
+            return aiQueryThemeManage.listRuntimeQueryLearningResources().stream()
                     .filter(Objects::nonNull)
-                    .filter(resource -> candidates.contains(resource.getResourceId()))
+                    .filter(resource -> resourceIdMatches(candidates, resource.getResourceId()))
                     .findFirst()
                     .orElse(null);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static void addResourceCandidate(Set<String> candidates, String resourceId) {
+        String normalized = StringUtils.trimToEmpty(resourceId);
+        if (StringUtils.isBlank(normalized)) {
+            return;
+        }
+        candidates.add(normalized);
+        if (StringUtils.startsWith(normalized, "datasource:")) {
+            String rawId = StringUtils.substringAfter(normalized, "datasource:");
+            if (StringUtils.isNotBlank(rawId)) {
+                candidates.add(rawId);
+            }
+            return;
+        }
+        candidates.add("datasource:" + normalized);
+    }
+
+    private static boolean resourceIdMatches(Set<String> candidates, String resourceId) {
+        if (StringUtils.isBlank(resourceId)) {
+            return false;
+        }
+        Set<String> resourceCandidates = new java.util.LinkedHashSet<>();
+        addResourceCandidate(resourceCandidates, resourceId);
+        return resourceCandidates.stream().anyMatch(candidates::contains);
     }
 
     private TrustedAnswerTraceVO completeWithError(TrustedAnswerTraceVO trace, TrustedAnswerErrorCode errorCode) {

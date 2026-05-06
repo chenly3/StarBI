@@ -278,6 +278,31 @@ class TrustedAnswerRuntimeContextServiceTest {
     }
 
     @Test
+    void datasourcePrefixedLearningResourceShouldAuthorizeDatasetAskRuntime() {
+        TrustedAnswerRequest request = request(9001001L, 9001L);
+        request.setResourceId("9001");
+        AIQueryThemeVO theme = theme(true, List.of(9001L), List.of(9001L));
+        theme.setId(9001001L);
+        theme.setName("权限验证账单分析");
+        when(aiQueryThemeManage.getTheme(9001001L)).thenReturn(theme);
+        when(substituteDatasetExampleStore.sqlBotDatasource())
+                .thenReturn(List.of(datasource(9001L,
+                        table(9001L, "account"),
+                        table(9001L, "product"),
+                        table(9001L, "payable_amount"))));
+        AIQueryLearningResourceVO sqlbotResource = learnedResource("datasource:9001");
+        sqlbotResource.setFieldCount(null);
+        when(aiQueryThemeManage.listRuntimeQueryLearningResources()).thenReturn(List.of(sqlbotResource));
+
+        TrustedAnswerTraceVO trace = service.buildTrace(request);
+
+        assertEquals(TrustedAnswerState.TRUSTED, trace.getState());
+        assertEquals(3, trace.getContext().getVisibleFieldCount());
+        assertTrue(trace.getPermissionSteps().stream()
+                .anyMatch(step -> step.contains("resource-readiness-evaluated")));
+    }
+
+    @Test
     void schemaFallbackTablesOutsideAuthorizedDatasetsShouldBeFilteredBeforeCounting() {
         TrustedAnswerRequest request = request(1001L, 21L);
         AIQueryThemeVO theme = theme(true, List.of(11L), List.of(11L));
