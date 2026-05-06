@@ -150,6 +150,22 @@ async function navigateToReportPage(page: Page) {
   // Give the Vue router time to process the route change
   await page.waitForTimeout(2000)
 
+  // CRITICAL: Check for permission error dialog first
+  // The dialog appears with text "当前页面仅对 admin 开放"
+  const permissionDialog = page.locator('.el-message-box, .el-dialog').filter({ hasText: /admin|开放/ })
+  const hasPermissionDialog = await permissionDialog.count() > 0
+
+  if (hasPermissionDialog) {
+    const finalUrl = page.url()
+    console.error('[E2E] ❌ PERMISSION ERROR: Admin-only dialog detected!')
+    console.error(`[E2E] Current URL: ${finalUrl}`)
+    await page.screenshot({
+      path: 'test-results/screenshots/error-permission-denied.png',
+      fullPage: true
+    })
+    throw new Error('PERMISSION_DENIED: Admin-only page access denied')
+  }
+
   // Wait for page to load - use multiple possible selectors
   try {
     // Try multiple selectors that indicate the report page loaded
@@ -159,22 +175,43 @@ async function navigateToReportPage(page: Page) {
         timeout: 20_000
       }
     )
-    console.log('[E2E] Report page loaded successfully')
   } catch (e) {
     // If selector fails, take a screenshot and check URL for debugging
     const finalUrl = page.url()
-    console.log(`[E2E] Navigation failed. Final URL: ${finalUrl}`)
+    console.error(`[E2E] ❌ Navigation failed. Final URL: ${finalUrl}`)
+
+    // ASSERT: We should still be on the report page
+    if (!finalUrl.includes('report')) {
+      console.error('[E2E] ❌ URL ASSERTION FAILED: Not on report page - might be permission or routing issue')
+      console.error('[E2E] Expected URL to contain: report')
+      console.error(`[E2E] Actual URL: ${finalUrl}`)
+      await page.screenshot({
+        path: 'test-results/screenshots/error-wrong-url.png',
+        fullPage: true
+      })
+      throw new Error(`NAVIGATION_FAILED: Expected to be on report page, but got: ${finalUrl}`)
+    }
+
     await page.screenshot({
       path: 'test-results/screenshots/debug-navigation-fail.png',
       fullPage: true
     })
-
-    // Check if we're on a different page (might be permission issue)
-    if (!finalUrl.includes('report')) {
-      console.log('[E2E] Not on report page - might be permission or routing issue')
-    }
     throw e
   }
+
+  // ASSERT: Verify we're still on the report page (not redirected)
+  const finalUrl = page.url()
+  if (!finalUrl.includes('report')) {
+    console.error(`[E2E] ❌ URL CHECK FAILED: Was redirected away from report page`)
+    console.error(`[E2E] Final URL: ${finalUrl}`)
+    await page.screenshot({
+      path: 'test-results/screenshots/error-redirected.png',
+      fullPage: true
+    })
+    throw new Error(`REDIRECTED: Page was redirected to ${finalUrl}`)
+  }
+
+  console.log('[E2E] ✅ Report page loaded and URL verified')
 
   // Additional wait for any async components to render
   await page.waitForTimeout(1000)
@@ -463,7 +500,56 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
   })
 
   // -----------------------------------------------------------------------
-  // 10. Direct navigation verification
+  // 10. Chinese i18n verification (CRITICAL for menu display)
+  // -----------------------------------------------------------------------
+  test('should display Chinese text for menu and page elements', async ({ page }) => {
+    await login(page)
+    await navigateToReportPage(page)
+
+    // CRITICAL: Verify page title is in Chinese
+    const pageTitle = page.locator('.system-setting-page__title')
+    await expect(pageTitle).toBeVisible({ timeout: 10_000 })
+
+    const titleText = await pageTitle.textContent()
+    console.log(`[E2E] Page title: "${titleText}"`)
+
+    // ASSERT: Title should be "定时报告" not i18n key or English
+    expect(titleText).toContain('定时报告')
+    if (titleText?.includes('report.') || titleText?.includes('scheduled_reports')) {
+      console.error('[E2E] ❌ I18N ERROR: Title contains i18n key instead of translated text!')
+      console.error(`[E2E] Actual title: "${titleText}"`)
+      await page.screenshot({
+        path: 'test-results/screenshots/error-i18n-not-translated.png',
+        fullPage: true
+      })
+      throw new Error(`I18N_NOT_TRANSLATED: Title shows i18n key instead of Chinese text: "${titleText}"`)
+    }
+
+    // ASSERT: Create button should show Chinese "新建任务" not English
+    const createBtn = page.locator('button').filter({ hasText: /新建|创建/ }).first()
+    await expect(createBtn).toBeVisible({ timeout: 5000 })
+
+    const btnText = await createBtn.textContent()
+    console.log(`[E2E] Create button text: "${btnText}"`)
+
+    // Verify it contains Chinese characters
+    if (!btnText?.match(/[一-龥]/)) {
+      console.error('[E2E] ❌ I18N ERROR: Create button does not contain Chinese text!')
+      console.error(`[E2E] Actual button text: "${btnText}"`)
+      await page.screenshot({
+        path: 'test-results/screenshots/error-button-not-chinese.png',
+        fullPage: true
+      })
+      throw new Error(`I18N_NOT_CHINESE: Button does not show Chinese: "${btnText}"`)
+    }
+
+    console.log('[E2E] ✅ Chinese i18n verified: title and buttons show correct Chinese text')
+
+    await takeScreenshot(page, '12-chinese-i18n-verified')
+  })
+
+  // -----------------------------------------------------------------------
+  // 12. Direct navigation verification
   // -----------------------------------------------------------------------
   test('should verify report page loads correctly on direct navigation', async ({ page }) => {
     await login(page)
@@ -482,16 +568,16 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
     const tableContainer = page.locator('.task-list-container')
     await expect(tableContainer).toBeVisible()
 
-    await takeScreenshot(page, '12-direct-navigation')
+    await takeScreenshot(page, '13-direct-navigation')
   })
 
   // -----------------------------------------------------------------------
-  // 11. Full page visual regression screenshot
+  // 13. Full page visual regression screenshot
   // -----------------------------------------------------------------------
   test('should capture full-page screenshots for visual review', async ({ page }) => {
     await login(page)
     await navigateToReportPage(page)
-    await takeScreenshot(page, '13-visual-report-list')
+    await takeScreenshot(page, '14-visual-report-list')
 
     const createBtn = page
       .locator('button')
@@ -499,7 +585,7 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
       .first()
     await createBtn.click()
     await page.locator('.el-dialog').waitFor({ state: 'visible' })
-    await takeScreenshot(page, '14-visual-wizard-step1')
+    await takeScreenshot(page, '15-visual-wizard-step1')
 
     await page.locator('.el-radio').first().click()
     await page
@@ -513,10 +599,10 @@ test.describe('Scheduled Reports - E2E Acceptance', () => {
       .first()
     await nextBtn.click()
     await page.locator('.recipient-tabs, .el-tabs').waitFor({ state: 'visible' })
-    await takeScreenshot(page, '15-visual-wizard-step2')
+    await takeScreenshot(page, '16-visual-wizard-step2')
 
     await nextBtn.click()
     await page.waitForTimeout(500)
-    await takeScreenshot(page, '16-visual-wizard-step3')
+    await takeScreenshot(page, '17-visual-wizard-step3')
   })
 })
